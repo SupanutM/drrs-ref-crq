@@ -1,0 +1,15 @@
+@font-face {
+    font-family: 'NotoSansThai-Medium';
+    src: local('NotoSansThai-Medium'), url('../fonts/NotoSansThai-Medium.ttf') format('truetype');
+  }
+  
+  @font-face {
+    font-family: 'NotoSansThai-Regular';
+    src: local('NotoSansThai-Regular'), url('../fonts/NotoSansThai-Regular.ttf') format('truetype');
+  }
+  
+  @font-face {
+    font-family: 'GSB';
+    src: local('GSB'), url('../fonts/GSB.ttf') format('truetype');
+  }
+  

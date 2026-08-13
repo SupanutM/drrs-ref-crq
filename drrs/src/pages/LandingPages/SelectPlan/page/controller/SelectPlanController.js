@@ -1,0 +1,267 @@
+import PropTypes from "prop-types";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { saveDebtRestructure } from "api/register";
+import SelectPlanView from "../view/SelectPlanView";
+
+function SelectPlanController(props) {
+    const navigate = useNavigate();
+    const { routerState } = props;
+
+    // Global Plans array from targetInfo (removed, now per-account)
+    // const plans = routerState?.targetInfo?.masterPlan || [];
+
+    // Tab State (removed)
+    // const [activeTabIndex, setActiveTabIndex] = useState(0);
+    // const activePlan = plans[activeTabIndex] || null;
+
+    // Per-account Plan Selection State
+    // Format: { "accountNo1": "planNo", "accountNo2": "planNo" }
+    const [selectedPlans, setSelectedPlans] = useState({});
+
+    // Accounts array (assuming targetInfo has an array, or fallback to single accountNo)
+    const accounts = routerState?.targetInfo?.accounts ||
+        (routerState?.targetInfo?.accountNo ? [{ accountNo: routerState.targetInfo.accountNo, outstanding: 10000 }] : []);
+
+    const [netIncome, setNetIncome] = useState(Number(routerState?.targetInfo?.netIncome || 0));
+    const [incomeData, setIncomeData] = useState({
+        totalIncome: routerState?.targetInfo?.totalIncome || "",
+        otherIncome: routerState?.targetInfo?.otherIncome || "",
+        totalCost: routerState?.targetInfo?.totalCost || "",
+        netIncome: routerState?.targetInfo?.netIncome || ""
+    });
+
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [successMessage, setSuccessMessage] = useState("");
+    const [contractTemplate, setContractTemplate] = useState(null);
+    const [isWarnModalOpen, setIsWarnModalOpen] = useState(false);
+    const [warnMessage, setWarnMessage] = useState("");
+    const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
+
+    const handlePlanSelect = (accountNo, planNo) => {
+        console.log(`[SelectPlan] handlePlanSelect called with accountNo: ${accountNo}, planNo: ${planNo}`);
+        setSelectedPlans(prev => {
+            const next = { ...prev };
+            if (next[accountNo] === planNo) {
+                // Deselect if already selected
+                delete next[accountNo];
+            } else {
+                // Select new plan
+                next[accountNo] = planNo;
+            }
+            console.log(`[SelectPlan] New selectedPlans state:`, next);
+            return next;
+        });
+    };
+
+    const [isIncompleteModalOpen, setIsIncompleteModalOpen] = useState(false);
+
+    const handleAccept = () => {
+        const selectedAccountNos = Object.keys(selectedPlans);
+        if (selectedAccountNos.length === 0 || accounts.length === 0) return;
+
+        // Check if there are any unselected accounts that are not registered
+        const selectableAccounts = accounts.filter(acc => !acc.isRegistered);
+        if (selectedAccountNos.length < selectableAccounts.length) {
+            setIsIncompleteModalOpen(true);
+            return;
+        }
+
+        proceedWithSave();
+    };
+
+    const handleProceedIncomplete = () => {
+        setIsIncompleteModalOpen(false);
+        proceedWithSave();
+    };
+
+    const handleCloseIncompleteModal = () => {
+        setIsIncompleteModalOpen(false);
+    };
+
+    const proceedWithSave = async (overrideNetIncome = null) => {
+        const currentNetIncome = overrideNetIncome !== null ? overrideNetIncome : netIncome;
+
+        const selectedAccountNos = Object.keys(selectedPlans);
+        if (selectedAccountNos.length === 0 || accounts.length === 0) return;
+
+        // Helper: ตรวจสอบว่าแผนนั้นต้องเช็ครายได้หรือไม่ (ใช้ String() ป้องกัน type mismatch จาก API)
+        const needsIncomeCheck = (acc) => {
+            const selectedPlanNo = selectedPlans[acc.accountNo];
+            if (!selectedPlanNo) return false;
+            const activePlan = acc.masterPlan?.find(p => p.planNo === selectedPlanNo);
+            // isCheckIncome = '0' หรือ 0 → ไม่ต้องเช็ค, อื่นๆ (1, '1', undefined) → ต้องเช็ค (safe zone)
+            return String(activePlan?.isCheckIncome) !== '0';
+        };
+
+        // แยกบัญชีที่เลือกออกเป็น 2 กลุ่ม: ต้องเช็ครายได้ vs ไม่ต้องเช็ค
+        const accountsNeedCheck = accounts.filter(acc => selectedPlans[acc.accountNo] && needsIncomeCheck(acc));
+
+        // คำนวณยอด min_amount รวมเฉพาะบัญชีที่ต้องเช็ครายได้
+        const totalMinAmount = accountsNeedCheck.reduce((sum, acc) => sum + (Number(acc.minAmount) || 0), 0);
+
+        // ตรวจสอบรายได้สุทธิ: เช็คเฉพาะเมื่อมีบัญชีที่ต้องการตรวจสอบ (isCheckIncome != 0)
+        if (accountsNeedCheck.length > 0 && currentNetIncome < totalMinAmount) {
+            setWarnMessage(`"รายได้สุทธิไม่เพียงพอชำระหนี้ กรุณาระบุรายได้อื่นๆ เพื่อประกอบการพิจารณา หรือติดต่อสาขา"`);
+            setIsWarnModalOpen(true);
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+
+            // API Payload - construct array of selected plans only for accounts that have a selection
+            const payload = accounts
+                .filter(acc => selectedPlans[acc.accountNo])
+                .map(acc => {
+                    const planNo = selectedPlans[acc.accountNo];
+                    const activePlan = acc.masterPlan?.find(p => p.planNo === planNo);
+                    return {
+                        cusTargetId: routerState?.targetInfo?.cusTargetId,
+                        accountNo: acc.accountNo,
+                        loantype: planNo === "01" ? "HC" : "LT",
+                        planNo: planNo,
+                        planDetail: planNo === "01" ? {
+                            amount: activePlan?.details?.[0]?.paymentAmount || activePlan?.details?.[0]?.amount || 500
+                        } : {
+                            principal: activePlan?.details?.[0]?.principal || 10000,
+                            installmentAmount: activePlan?.details?.[0]?.paymentAmount || activePlan?.details?.[0]?.installmentAmount || 500,
+                            interest: activePlan?.details?.[0]?.interest || 2,
+                            installmentTerm: activePlan?.details?.[0]?.installmentTerms || activePlan?.details?.[0]?.installmentTerm || 20,
+                            installmentFrequency: activePlan?.details?.[0]?.installmentFrequency || 30
+                        },
+                    };
+                });
+
+            // Pass array payload if API supports it, or adapt here
+            const apiResponse = await saveDebtRestructure(payload);
+
+            if (apiResponse.success) {
+                setContractTemplate({
+                    conditionMonth: apiResponse.template.conditionMonth,
+                    conditionYear: apiResponse.template.conditionYear,
+                    items: apiResponse.template.items,
+                    birthDate: routerState?.targetInfo?.dateOfBirth || routerState?.targetInfo?.birthDate || '',
+                    dateOfBirth: routerState?.targetInfo?.dateOfBirth || routerState?.targetInfo?.birthDate || '',
+                    citizenId: routerState?.targetInfo?.citizenId || ''
+                });
+                setSuccessMessage("บันทึกข้อมูลชำระหนี้ และ แผนการปรับปรุงโครงสร้างหนี้สำเร็จ !");
+                setIsSuccessModalOpen(true);
+            } else {
+                const errorMsg = apiResponse?.message || "ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง";
+                setWarnMessage(errorMsg);
+                setIsWarnModalOpen(true);
+            }
+        } catch (error) {
+            console.error("Submit Plan Error:", error);
+            const errorMessage = error.response?.data?.message || error.message || "ระบบขัดข้อง ไม่สามารถบันทึกข้อมูลได้ในขณะนี้";
+            setWarnMessage(errorMessage);
+            setIsWarnModalOpen(true);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSuccessConfirm = () => {
+        setIsLoading(true);
+        setIsSuccessModalOpen(false);
+
+        // สร้างข้อมูลบัญชีที่เลือก สำหรับส่งไปหน้า PlanSummary
+        const selectedAccountsData = accounts
+            .filter(acc => selectedPlans[acc.accountNo])
+            .map(acc => {
+                const planNo = selectedPlans[acc.accountNo];
+                const activePlan = acc.masterPlan?.find(p => p.planNo === planNo);
+                const detail = activePlan?.details?.[0] || {};
+                const isHaircut = planNo === "01";
+
+                return {
+                    accountNo: acc.accountNo,
+                    loanType: acc.loanType || detail.desc || (isHaircut ? "HC" : "LT"),
+                    contractDate: acc.contractDate || "",
+                    loanAmount: acc.loanAmount || acc.outstanding || "",
+                    principal: detail.principal || acc.principal || "",
+                    interest: detail.interest || acc.interest || "",
+                    isHaircut: isHaircut,
+                    paymentAmount: detail.paymentAmount || detail.amount || detail.installmentAmount || "",
+                    endDate: detail.endDate || "",
+                    startMonth: detail.startDate || "",
+                    endMonth: detail.endDate || "",
+                    installments: detail.installments || [],
+                };
+            });
+
+        setTimeout(() => {
+            navigate("/drrs/plan-summary", {
+                replace: true, // ป้องกันการกด Back กลับมาหน้า SelectPlan
+                state: {
+                    ...routerState,
+                    selectedPlans: selectedPlans,
+                    template: contractTemplate,
+                    targetInfo: routerState?.targetInfo,
+                    customerInfo: routerState?.customerInfo || routerState?.targetInfo,
+                    selectedAccounts: selectedAccountsData
+                }
+            });
+        }, 1000);
+    };
+
+    const handleCloseWarnModal = () => {
+        setIsWarnModalOpen(false);
+        setWarnMessage("");
+    };
+
+    const handleOpenIncomeModal = () => setIsIncomeModalOpen(true);
+    const handleCloseIncomeModal = () => setIsIncomeModalOpen(false);
+
+    const handleIncomeSuccess = (payload) => {
+        setIsIncomeModalOpen(false);
+        setNetIncome(payload.netIncome);
+        setIncomeData(payload); // Cache the new data
+        if (routerState && routerState.targetInfo) {
+            routerState.targetInfo.netIncome = payload.netIncome;
+            routerState.targetInfo.totalIncome = payload.totalIncome;
+            routerState.targetInfo.otherIncome = payload.otherIncome;
+            routerState.targetInfo.totalCost = payload.totalCost;
+
+            navigate("/drrs/plan-preview", { state: routerState, replace: true });
+        }
+    };
+
+    const viewState = {
+        routerState,
+        accounts,
+        selectedPlans,
+        isLoading,
+        isSuccessModalOpen,
+        successMessage,
+        isWarnModalOpen,
+        warnMessage,
+        isIncomeModalOpen,
+        netIncome,
+        incomeData,
+        isIncompleteModalOpen
+    };
+
+    const handlers = {
+        handlePlanSelect,
+        handleAccept,
+        handleSuccessConfirm,
+        handleCloseWarnModal,
+        handleOpenIncomeModal,
+        handleCloseIncomeModal,
+        handleIncomeSuccess,
+        handleProceedIncomplete,
+        handleCloseIncompleteModal
+    };
+
+    return <SelectPlanView state={viewState} handlers={handlers} />;
+}
+
+SelectPlanController.propTypes = {
+    routerState: PropTypes.object.isRequired,
+};
+
+export default SelectPlanController;

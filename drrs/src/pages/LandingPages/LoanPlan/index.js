@@ -1,0 +1,100 @@
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+
+// @mui material components
+import Card from "@mui/material/Card";
+import Container from "@mui/material/Container";
+import Grid from "@mui/material/Grid";
+
+// Material Kit 2 React components
+import MKBox from "components/MKBox";
+import MKTypography from "components/MKTypography";
+
+// Material Kit 2 React examples
+import DefaultNavbar from "examples/Navbars/DefaultNavbar";
+
+// Routes
+import routes from "routes";
+
+// ==========================================
+// นำเข้า Controller
+// ==========================================
+import LoanPlanController from "./page/controller/LoanPlanController";
+
+function LoanPlan() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const routerState = location.state;
+
+  // ตรวจสอบการเข้าถึงหน้าเว็บผ่าน Consent
+  useEffect(() => {
+    if (!routerState) {
+      navigate("/ndrs-gsb-register/form", { replace: true });
+    }
+  }, [navigate, routerState]);
+
+  if (!routerState) {
+    return null;
+  }
+
+  return (
+    <MKBox sx={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+
+      <DefaultNavbar
+        routes={routes}
+        action={{
+          type: "external",
+          route: "https://ln15.gsb.or.th/ndrs",
+          label: "GSB NDRS Website",
+          color: "default",
+        }}
+        backRoute
+        transparent
+        light
+      />
+
+      {/* แบนเนอร์สีฟ้าด้านบน */}
+      <MKBox sx={{ minHeight: { xs: "280px", md: "35vh" }, flexShrink: 0, width: "100%", backgroundColor: "#eb3a75", backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", pt: { xs: "60px", md: "64px" }, pb: { xs: 3, md: 4 } }} >
+        <Container>
+          <Grid container item xs={12} lg={8} justifyContent="center" alignItems="center" flexDirection="column" sx={{ mx: "auto", textAlign: "center" }} >
+            <MKTypography
+              variant="h2"
+              color="white"
+              sx={({ breakpoints, typography: { size } }) => ({
+                fontSize: size["2xl"],
+                [breakpoints.down("md")]: {
+                  fontSize: size["xl"],
+                },
+              })}
+            >
+              ลงทะเบียนขอปรับปรุงโครงสร้างหนี้
+              {/* <br />
+              ผ่อนปรนเงื่อนไขการชำระหนี้ */}
+            </MKTypography>
+            {/* <MKTypography variant="h5" color="white" opacity={1} mt={1} mb={3} sx={({ breakpoints, typography: { size } }) => ({ [breakpoints.down("md")]: { fontSize: size["md"] } })}>
+              ผ่านช่องทาง Digital
+            </MKTypography> */}
+          </Grid>
+        </Container>
+      </MKBox>
+
+      {/* กล่อง Card สีขาวที่ครอบ Form ทั้งหมด */}
+      <Card sx={{ mx: { xs: 2, lg: 3 }, mt: -6, mb: 2, pt: 4, pb: 4, boxShadow: ({ boxShadows: { xxl } }) => xxl, flexGrow: 1, overflowY: "auto", overflowX: "hidden" }}>
+        <Container sx={{ minHeight: "500px" }}>
+          {/* หัวข้อฟอร์ม (สีแดง/Primary) ให้อยู่กึ่งกลาง*/}
+          <Grid container justifyContent="center" >
+            <MKTypography variant="h5" color="primary" align="center">
+              เลือกแผนการปรับปรุงโครงสร้างหนี้
+            </MKTypography>
+          </Grid>
+
+          {/* เรียกใช้งาน Controller และส่ง routerState ไปให้ */}
+          <LoanPlanController routerState={routerState} />
+
+        </Container>
+      </Card>
+    </MKBox>
+  );
+}
+
+export default LoanPlan;
