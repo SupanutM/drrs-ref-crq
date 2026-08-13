@@ -54,6 +54,7 @@ const augmentCustomerInfoWithDbData = async (customerInfo) => {
         citizenId: safeDecrypt(customerInfo?.citizenId),
         cifNo: safeDecrypt(customerInfo?.cifNo),
         address: safeDecrypt(customerInfo?.address),
+        email: safeDecrypt(customerInfo?.email),
         mobileNo: customerInfo?.mobileNo || customerInfo?.telNo, // รองรับทั้งสองชื่อตัวแปร
         birthday: customerInfo?.birthday || customerInfo?.dateOfBirth // รองรับทั้งสองชื่อตัวแปรเผื่อ Frontend ส่งมาต่างกัน
     };
@@ -81,17 +82,18 @@ const generateContractController = async (req, res) => {
         contractPdfService.savePdfToDisk(pdfBuffer, filename);
 
         // 2. Send Email asynchronously
-        if (customerInfo?.email) {
+        const emailAddress = augmentedCustomerInfo.email;
+        if (emailAddress) {
             const emailData = {
                 cid: augmentedCustomerInfo.citizenId || 'Unknown',
-                email: customerInfo.email,
+                email: emailAddress,
                 pdfBuffer: pdfBuffer,
                 pdfFilename: filename,
                 customerName: `${augmentedCustomerInfo.firstName || ''} ${augmentedCustomerInfo.lastName || ''}`.trim(),
-                acceptTermCondDate: customerInfo.acceptTermCondDate || '',
-                loanTypeCode: customerInfo.loanTypeCode || '',
+                acceptTermCondDate: format(new Date(), 'yyyyMMdd'),
+                loanTypeCode: selectedAccounts?.[0]?.planNo || '01',
             };
-
+            
             emailService.triggerSendContractEmail(emailData).catch(err => {
                 logger.error(`Unhandled error in email trigger: ${err.message}`);
             });
