@@ -106,7 +106,23 @@ const previewContractHtml = async (customerInfo, selectedAccounts) => {
     return htmlContent;
 };
 
+const savePdfToDisk = (pdfBuffer, filename) => {
+    const env = require('../../config/env');
+    const savePath = env.contractSavePath || path.join(__dirname, '../../../assets/contracts');
+    const resolvedPath = path.resolve(savePath);
+    
+    // Create directory if not exists
+    if (!fs.existsSync(resolvedPath)) {
+        fs.mkdirSync(resolvedPath, { recursive: true });
+    }
+    
+    const filePath = path.join(resolvedPath, filename);
+    fs.writeFileSync(filePath, pdfBuffer);
+    return filePath;
+};
+
 module.exports = {
     generateContractPdf,
-    previewContractHtml
+    previewContractHtml,
+    savePdfToDisk
 };

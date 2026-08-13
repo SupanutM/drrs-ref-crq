@@ -5,7 +5,7 @@ const { AppDataSource } = require('../../config/database');
 const crypto = require('../../utils/crypto');
 const createStepService = require('../../services/util/systemLog/createStepService');
 const { systemLogService } = require('../../services/util/systemLog/systemLogService');
-
+const emailService = require('../../services/util/emailService');
 const safeDecrypt = (value) => {
     if (!value || typeof value !== 'string') return value;
     if (value.includes(':')) {
@@ -32,7 +32,7 @@ const augmentAccountsWithDbData = async (accounts) => {
             if (resDb && resDb.length > 0) {
                 acc.paymentAmount = resDb[0].installment_amount;
                 acc.installmentTerms = resDb[0].installment_term;
-                
+
                 // If there is only one default installment in the array, update it too
                 if (acc.installments && acc.installments.length === 1) {
                     acc.installments[0].amount = resDb[0].installment_amount;
@@ -44,36 +44,22 @@ const augmentAccountsWithDbData = async (accounts) => {
 };
 
 const augmentCustomerInfoWithDbData = async (customerInfo) => {
-    const cusTargetId = customerInfo?.cusTargetId;
-    if (!cusTargetId) return customerInfo;
-    const query = `
-        SELECT first_name, last_name, tel_no, birthday 
-        FROM tbl_cus_target
-        WHERE id = $1
-    `;
-    const resDb = await AppDataSource.query(query, [cusTargetId]);
+    if (!customerInfo) return {};
     
-    if (resDb && resDb.length > 0) {
-        return {
-            ...customerInfo,
-            firstName: resDb[0].first_name || safeDecrypt(customerInfo?.firstName),
-            lastName: resDb[0].last_name || safeDecrypt(customerInfo?.lastName),
-            citizenId: safeDecrypt(customerInfo?.citizenId),
-            address: safeDecrypt(customerInfo?.address),
-            mobileNo: resDb[0].tel_no,
-            birthday: resDb[0].birthday
-        };
-    }
-    
-    // If no DB result, still decrypt what we have
+    // ข้อมูลทุกอย่างส่งมาจาก Frontend ครบแล้ว ไม่ต้อง Query DB ซ้ำ
     return {
         ...customerInfo,
         firstName: safeDecrypt(customerInfo?.firstName),
         lastName: safeDecrypt(customerInfo?.lastName),
         citizenId: safeDecrypt(customerInfo?.citizenId),
-        address: safeDecrypt(customerInfo?.address)
+        cifNo: safeDecrypt(customerInfo?.cifNo),
+        address: safeDecrypt(customerInfo?.address),
+        mobileNo: customerInfo?.mobileNo || customerInfo?.telNo, // รองรับทั้งสองชื่อตัวแปร
+        birthday: customerInfo?.birthday || customerInfo?.dateOfBirth // รองรับทั้งสองชื่อตัวแปรเผื่อ Frontend ส่งมาต่างกัน
     };
 };
+
+const { format } = require('date-fns');
 
 const generateContractController = async (req, res) => {
     try {
@@ -81,12 +67,35 @@ const generateContractController = async (req, res) => {
 
         logger.info(`Generating contract PDF for customer: ${customerInfo?.citizenId}`);
         const augmentedAccounts = await augmentAccountsWithDbData(selectedAccounts || []);
-        
+
         // Fetch name from DB just to be safe
         const augmentedCustomerInfo = await augmentCustomerInfoWithDbData(customerInfo || {});
 
         const pdfBuffer = await contractPdfService.generateContractPdf(augmentedCustomerInfo, augmentedAccounts);
         logger.info(`PDF generated successfully with length: ${pdfBuffer.length}`);
+
+        // 1. Save PDF to disk
+        const currentTimestamp = format(new Date(), 'yyyyMMdd_HHmmss');
+        const filePrefix = augmentedCustomerInfo.cifNo;
+        const filename = `${filePrefix}_${currentTimestamp}.pdf`;
+        contractPdfService.savePdfToDisk(pdfBuffer, filename);
+
+        // 2. Send Email asynchronously
+        if (customerInfo?.email) {
+            const emailData = {
+                cid: augmentedCustomerInfo.citizenId || 'Unknown',
+                email: customerInfo.email,
+                pdfBuffer: pdfBuffer,
+                pdfFilename: filename,
+                customerName: `${augmentedCustomerInfo.firstName || ''} ${augmentedCustomerInfo.lastName || ''}`.trim(),
+                acceptTermCondDate: customerInfo.acceptTermCondDate || '',
+                loanTypeCode: customerInfo.loanTypeCode || '',
+            };
+
+            emailService.triggerSendContractEmail(emailData).catch(err => {
+                logger.error(`Unhandled error in email trigger: ${err.message}`);
+            });
+        }
 
         // Update step and log
         if (selectedAccounts && selectedAccounts.length > 0) {
@@ -106,7 +115,7 @@ const generateContractController = async (req, res) => {
 
         res.set({
             'Content-Type': 'application/pdf',
-            'Content-Disposition': 'attachment; filename="plan_summary.pdf"',
+            'Content-Disposition': `attachment; filename="${filename}"`,
             'Content-Length': pdfBuffer.length
         });
 
@@ -126,12 +135,12 @@ const previewContractHtmlController = async (req, res) => {
         const { customerInfo, selectedAccounts } = req.body;
         logger.info(`Previewing contract HTML for customer: ${customerInfo?.citizenId}`);
         const augmentedAccounts = await augmentAccountsWithDbData(selectedAccounts || []);
-        
+
         // Fetch name from DB just to be safe
         const augmentedCustomerInfo = await augmentCustomerInfoWithDbData(customerInfo || {});
 
         const htmlContent = await contractPdfService.previewContractHtml(augmentedCustomerInfo, augmentedAccounts);
-        
+
         res.set('Content-Type', 'text/html');
         res.send(htmlContent);
     } catch (error) {

@@ -76,9 +76,10 @@ function PlanSummaryView(props) {
 
             const encryptedCustomer = {
                 cusTargetId: customer.cusTargetId,
+                citizenId: await safeEncrypt(customer.citizenId),
+                cifNo: await safeEncrypt(customer.cifNo),
                 firstName: await safeEncrypt(customer.firstName),
                 lastName: await safeEncrypt(customer.lastName),
-                citizenId: await safeEncrypt(customer.citizenId),
                 address: await safeEncrypt(customer.address)
             };
 
@@ -90,9 +91,14 @@ function PlanSummaryView(props) {
             const reader = new FileReader();
             reader.readAsDataURL(new Blob([pdfBlob], { type: 'application/pdf' }));
             reader.onloadend = () => {
+                const now = new Date();
+                const timestamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
+                const filePrefix = customer.cifNo || customer.citizenId || 'UNKNOWN';
+                const filename = `${filePrefix}_${timestamp}.pdf`;
+
                 const a = document.createElement('a');
                 a.href = reader.result;
-                a.setAttribute('download', 'plan_summary.pdf');
+                a.setAttribute('download', filename);
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
@@ -189,47 +195,47 @@ function PlanSummaryView(props) {
                 })}
             >
                 <MKButton
-                        variant="outlined"
-                        color="secondary"
-                        size="large"
-                        onClick={handleCancel}
-                        disabled={isLoading || isDownloading || isDownloaded}
-                        sx={{
-                            minWidth: { xs: "100%", sm: "200px" },
-                            py: 1.8,
-                            px: 5,
-                            borderRadius: "12px",
-                            fontSize: "1.1rem",
-                            fontWeight: "bold",
-                            "&:hover": {
-                                transform: "translateY(-2px)",
-                            },
-                            transition: "all 300ms cubic-bezier(0.34, 1.61, 0.7, 1)",
-                        }}
-                    >
-                        ยกเลิก
-                    </MKButton>
-                    <MKButton
-                        variant="contained"
-                        color="primary"
-                        size="large"
-                        onClick={() => {
-                            setIsDownloadModalOpen(true);
-                        }}
-                        disabled={isLoading || isDownloading || isDownloaded || selectedAccounts.length === 0 || !isAgreed}
-                        sx={{
-                            minWidth: { xs: "100%", sm: "200px" },
-                            py: 1.8,
-                            px: 5,
-                            borderRadius: "12px",
-                            fontSize: "1.1rem",
-                            fontWeight: "bold",
-                            "&:hover": {
-                                transform: "translateY(-2px)",
-                            },
-                            transition: "all 300ms cubic-bezier(0.34, 1.61, 0.7, 1)",
-                        }}
-                    > ยอมรับ </MKButton>
+                    variant="outlined"
+                    color="secondary"
+                    size="large"
+                    onClick={handleCancel}
+                    disabled={isLoading || isDownloading || isDownloaded}
+                    sx={{
+                        minWidth: { xs: "100%", sm: "200px" },
+                        py: 1.8,
+                        px: 5,
+                        borderRadius: "12px",
+                        fontSize: "1.1rem",
+                        fontWeight: "bold",
+                        "&:hover": {
+                            transform: "translateY(-2px)",
+                        },
+                        transition: "all 300ms cubic-bezier(0.34, 1.61, 0.7, 1)",
+                    }}
+                >
+                    ยกเลิก
+                </MKButton>
+                <MKButton
+                    variant="contained"
+                    color="primary"
+                    size="large"
+                    onClick={() => {
+                        setIsDownloadModalOpen(true);
+                    }}
+                    disabled={isLoading || isDownloading || isDownloaded || selectedAccounts.length === 0 || !isAgreed}
+                    sx={{
+                        minWidth: { xs: "100%", sm: "200px" },
+                        py: 1.8,
+                        px: 5,
+                        borderRadius: "12px",
+                        fontSize: "1.1rem",
+                        fontWeight: "bold",
+                        "&:hover": {
+                            transform: "translateY(-2px)",
+                        },
+                        transition: "all 300ms cubic-bezier(0.34, 1.61, 0.7, 1)",
+                    }}
+                > ยอมรับ </MKButton>
             </MKBox>
 
             <LoadingComponent isOpen={isLoading || isDownloading} />

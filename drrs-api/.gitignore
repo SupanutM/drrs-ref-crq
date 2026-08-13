@@ -5,3 +5,4 @@ logs/
 web.config
 server.js
 .cache/
+assets/contracts/

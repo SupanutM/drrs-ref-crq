@@ -137,6 +137,7 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
                 accounts: accountsWithPlans, 
                 firstName: customer.firstName,
                 lastName: customer.lastName,
+                cifNo: customer.cifNo,
                 totalIncome: customer.totalIncome,
                 otherIncome: customer.otherIncome,
                 totalCost: customer.totalCost,
