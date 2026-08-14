@@ -1,6 +1,8 @@
 const { AppDataSource } = require('../../config/database');
 const baseLogger = require('../../utils/logger');
-const { loadSqlQuery } = require('../../utils/sqlProvider');
+const tblCusTarget = require('../../entities/tblCusTarget');
+const tblAccountCusTarget = require('../../entities/tblAccountCusTarget');
+const tblMtMasterPlan = require('../../entities/tblMtMasterPlan');
 
 const logger = baseLogger.child({ context: 'checkIncomeService' });
 
@@ -27,7 +29,7 @@ const checkIncomeService = async (cusTargetId, accounts) => {
             return { isValid: true, netIncome: 0, netIncomeFound: false, totalMinAmount: 0, failedAccounts: [] };
         }
 
-        const sql = loadSqlQuery('check_income_plan.sql');
+
 
         let netIncome = 0;
         let netIncomeFound = false; // ← flag: อ่านค่า netIncome จาก DB จริงๆ หรือยัง
@@ -35,15 +37,22 @@ const checkIncomeService = async (cusTargetId, accounts) => {
         const failedAccounts = [];
 
         for (const acc of accounts) {
-            const rows = await AppDataSource.query(sql, [cusTargetId, acc.accountNo, acc.planNo]);
+            const row = await AppDataSource.getRepository(tblCusTarget)
+                .createQueryBuilder('ct')
+                .select('ct.net_income', 'netIncome')
+                .addSelect('act.min_amount', 'minAmount')
+                .addSelect(`COALESCE(mmp.is_check_income, '1')`, 'isCheckIncome')
+                .innerJoin(tblAccountCusTarget, 'act', 'act.cus_target_id = ct.id AND act.account_no = :accountNo AND act.plan_no = :planNo AND act.status = \'1\'')
+                .leftJoin(tblMtMasterPlan, 'mmp', 'mmp.code = act.plan_no AND mmp.status = \'1\'')
+                .where('ct.id = :cusTargetId', { cusTargetId: cusTargetId })
+                .setParameters({ accountNo: acc.accountNo, planNo: acc.planNo })
+                .getRawOne();
 
-            if (!rows || rows.length === 0) {
+            if (!row) {
                 // ไม่มีข้อมูลใน DB สำหรับ account นี้ → ข้ามไป ไม่ถือว่าได้ set netIncome
                 logger.warn(`[checkIncomeService] ไม่พบข้อมูลใน DB สำหรับ accountNo: ${acc.accountNo}, planNo: ${acc.planNo} — ข้ามการตรวจสอบ`);
                 continue;
             }
-
-            const row = rows[0];
 
             // อ่าน netIncome จาก DB เพียงครั้งแรก (ค่าเดียวกันทุก account เพราะ cusTargetId เดียวกัน)
             if (!netIncomeFound) {

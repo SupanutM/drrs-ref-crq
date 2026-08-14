@@ -81,7 +81,8 @@ function PlanSummaryView(props) {
                 firstName: await safeEncrypt(customer.firstName),
                 lastName: await safeEncrypt(customer.lastName),
                 address: await safeEncrypt(customer.address),
-                email: await safeEncrypt(customer.email)
+                email: await safeEncrypt(customer.email),
+                telNo: await safeEncrypt(customer.telNo)
             };
 
             const pdfBlob = await generateContractPdf({
@@ -93,7 +94,7 @@ function PlanSummaryView(props) {
             reader.readAsDataURL(new Blob([pdfBlob], { type: 'application/pdf' }));
             reader.onloadend = () => {
                 const now = new Date();
-                const timestamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
+                const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
                 const filePrefix = customer.cifNo || customer.citizenId || 'UNKNOWN';
                 const filename = `${filePrefix}_${timestamp}.pdf`;
 

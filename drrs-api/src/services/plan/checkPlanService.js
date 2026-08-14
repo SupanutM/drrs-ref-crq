@@ -1,37 +1,23 @@
 const { AppDataSource } = require('../../config/database');
 const baseLogger = require('../../utils/logger');
 const logger = baseLogger.child({ context: 'checkPlanService' });
-const { loadSqlQuery } = require('../../utils/sqlProvider');
-
-
+const tblMtMasterPlan = require('../../entities/tblMtMasterPlan');
+const tblMtMasterPlanDetail = require('../../entities/tblMtMasterPlanDetail');
 
 const checkPlanService = async (planNo) => {
     try {
         logger.info(`กำลังตรวจสอบสิทธิ์สำหรับแผนหมายเลข: ${planNo}`);
 
-        // ---------------------------------------------------------
-        // 🛠️ โค้ดสำหรับต่อ Database (Uncomment และปรับแก้ Entity ได้เลย)
-        // ---------------------------------------------------------
-        // const planRepo = AppDataSource.getRepository(tblPlanMaster);
-        // const planData = await planRepo.findOne({ 
-        //     where: { planNo: planNo, isActive: 'Y' } 
-        // });
-        //
-        // if (!planData) {
-        //     return { 
-        //         status: false, 
-        //         message: 'ไม่พบข้อมูลแผนนี้ หรือแผนนี้ถูกปิดการใช้งานไปแล้ว' 
-        //     };
-        // }
-        // ---------------------------------------------------------
-        const sqlName = 'check_plan_detail.sql';
-        logger.info(`sql: ${sqlName}`)
+        const result = await AppDataSource.getRepository(tblMtMasterPlan)
+            .createQueryBuilder('tmmp')
+            .select('tmmp.code', 'planCode')
+            .addSelect('tmmp.desc', 'planName')
+            .addSelect('tmmpd.desc', 'planDetail')
+            .innerJoin(tblMtMasterPlanDetail, 'tmmpd', 'tmmp.code = tmmpd.plan_code AND tmmp.status = tmmpd.status')
+            .where('tmmp.code LIKE :planNo', { planNo: planNo })
+            .getRawMany();
 
-        const sql = loadSqlQuery(sqlName);
-        logger.info(`sql: ${sql}`)
-        const result = await AppDataSource.query(sql, [planNo]);
-
-        logger.info(`result plan: ${result}`)
+        logger.info(`result plan: ${JSON.stringify(result)}`);
 
         return {
             status: true, 

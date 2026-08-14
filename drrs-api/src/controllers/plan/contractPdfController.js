@@ -6,6 +6,8 @@ const crypto = require('../../utils/crypto');
 const createStepService = require('../../services/util/systemLog/createStepService');
 const { systemLogService } = require('../../services/util/systemLog/systemLogService');
 const emailService = require('../../services/util/emailService');
+const tblAccountHairCut = require('../../entities/tblAccountHairCut');
+const tblAccountInstallment = require('../../entities/tblAccountInstallment');
 const safeDecrypt = (value) => {
     if (!value || typeof value !== 'string') return value;
     if (value.includes(':')) {
@@ -21,17 +23,25 @@ const safeDecrypt = (value) => {
 const augmentAccountsWithDbData = async (accounts) => {
     for (let acc of accounts) {
         if (acc.isHaircut) {
-            const query = `SELECT amount FROM drrs.tbl_account_hair_cut WHERE account_no = $1 ORDER BY created_date DESC LIMIT 1`;
-            const resDb = await AppDataSource.query(query, [acc.accountNo]);
+            const resDb = await AppDataSource.getRepository(tblAccountHairCut).find({
+                select: { amount: true },
+                where: { accountNo: acc.accountNo },
+                order: { createdDate: "DESC" },
+                take: 1
+            });
             if (resDb && resDb.length > 0) {
                 acc.paymentAmount = resDb[0].amount;
             }
         } else {
-            const query = `SELECT installment_amount, installment_term FROM drrs.tbl_account_installment WHERE account_no = $1 ORDER BY created_date DESC LIMIT 1`;
-            const resDb = await AppDataSource.query(query, [acc.accountNo]);
+            const resDb = await AppDataSource.getRepository(tblAccountInstallment).find({
+                select: { installmentAmount: true, installmentTerm: true },
+                where: { accountNo: acc.accountNo },
+                order: { createdDate: "DESC" },
+                take: 1
+            });
             if (resDb && resDb.length > 0) {
-                acc.paymentAmount = resDb[0].installment_amount;
-                acc.installmentTerms = resDb[0].installment_term;
+                acc.paymentAmount = resDb[0].installmentAmount;
+                acc.installmentTerms = resDb[0].installmentTerm;
 
                 // If there is only one default installment in the array, update it too
                 if (acc.installments && acc.installments.length === 1) {
@@ -55,7 +65,7 @@ const augmentCustomerInfoWithDbData = async (customerInfo) => {
         cifNo: safeDecrypt(customerInfo?.cifNo),
         address: safeDecrypt(customerInfo?.address),
         email: safeDecrypt(customerInfo?.email),
-        mobileNo: customerInfo?.mobileNo || customerInfo?.telNo, // รองรับทั้งสองชื่อตัวแปร
+        mobileNo: safeDecrypt(customerInfo?.telNo), // รองรับทั้งสองชื่อตัวแปร
         birthday: customerInfo?.birthday || customerInfo?.dateOfBirth // รองรับทั้งสองชื่อตัวแปรเผื่อ Frontend ส่งมาต่างกัน
     };
 };

@@ -4,23 +4,26 @@ const masterPlan = require('../../services/plan/masterPlanService');
 const baseLogger = require('../../utils/logger');
 const crypto = require('../../utils/crypto');
 const logger = baseLogger.child({ context: 'verifyService' });
-const { loadSqlQuery } = require('../../utils/sqlProvider');
+const tblSettingsApp = require('../../entities/tblSettingsApp');
 
 const checkCloseSystemService = async (channel) => {
     try {
-        const sqlName = 'check_close_system.sql';
-        logger.info(`sql: ${sqlName}`)
+        const result = await AppDataSource.getRepository(tblSettingsApp).find({
+            select: { statusFlag: true, appVersion: true },
+            where: { channel: channel, status: '1' }
+        });
 
-        const sql = loadSqlQuery(sqlName);
-        logger.info(`sql: ${sql}`)
-        const result = await AppDataSource.query(sql, [channel]);
+        const mappedResult = result.map(item => ({
+            status_flag: item.statusFlag,
+            appVersion: item.appVersion
+        }));
 
-        logger.info(`result plan: ${result}`)
+        logger.info(`result plan: ${JSON.stringify(mappedResult)}`);
 
         return {
             status: true, 
             message: 'ระบบเปิดใช้งาน',
-            data: result
+            data: mappedResult
         };
     } catch (error) {
         logger.error(`error: ${error}`)

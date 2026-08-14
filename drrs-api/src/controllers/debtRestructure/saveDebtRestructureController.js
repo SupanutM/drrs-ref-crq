@@ -7,7 +7,9 @@ const createStepService = require('../../services/util/systemLog/createStepServi
 const { systemLogService } = require('../../services/util/systemLog/systemLogService');
 const { checkIncomeService } = require('../../services/debtRestructure/checkIncomeService');
 const logger = baseLogger.child({ context: 'saveDebtRestructureController' });
-const { loadSqlQuery } = require('../../utils/sqlProvider');
+const tblSettingsStep = require('../../entities/tblSettingsStep');
+const tblAccountInstallment = require('../../entities/tblAccountInstallment');
+const tblAccountHairCut = require('../../entities/tblAccountHairCut');
 const { formatThaiMonthYear } = require('../../utils/formatThaiMonthYear');
 const { AppDataSource } = require('../../config/database');
 
@@ -77,9 +79,9 @@ const saveDebtRestructureController = async (req, res) => {
             // =========================================================
             // 🌟 ตรวจสอบเงื่อนไขจาก tbl_settings_step ก่อนทำการบันทึก (Step Check)
             // =========================================================
-            const stepSql = loadSqlQuery('check_settings_step.sql');
-            const stepRows = await AppDataSource.query(stepSql, [accountNo]);
-            const settingStep = stepRows[0] || {};
+            const settingStep = await AppDataSource.getRepository(tblSettingsStep).findOne({
+                where: { accountNo: accountNo }
+            }) || {};
 
             const stepConfirmPlan = settingStep?.stepConfirmPlan ? String(settingStep.stepConfirmPlan).trim() : '0';
             const stepSendToCbs = settingStep?.stepSendToCbs ? String(settingStep.stepSendToCbs).trim() : '0';
@@ -205,9 +207,7 @@ const savePlan = async (loantype, payload) => {
     let currentStep = '';
     try {
         loantype == "LT" ? currentStep = 'SAVE_INSTALLMENT_PLAN' : loantype == "HC" ? currentStep = 'SAVE_HAIR_CUT_PLAN' : '';
-        const sqlName = (loantype === "LT") ? 'check_duplicate_account_installment.sql' : 'check_duplicate_account_hair_cut.sql';
-
-        const isDuplicate = await checkDuplicateAccount(sqlName, payload.accountNo);
+        const isDuplicate = await checkDuplicateAccount(loantype, payload.accountNo);
 
         if (isDuplicate) {
             logger.error(`บัญชี ${payload.accountNo} มีการสร้างรายการแล้ว ไม่สามารถสร้างซ้ำได้`)
@@ -242,13 +242,15 @@ const savePlan = async (loantype, payload) => {
     }
 };
 
-const checkDuplicateAccount = async (sqlName, accountNo) => {
+const checkDuplicateAccount = async (loantype, accountNo) => {
     let step = 'CHECK_DUPLICATE';
     try {
-        const sql = loadSqlQuery(sqlName);
-        const result = await AppDataSource.query(sql, [accountNo]);
+        const entity = (loantype === "LT") ? tblAccountInstallment : tblAccountHairCut;
+        const count = await AppDataSource.getRepository(entity).count({
+            where: { accountNo: accountNo, status: '1' }
+        });
 
-        return parseInt(result[0]?.count || 0) > 0;
+        return count > 0;
 
     } catch (error) {
         error.actionStep = step;

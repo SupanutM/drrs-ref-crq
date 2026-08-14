@@ -53,7 +53,10 @@ function PlanSummaryController({ routerState }) {
                     firstName: await safeEncrypt(customer.firstName),
                     lastName: await safeEncrypt(customer.lastName),
                     citizenId: await safeEncrypt(customer.citizenId),
-                    address: await safeEncrypt(customer.address)
+                    cifNo: await safeEncrypt(customer.cifNo),
+                    address: await safeEncrypt(customer.address),
+                    email: await safeEncrypt(customer.email),
+                    telNo: await safeEncrypt(customer.telNo)
                 };
 
                 const html = await fetchContractHtml({
