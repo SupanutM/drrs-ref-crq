@@ -220,14 +220,18 @@ function SelectPlanController(props) {
         setIsIncomeModalOpen(false);
         setNetIncome(payload.netIncome);
         setIncomeData(payload); // Cache the new data
+
+        // อัปเดต routerState ให้มีค่ารายได้ใหม่พร้อมสำหรับหน้าถัดไป
         if (routerState && routerState.targetInfo) {
             routerState.targetInfo.netIncome = payload.netIncome;
             routerState.targetInfo.totalIncome = payload.totalIncome;
             routerState.targetInfo.otherIncome = payload.otherIncome;
             routerState.targetInfo.totalCost = payload.totalCost;
-
-            navigate("/drrs/plan-preview", { state: routerState, replace: true });
         }
+
+        // กลับไปหน้า plan-preview ตาม flow ที่ถูกต้อง
+        // (user จะกด confirm ใหม่ → SelectPlan จะ validate income อีกรอบ)
+        navigate("/drrs/plan-preview", { state: routerState, replace: true });
     };
 
     const viewState = {

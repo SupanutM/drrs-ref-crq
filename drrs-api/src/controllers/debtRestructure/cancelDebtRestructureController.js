@@ -12,26 +12,26 @@ const cancelDebtRestructureController = async (req, res) => {
             return sendError(res, 'กรุณาส่งข้อมูลบัญชีที่ต้องการยกเลิกให้ครบถ้วน', 400);
         }
 
-        const username = 'DRRS'; 
+        const username = 'DRRS';
 
         for (const accountNo of accounts) {
-            // Soft delete from tbl_account_installment
+            // Soft delete from drrs.tbl_account_installment
             await AppDataSource.query(`
-                UPDATE tbl_account_installment 
+                UPDATE drrs.tbl_account_installment 
                 SET status = '0', delete_date = CURRENT_TIMESTAMP, delete_by = $1 
                 WHERE account_no = $2 AND status = '1'
             `, [username, accountNo]);
 
-            // Soft delete from tbl_account_hair_cut
+            // Soft delete from drrs.tbl_account_hair_cut
             await AppDataSource.query(`
-                UPDATE tbl_account_hair_cut 
+                UPDATE drrs.tbl_account_hair_cut 
                 SET status = '0', delete_date = CURRENT_TIMESTAMP, delete_by = $1 
                 WHERE account_no = $2 AND status = '1'
             `, [username, accountNo]);
 
             // Reset stepConfirmPlan to "0"
             logger.info(`[Step Log] Reset stepConfirmPlan: "0" สำหรับ AccountNo: ${accountNo}`);
-            await createStepService.updateStepService(accountNo, { stepConfirmPlan: "0" }, 'cancelDebtRestructure');
+            await createStepService.updateStepService(accountNo, { stepConfirmPlan: "0" }, 'cancel-plan');
         }
 
         return sendSuccess(res, 'ยกเลิกแผนสำเร็จ', null);

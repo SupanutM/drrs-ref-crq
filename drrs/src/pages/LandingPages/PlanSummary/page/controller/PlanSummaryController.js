@@ -101,7 +101,7 @@ function PlanSummaryController({ routerState }) {
             console.error("Failed to cancel plan", error);
         } finally {
             setIsLoading(false);
-            navigate("/drrs/consent", { replace: true });
+            navigate("/drrs/select-plan", { replace: true, state: state.routerState });
         }
     };
 

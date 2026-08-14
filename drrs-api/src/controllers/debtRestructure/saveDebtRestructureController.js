@@ -5,6 +5,7 @@ const InstallmentService = require('../../services/debtRestructure/saveInstallme
 const ConditionXMLService = require('../../services/condition/getConditionXMLService');
 const createStepService = require('../../services/util/systemLog/createStepService');
 const { systemLogService } = require('../../services/util/systemLog/systemLogService');
+const { checkIncomeService } = require('../../services/debtRestructure/checkIncomeService');
 const logger = baseLogger.child({ context: 'saveDebtRestructureController' });
 const { loadSqlQuery } = require('../../utils/sqlProvider');
 const { formatThaiMonthYear } = require('../../utils/formatThaiMonthYear');
@@ -18,6 +19,32 @@ const saveDebtRestructureController = async (req, res) => {
         if (payloads.length === 0) {
             return sendError(res, 'กรุณาส่งข้อมูลให้ครบถ้วน', 400);
         }
+
+        // =========================================================
+        // 🛡️ INCOME VALIDATION GUARD — ตรวจสอบรายได้จาก DB โดยตรงก่อนบันทึก
+        // ป้องกัน bypass ไม่ว่าจะมาจาก Frontend หรือ API call ตรงก็ตาม
+        // =========================================================
+        const cusTargetId = payloads[0]?.cusTargetId;
+        if (cusTargetId) {
+            const accountsToCheck = payloads.map(p => ({
+                accountNo: p.accountNo,
+                planNo: p.planNo
+            }));
+
+            const incomeCheck = await checkIncomeService(cusTargetId, accountsToCheck);
+
+            if (!incomeCheck.isValid) {
+                logger.warn(`[Income Guard] รายได้สุทธิไม่เพียงพอ | netIncome: ${incomeCheck.netIncome} | totalMinAmount: ${incomeCheck.totalMinAmount} | accounts: ${incomeCheck.failedAccounts.join(', ')}`);
+                return sendError(res,
+                    `รายได้สุทธิไม่เพียงพอชำระหนี้ตามแผนที่เลือก (รายได้สุทธิ: ${incomeCheck.netIncome.toLocaleString()} บาท / ต้องมียอดรายได้สุทธิขั้นต่ำรวม: ${incomeCheck.totalMinAmount.toLocaleString()} บาท)`,
+                    400,
+                    { netIncome: incomeCheck.netIncome, totalMinAmount: incomeCheck.totalMinAmount }
+                );
+            }
+
+            logger.info(`[Income Guard] ผ่านการตรวจสอบรายได้ | netIncome: ${incomeCheck.netIncome} >= totalMinAmount: ${incomeCheck.totalMinAmount}`);
+        }
+        // =========================================================
 
         let combinedResults = [];
         let combinedTemplateItems = [];
