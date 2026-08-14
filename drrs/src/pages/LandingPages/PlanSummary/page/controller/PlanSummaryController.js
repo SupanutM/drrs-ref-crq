@@ -35,15 +35,15 @@ function PlanSummaryController({ routerState }) {
             try {
                 const { fetchContractHtml } = await import("api/register");
                 const { encryptGCM } = await import("api/crypto");
-                
+
                 const customer = customerInfo || targetInfo || {};
-                
+
                 const safeEncrypt = async (val) => {
                     if (!val) return val;
                     try {
                         const res = await encryptGCM({ value: val });
                         return res.encrypted;
-                    } catch(e) {
+                    } catch (e) {
                         return val;
                     }
                 };
@@ -101,7 +101,7 @@ function PlanSummaryController({ routerState }) {
             console.error("Failed to cancel plan", error);
         } finally {
             setIsLoading(false);
-            navigate("/drrs/select-plan", { replace: true, state: state.routerState });
+            navigate("/drrs/consent", { replace: true });
         }
     };
 
