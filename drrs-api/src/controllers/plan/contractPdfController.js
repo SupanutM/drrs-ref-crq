@@ -21,13 +21,13 @@ const safeDecrypt = (value) => {
 const augmentAccountsWithDbData = async (accounts) => {
     for (let acc of accounts) {
         if (acc.isHaircut) {
-            const query = `SELECT amount FROM tbl_account_hair_cut WHERE account_no = $1 ORDER BY created_date DESC LIMIT 1`;
+            const query = `SELECT amount FROM drrs.tbl_account_hair_cut WHERE account_no = $1 ORDER BY created_date DESC LIMIT 1`;
             const resDb = await AppDataSource.query(query, [acc.accountNo]);
             if (resDb && resDb.length > 0) {
                 acc.paymentAmount = resDb[0].amount;
             }
         } else {
-            const query = `SELECT installment_amount, installment_term FROM tbl_account_installment WHERE account_no = $1 ORDER BY created_date DESC LIMIT 1`;
+            const query = `SELECT installment_amount, installment_term FROM drrs.tbl_account_installment WHERE account_no = $1 ORDER BY created_date DESC LIMIT 1`;
             const resDb = await AppDataSource.query(query, [acc.accountNo]);
             if (resDb && resDb.length > 0) {
                 acc.paymentAmount = resDb[0].installment_amount;
@@ -45,7 +45,7 @@ const augmentAccountsWithDbData = async (accounts) => {
 
 const augmentCustomerInfoWithDbData = async (customerInfo) => {
     if (!customerInfo) return {};
-    
+
     // ข้อมูลทุกอย่างส่งมาจาก Frontend ครบแล้ว ไม่ต้อง Query DB ซ้ำ
     return {
         ...customerInfo,
@@ -93,7 +93,7 @@ const generateContractController = async (req, res) => {
                 acceptTermCondDate: format(new Date(), 'yyyyMMdd'),
                 loanTypeCode: selectedAccounts?.[0]?.planNo || '01',
             };
-            
+
             emailService.triggerSendContractEmail(emailData).catch(err => {
                 logger.error(`Unhandled error in email trigger: ${err.message}`);
             });
