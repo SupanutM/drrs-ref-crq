@@ -1,5 +1,5 @@
 const axios = require('axios');
-const crypto = require('../../utils/crypto'); 
+const crypto = require('../../utils/crypto');
 const baseLogger = require('../../utils/logger');
 const logger = baseLogger.child({ context: 'laserService' });
 
@@ -58,6 +58,6 @@ const verifyLaserIdService = async (payload) => {
     }
 };
 
-module.exports = { 
-    verifyLaserIdService 
+module.exports = {
+    verifyLaserIdService
 };

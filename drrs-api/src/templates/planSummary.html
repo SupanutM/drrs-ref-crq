@@ -145,7 +145,7 @@
                 </td>
             </tr>
             <tr>
-                <td colspan="4" class="label-row-cell">ที่อยู่</td>
+                <td colspan="4" class="label-row-cell">ที่อยู่ตามทะเบียนบ้าน</td>
             </tr>
             <tr>
                 <td colspan="4" class="value-row-cell">
@@ -263,7 +263,7 @@
                                         <td style="border: 1px solid #ffb3c6; padding: 4px; font-weight: bold;">
                                             อัตราดอกเบี้ย *</td>
                                         <td
-                                            style="border: 1px solid #ffb3c6; padding: 4px; background-color: #ffebf0; text-align: right;">
+                                            style="border: 1px solid #ffb3c6; padding: 4px; background-color: #ffebf0; text-align: left;">
                                             <%= account.interestRate || "MRR ต่อปี" %>
                                         </td>
                                     </tr>
@@ -271,7 +271,8 @@
                                         <td style="border: 1px solid #ffb3c6; padding: 4px; font-weight: bold;">จำนวนงวด
                                         </td>
                                         <td style="border: 1px solid #ffb3c6; padding: 4px; background-color: #ffebf0;">
-                                            <%= account.installmentTerms ? parseInt(account.installmentTerms, 10) : "" %>
+                                            <%= account.installmentTerms ? parseInt(account.installmentTerms, 10) : ""
+                                                %>
                                         </td>
                                     </tr>
                                     <tr>
