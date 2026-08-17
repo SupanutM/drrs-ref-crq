@@ -100,11 +100,44 @@ function SelectPlanController(props) {
         const accountsNeedCheck = accounts.filter(acc => selectedPlans[acc.accountNo] && needsIncomeCheck(acc));
 
         // คำนวณยอด min_amount รวมเฉพาะบัญชีที่ต้องเช็ครายได้
-        const totalMinAmount = accountsNeedCheck.reduce((sum, acc) => sum + (Number(acc.minAmount) || 0), 0);
+        let totalMinAmount = accountsNeedCheck.reduce((sum, acc) => sum + (Number(acc.minAmount) || 0), 0);
+
+        // ตรวจสอบว่ามีการเลือกแผนผ่อนชำระ (LT) หรือไม่ (แผนที่ loanType ไม่ใช่ "HC" คือ LT)
+        const hasInstallmentPlan = accountsNeedCheck.some(acc => {
+            const selectedPlanNo = selectedPlans[acc.accountNo];
+            if (!selectedPlanNo) return false;
+            const activePlan = acc.masterPlan?.find(p => p.planNo === selectedPlanNo);
+            return activePlan?.loanType !== "HC";
+        });
+
+        if (hasInstallmentPlan) {
+            const oldInstallments = routerState?.targetInfo?.oldInstallments || [];
+            const oldInstallmentAmount = oldInstallments
+                .filter(old => !selectedAccountNos.includes(old.accountNo))
+                .reduce((sum, old) => sum + Number(old.installmentAmount || 0), 0);
+
+            totalMinAmount += oldInstallmentAmount;
+        }
 
         // ตรวจสอบรายได้สุทธิ: เช็คเฉพาะเมื่อมีบัญชีที่ต้องการตรวจสอบ (isCheckIncome != 0)
         if (accountsNeedCheck.length > 0 && currentNetIncome < totalMinAmount) {
-            setWarnMessage(`"รายได้สุทธิไม่เพียงพอชำระหนี้ กรุณาระบุรายได้อื่นๆ เพื่อประกอบการพิจารณา หรือติดต่อสาขา"`);
+            // ถ้ายอดรวมถูกบวกเพิ่มจากบัญชีเก่า ให้แจ้งให้ผู้ใช้ทราบด้วย
+            const currentPlanMinAmount = accountsNeedCheck.reduce((sum, acc) => sum + (Number(acc.minAmount) || 0), 0);
+            const showOldInstallmentWarning = hasInstallmentPlan && totalMinAmount > currentPlanMinAmount;
+
+            const warnMsg = (
+                <span>
+                    รายได้สุทธิไม่เพียงพอชำระหนี้<br />
+                    (รายได้สุทธิปัจจุบัน: {currentNetIncome.toLocaleString()} บาท / ต้องมียอดขั้นต่ำรวม: {totalMinAmount.toLocaleString()} บาท)
+                    {showOldInstallmentWarning && (
+                        <div style={{ fontSize: "12px", color: "#F44335", textAlign: "left", marginTop: "16px" }}>
+                            *หมายเหตุ: โดยยอดขั้นต่ำนี้ได้รวมภาระจากบัญชีที่คุณเคยลงทะเบียนผ่อนชำระไว้ก่อนหน้านี้แล้ว กรุณาระบุรายได้อื่นๆ เพื่อประกอบการพิจารณา หรือติดต่อสาขา
+                        </div>
+                    )}
+                </span>
+            );
+
+            setWarnMessage(warnMsg);
             setIsWarnModalOpen(true);
             return;
         }
@@ -121,9 +154,9 @@ function SelectPlanController(props) {
                     return {
                         cusTargetId: routerState?.targetInfo?.cusTargetId,
                         accountNo: acc.accountNo,
-                        loantype: planNo === "01" ? "HC" : "LT",
+                        loantype: activePlan?.loanType || "LT",
                         planNo: planNo,
-                        planDetail: planNo === "01" ? {
+                        planDetail: activePlan?.loanType === "HC" ? {
                             amount: activePlan?.details?.[0]?.paymentAmount || activePlan?.details?.[0]?.amount || 500
                         } : {
                             principal: activePlan?.details?.[0]?.principal || 10000,
@@ -157,7 +190,34 @@ function SelectPlanController(props) {
         } catch (error) {
             console.error("Submit Plan Error:", error);
             const errorMessage = error.response?.data?.message || error.message || "ระบบขัดข้อง ไม่สามารถบันทึกข้อมูลได้ในขณะนี้";
-            setWarnMessage(errorMessage);
+
+            // Fallback: ดักจับ Error จาก Backend API แล้วนำมาจัด Format สวยงามบน Frontend
+            if (errorMessage.includes("รายได้สุทธิไม่เพียงพอชำระหนี้")) {
+                // สกัดค่าตัวเลขจาก Error Message ของ Backend แทนการดึงผ่าน Object (เพราะ data อาจจะหายตอน Build)
+                const matchNetIncome = errorMessage.match(/รายได้สุทธิปัจจุบัน:\s*([\d,]+)/);
+                const matchMinAmount = errorMessage.match(/ต้องมียอดขั้นต่ำรวม:\s*([\d,]+)/);
+
+                const displayNetIncome = matchNetIncome ? matchNetIncome[1] : currentNetIncome.toLocaleString();
+                const displayMinAmount = matchMinAmount ? matchMinAmount[1] : totalMinAmount.toLocaleString();
+                const isOldInstallmentIncluded = errorMessage.includes("เคยลงทะเบียนผ่อนชำระ");
+
+                const formattedWarnMsg = (
+                    <span>
+                        รายได้สุทธิไม่เพียงพอชำระหนี้<br />
+                        (รายได้สุทธิปัจจุบัน: {displayNetIncome} บาท / ต้องมียอดขั้นต่ำรวม: {displayMinAmount} บาท)
+                        {isOldInstallmentIncluded && (
+                            <div style={{ fontSize: "12px", color: "#F44335", textAlign: "left", marginTop: "16px" }}>
+                                *หมายเหตุ: โดยยอดขั้นต่ำนี้ได้รวมภาระจากบัญชีที่คุณเคยลงทะเบียนผ่อนชำระไว้ก่อนหน้านี้แล้ว กรุณาระบุรายได้อื่นๆ เพื่อประกอบการพิจารณา หรือติดต่อสาขา
+                            </div>
+                        )}
+
+                    </span>
+                );
+                setWarnMessage(formattedWarnMsg);
+            } else {
+                setWarnMessage(errorMessage);
+            }
+
             setIsWarnModalOpen(true);
         } finally {
             setIsLoading(false);
@@ -175,7 +235,7 @@ function SelectPlanController(props) {
                 const planNo = selectedPlans[acc.accountNo];
                 const activePlan = acc.masterPlan?.find(p => p.planNo === planNo);
                 const detail = activePlan?.details?.[0] || {};
-                const isHaircut = planNo === "01";
+                const isHaircut = activePlan?.loanType === "HC";
 
                 return {
                     accountNo: acc.accountNo,

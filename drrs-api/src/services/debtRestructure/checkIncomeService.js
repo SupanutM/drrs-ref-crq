@@ -3,7 +3,7 @@ const baseLogger = require('../../utils/logger');
 const tblCusTarget = require('../../entities/tblCusTarget');
 const tblAccountCusTarget = require('../../entities/tblAccountCusTarget');
 const tblMtMasterPlan = require('../../entities/tblMtMasterPlan');
-
+const tblAccountInstallment = require('../../entities/tblAccountInstallment');
 const logger = baseLogger.child({ context: 'checkIncomeService' });
 
 /**
@@ -71,6 +71,32 @@ const checkIncomeService = async (cusTargetId, accounts) => {
             totalMinAmount += minAmount;
 
             logger.info(`[checkIncomeService] accountNo: ${acc.accountNo} | minAmount: ${minAmount} | isCheckIncome: ${row.isCheckIncome}`);
+        }
+
+        // เช็คว่ามีบัญชีผ่อนชำระ (LT) ส่งมาด้วยหรือไม่
+        const hasInstallmentPlan = accounts.some(acc => acc.loantype === "LT");
+
+        if (hasInstallmentPlan) {
+            const currentAccountNos = accounts.map(acc => acc.accountNo);
+            
+            // Query ยอดผ่อนชำระเดิมจาก tbl_account_installment ที่มี status = '1' และไม่ใช่ account ที่กำลังทำรายการอยู่
+            let oldInstallmentsQuery = AppDataSource.getRepository(tblAccountInstallment)
+                .createQueryBuilder('ai')
+                .select('SUM(ai.installment_amount)', 'oldTotalInstallment')
+                .where('ai.cus_target_id = :cusTargetId', { cusTargetId })
+                .andWhere('ai.status = :status', { status: '1' });
+                
+            if (currentAccountNos.length > 0) {
+                oldInstallmentsQuery = oldInstallmentsQuery.andWhere('ai.account_no NOT IN (:...currentAccountNos)', { currentAccountNos });
+            }
+            
+            const oldInstallmentsRow = await oldInstallmentsQuery.getRawOne();
+            const oldTotalInstallment = Number(oldInstallmentsRow?.oldTotalInstallment || 0);
+            
+            if (oldTotalInstallment > 0) {
+                logger.info(`[checkIncomeService] พบยอดผ่อนชำระเดิม (ไม่รวมบัญชีที่เลือก) รวม = ${oldTotalInstallment}`);
+                totalMinAmount += oldTotalInstallment;
+            }
         }
 
         // isValid logic:

@@ -30,7 +30,8 @@ const saveDebtRestructureController = async (req, res) => {
         if (cusTargetId) {
             const accountsToCheck = payloads.map(p => ({
                 accountNo: p.accountNo,
-                planNo: p.planNo
+                planNo: p.planNo,
+                loantype: p.loantype
             }));
 
             const incomeCheck = await checkIncomeService(cusTargetId, accountsToCheck);
@@ -38,7 +39,7 @@ const saveDebtRestructureController = async (req, res) => {
             if (!incomeCheck.isValid) {
                 logger.warn(`[Income Guard] รายได้สุทธิไม่เพียงพอ | netIncome: ${incomeCheck.netIncome} | totalMinAmount: ${incomeCheck.totalMinAmount} | accounts: ${incomeCheck.failedAccounts.join(', ')}`);
                 return sendError(res,
-                    `รายได้สุทธิไม่เพียงพอชำระหนี้ตามแผนที่เลือก (รายได้สุทธิ: ${incomeCheck.netIncome.toLocaleString()} บาท / ต้องมียอดรายได้สุทธิขั้นต่ำรวม: ${incomeCheck.totalMinAmount.toLocaleString()} บาท)`,
+                    `รายได้สุทธิไม่เพียงพอชำระหนี้ (รายได้สุทธิปัจจุบัน: ${incomeCheck.netIncome.toLocaleString()} บาท / ต้องมียอดขั้นต่ำรวม: ${incomeCheck.totalMinAmount.toLocaleString()} บาท) โดยยอดหนี้ขั้นต่ำนี้ได้รวมภาระจากบัญชีที่คุณเคยลงทะเบียนผ่อนชำระไว้ก่อนหน้านี้แล้ว กรุณาระบุรายได้เพิ่มเติมเพื่อประกอบการพิจารณา หรือติดต่อสาขา`,
                     400,
                     { netIncome: incomeCheck.netIncome, totalMinAmount: incomeCheck.totalMinAmount }
                 );

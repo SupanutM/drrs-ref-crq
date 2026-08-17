@@ -1,6 +1,7 @@
 const { AppDataSource } = require('../../config/database');
 const tblCusTarget = require('../../entities/tblCusTarget');
 const tblSettingsStep = require('../../entities/tblSettingsStep');
+const tblAccountInstallment = require('../../entities/tblAccountInstallment');
 const masterPlan = require('../../services/plan/masterPlanService');
 const baseLogger = require('../../utils/logger');
 const crypto = require('../../utils/crypto');
@@ -129,6 +130,17 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
             }
         }
 
+        let oldInstallments = [];
+        try {
+            oldInstallments = await AppDataSource.getRepository(tblAccountInstallment)
+                .find({
+                    where: { cusTargetId: customer.id, status: '1' },
+                    select: ['accountNo', 'installmentAmount']
+                });
+        } catch (err) {
+            logger.warn(`Error fetching oldInstallments for customer ${customer.id}: ${err.message}`);
+        }
+
         return {
             success: true,
             message: 'ยืนยันตัวตนสำเร็จ',
@@ -142,6 +154,7 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
                 otherIncome: customer.otherIncome,
                 totalCost: customer.totalCost,
                 netIncome: customer.netIncome,
+                oldInstallments: oldInstallments,
                 // Keep these at root for backward compatibility if needed, but they are now in accounts
                 masterPlan: accountsWithPlans[0]?.masterPlan || [],
                 masterPlanDetail: accountsWithPlans[0]?.masterPlanDetail || []

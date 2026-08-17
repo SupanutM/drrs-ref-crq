@@ -64,7 +64,7 @@ function SelectPlanView(props) {
                                 {(acc.masterPlan && acc.masterPlan.length > 0) ? (
                                     acc.masterPlan.map((plan) => {
                                         const isSelected = selectedPlans[acc.accountNo] === plan.planNo;
-                                        const isHaircut = plan.planNo === "01";
+                                        const isHaircut = plan.loanType === "HC";
                                         const isRegistered = acc.isRegistered;
 
                                         // Fallback and Generic Property Support

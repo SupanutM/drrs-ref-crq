@@ -26,6 +26,12 @@ const tblMtMasterPlan = new EntitySchema({
             default: '1',
             nullable: true
         },
+        loanType: {
+            name: "loan_type",
+            type: "varchar",
+            length: 2,
+            nullable: true
+        },
         createdDate: {
             name: "created_date",
             type: "timestamp",

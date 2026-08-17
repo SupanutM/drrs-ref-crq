@@ -30,6 +30,7 @@ const masterPlanService = async (planNos = [], accountNo = null) => {
             planDesc: plan.desc,
             status: plan.status,
             isCheckIncome: plan.isCheckIncome,
+            loanType: plan.loanType,
             accountNo: accountNo // Keep for reference if needed
         }));
 

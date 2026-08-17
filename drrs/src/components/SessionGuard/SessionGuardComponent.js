@@ -60,7 +60,7 @@ function SessionGuard({ children }) {
         }}
       >
         <DialogTitle sx={{ pb: 0, pt: 3, textAlign: "center" }}>
-          <MKTypography variant="h1" sx={{ fontSize: "2.5rem", lineHeight: 1 }}>
+          <MKTypography variant="h1" component="span" sx={{ fontSize: "2.5rem", lineHeight: 1, display: "block" }}>
             ⏱️
           </MKTypography>
           <MKTypography variant="h5" component="span" fontWeight="bold" mt={1} color="warning" display="block">
@@ -138,7 +138,7 @@ function SessionGuard({ children }) {
         }}
       >
         <DialogTitle sx={{ pb: 0, pt: 3, textAlign: "center" }}>
-          <MKTypography variant="h1" sx={{ fontSize: "2.5rem", lineHeight: 1 }}>
+          <MKTypography variant="h1" component="span" sx={{ fontSize: "2.5rem", lineHeight: 1, display: "block" }}>
             🚫
           </MKTypography>
           <MKTypography variant="h5" component="span" fontWeight="bold" mt={1} color="error" display="block">

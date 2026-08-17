@@ -124,7 +124,7 @@ ModalComponent.propTypes = {
     onClose: PropTypes.func.isRequired,
     onConfirm: PropTypes.func.isRequired,
     content: PropTypes.node.isRequired, 
-    title: PropTypes.string,
+    title: PropTypes.node,
     variant: PropTypes.oneOf(["confirm", "success", "warning", "error"]), 
     confirmColor: PropTypes.string,
     isConfirmDisabled: PropTypes.bool,
