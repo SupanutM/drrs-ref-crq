@@ -82,7 +82,8 @@ function PlanSummaryView(props) {
                 lastName: await safeEncrypt(customer.lastName),
                 address: await safeEncrypt(customer.address),
                 email: await safeEncrypt(customer.email),
-                telNo: await safeEncrypt(customer.telNo)
+                telNo: await safeEncrypt(customer.telNo),
+                birthday: customer.birthday || customer.dateOfBirth
             };
 
             const pdfBlob = await generateContractPdf({

@@ -36,7 +36,15 @@ const generateInvoiceBase64 = async (data) => {
 
         // ดึงวันเดือนปีเกิดลูกค้าจาก payload (ฟิลด์ birthDate หรือ userPassword)
         const rawDob = data.birthDate || data.userPassword || '';
-        const formattedPassword = String(rawDob).replace(/[^a-zA-Z0-9]/g, ''); // ลบเครื่องหมาย - หรือ / ออก เหลือเฉพาะตัวเลข เช่น 25300115 หรือ 15012530
+        let formattedPassword = String(rawDob).replace(/[^a-zA-Z0-9]/g, ''); // ลบเครื่องหมาย - หรือ / ออก
+
+        // แปลงรูปแบบ YYYYMMDD เป็น DDMMYYYY เพื่อให้เหมือนกับ contractPdfService
+        if (formattedPassword && formattedPassword.length === 8) {
+            const yyyy = formattedPassword.substring(0, 4);
+            const mm = formattedPassword.substring(4, 6);
+            const dd = formattedPassword.substring(6, 8);
+            formattedPassword = `${dd}${mm}${yyyy}`;
+        }
 
         if (formattedPassword) {
             pdfOptions.userPassword = formattedPassword;

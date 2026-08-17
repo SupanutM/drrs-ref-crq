@@ -150,6 +150,7 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
                 firstName: customer.firstName,
                 lastName: customer.lastName,
                 cifNo: customer.cifNo,
+                birthday: customer.birthday,
                 totalIncome: customer.totalIncome,
                 otherIncome: customer.otherIncome,
                 totalCost: customer.totalCost,

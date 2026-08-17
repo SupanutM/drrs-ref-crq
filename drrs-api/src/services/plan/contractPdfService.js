@@ -76,11 +76,11 @@ const generateContractPdf = async (customerInfo, selectedAccounts) => {
     if (pwd) {
         mergedPdf.encrypt({
             userPassword: pwd,
-            ownerPassword: pwd,
+            ownerPassword: process.env.PDF_OWNER_PASSWORD || 'GSB_SECRET_KEY_DRRS',
             permissions: {
                 printing: 'highResolution',
                 modifying: false,
-                copying: true,
+                copying: false,
                 annotating: false,
                 fillingForms: false,
                 contentAccessibility: true,
@@ -110,12 +110,12 @@ const savePdfToDisk = (pdfBuffer, filename) => {
     const env = require('../../config/env');
     const savePath = env.contractSavePath || path.join(__dirname, '../../../assets/contracts');
     const resolvedPath = path.resolve(savePath);
-    
+
     // Create directory if not exists
     if (!fs.existsSync(resolvedPath)) {
         fs.mkdirSync(resolvedPath, { recursive: true });
     }
-    
+
     const filePath = path.join(resolvedPath, filename);
     fs.writeFileSync(filePath, pdfBuffer);
     return filePath;
