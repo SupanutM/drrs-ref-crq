@@ -1,12 +1,17 @@
+const axios = require('axios');
+const https = require('https');
+const crypto = require('../../utils/crypto');
 const cusTargetService = require('../../services/verify/verifyCusTargetService');
 const laserIdService = require('../../services/verify/verifyLaserIdService');
 const updateCusTargetService = require('../../services/verify/updateCusTargetSerivce');
+const customerLookupService = require('../../services/customer/customerLookupService');
 const createStepService = require('../../services/util/systemLog/createStepService');
 const { sendSuccess, sendError } = require('../../utils/responseHandler');
 const baseLogger = require('../../utils/logger');
 const veriryToken = require('../../utils/verifyToken');
 const tblSettingsStep = require('../../entities/tblSettingsStep');
 const { AppDataSource } = require('../../config/database');
+const { loggers } = require('winston');
 
 const logger = baseLogger.child({ context: 'verifyFlowController' });
 
@@ -168,10 +173,33 @@ const verifyController = async (req, res) => {
         // ใช้ cusTargetId จาก verify response แทน accountNo เพื่อ update tbl_cus_target โดยตรง
         const cusTargetId = targetResult.data.cusTargetId;
         if (cusTargetId) {
-            logger.info(`[Step 2.1] ผ่าน Laser ID สำหรับ cusTargetId: ${cusTargetId} ทำการอัปเดต Email, วันเกิด และ เบอร์โทร ที่ตาราง tbl_cus_target`);
-            await updateCusTargetService.updateCusTargetService(cusTargetId, { email, dateOfBirth, telNo });
+            let fullAddress = targetResult.data.address || "";
+            if (!fullAddress) {
+                try {
+                    const customer_number = targetResult.data.cifNo || "";
+                    const dbCitizenId = targetResult.data.citizenId || "";
+                    logger.info(`customer_number: ${customer_number}`);
+                    logger.info(`dbCitizenId: ${dbCitizenId}`);
+                    fullAddress = await customerLookupService.getCustomerFullAddress(customer_number, dbCitizenId);
+                    logger.info(`fullAddress: ${fullAddress}`);
+                } catch (error) {
+                    logger.warn(`[Step 2.1] Error looking up customer address: ${error.message}`);
+                }
+            } else {
+                logger.info(`[Step 2.1] มีที่อยู่แล้วในระบบ ไม่ต้องดึงจาก Lookup API`);
+            }
+
+            logger.info(`[Step 2.1] ผ่าน Laser ID สำหรับ cusTargetId: ${cusTargetId} ทำการอัปเดต Email, วันเกิด, เบอร์โทร และที่อยู่ ที่ตาราง tbl_cus_target`);
+            
+            const payloadToUpdate = { email, dateOfBirth, telNo };
+            if (!targetResult.data.address) {
+                payloadToUpdate.address = fullAddress;
+            }
+
+            await updateCusTargetService.updateCusTargetService(cusTargetId, payloadToUpdate);
             if (email) targetResult.data.email = email;
             if (telNo) targetResult.data.telNo = telNo;
+            if (fullAddress && !targetResult.data.address) targetResult.data.address = fullAddress;
         }
 
         // =========================================================

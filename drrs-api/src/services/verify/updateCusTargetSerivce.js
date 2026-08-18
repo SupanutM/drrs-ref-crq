@@ -23,7 +23,7 @@ const updateCusTargetService = async (cusTargetId, payloadInput) => {
         }
 
         const data = typeof payloadInput === 'string' ? { email: payloadInput } : (payloadInput || {});
-        const { email, totalIncome, otherIncome, totalCost, netIncome, dateOfBirth, telNo } = data;
+        const { email, totalIncome, otherIncome, totalCost, netIncome, dateOfBirth, telNo, address } = data;
 
         const tblCusTargetRepo = AppDataSource.getRepository(tblCusTarget);
 
@@ -70,6 +70,9 @@ const updateCusTargetService = async (cusTargetId, payloadInput) => {
         }
         if (dateOfBirth) {
             updateFields.birthday = dateOfBirth;
+        }
+        if (address !== undefined) {
+            updateFields.address = address;
         }
 
         // Note: planNo is NOT cleared on income update (DB column plan_no is NOT NULL)

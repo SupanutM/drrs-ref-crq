@@ -11,8 +11,8 @@ import MKTypography from "components/MKTypography";
 import MKButton from "components/MKButton";
 
 function ModalComponent(props) {
-    const { 
-        isOpen, onClose, onConfirm, title, content, 
+    const {
+        isOpen, onClose, onConfirm, title, content,
         confirmColor, isConfirmDisabled, confirmText, hideCancel,
         variant, cancelText, cancelColor, buttonDirection
     } = props;
@@ -42,16 +42,18 @@ function ModalComponent(props) {
         }
 
         return (
-            <MKBox display="flex" flexDirection="column" alignItems="center" gap={2} mt={2} mb={2}>
+            <MKBox display="flex" flexDirection="column" alignItems="center" gap={2} mt={2} mb={0}>
                 <MKTypography variant="h1" color={color}>
                     {icon}
                 </MKTypography>
                 <MKTypography variant="h5" color={color} textAlign="center">
                     {defaultTitle}
                 </MKTypography>
-                <MKTypography variant="body2" color="text" textAlign="center">
-                    {content} 
-                </MKTypography>
+                {content && content !== "" && (
+                    <MKTypography variant="body2" color="text" textAlign="center">
+                        {content}
+                    </MKTypography>
+                )}
             </MKBox>
         );
     };
@@ -78,18 +80,18 @@ function ModalComponent(props) {
                     </MKTypography>
                 </DialogTitle>
             )}
-            
+
             <DialogContent>
                 {renderContent()}
             </DialogContent>
-            
+
             <DialogActions sx={{ pb: 2, px: 3, justifyContent: "center", flexDirection: isColumn ? "column" : "row", flexWrap: "wrap", gap: 1 }}>
-                
+
                 {!shouldHideCancel && (
-                    <MKButton 
-                        variant={cancelColor ? "gradient" : "outlined"} 
-                        color={cancelColor || "secondary"} 
-                        onClick={onClose} 
+                    <MKButton
+                        variant={cancelColor ? "gradient" : "outlined"}
+                        color={cancelColor || "secondary"}
+                        onClick={onClose}
                         sx={{ flex: isColumn ? "none" : 1, width: isColumn ? "100%" : "auto", minWidth: "120px" }}
                     >
                         {cancelText || "ยกเลิก"}
@@ -100,19 +102,19 @@ function ModalComponent(props) {
                     variant="gradient"
                     color={getConfirmColor()}
                     onClick={onConfirm}
-                    disabled={isConfirmDisabled} 
+                    disabled={isConfirmDisabled}
                     sx={{ flex: isColumn ? "none" : 1, width: isColumn ? "100%" : "auto", minWidth: "120px", marginLeft: isColumn ? "0 !important" : undefined }}
                 >
                     {confirmText}
                 </MKButton>
-                
+
             </DialogActions>
         </Dialog>
     );
 }
 
 ModalComponent.defaultProps = {
-    variant: "confirm", 
+    variant: "confirm",
     title: "",
     confirmText: "ตกลง",
     hideCancel: false,
@@ -123,9 +125,9 @@ ModalComponent.propTypes = {
     isOpen: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired,
     onConfirm: PropTypes.func.isRequired,
-    content: PropTypes.node.isRequired, 
+    content: PropTypes.node.isRequired,
     title: PropTypes.node,
-    variant: PropTypes.oneOf(["confirm", "success", "warning", "error"]), 
+    variant: PropTypes.oneOf(["confirm", "success", "warning", "error"]),
     confirmColor: PropTypes.string,
     isConfirmDisabled: PropTypes.bool,
     confirmText: PropTypes.string,
