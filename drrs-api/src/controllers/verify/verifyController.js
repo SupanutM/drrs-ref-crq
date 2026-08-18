@@ -197,8 +197,8 @@ const verifyController = async (req, res) => {
             }
 
             await updateCusTargetService.updateCusTargetService(cusTargetId, payloadToUpdate);
-            if (email) targetResult.data.email = email;
-            if (telNo) targetResult.data.telNo = telNo;
+            if (email) targetResult.data.email = crypto.decryptGCM(email, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
+            if (telNo) targetResult.data.telNo = crypto.decryptGCM(telNo, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
             if (fullAddress && !targetResult.data.address) targetResult.data.address = fullAddress;
         }
 
@@ -218,7 +218,7 @@ const verifyController = async (req, res) => {
         }
 
         if (dateOfBirth) targetResult.data.dateOfBirth = dateOfBirth;
-        if (citizenId) targetResult.data.citizenId = citizenId;
+        if (citizenId) targetResult.data.citizenId = crypto.decryptGCM(citizenId, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
 
         // ส่ง Success Response พร้อมข้อมูลที่จำเป็น (เช่น firstName ที่ได้จาก Step 1)
         return sendSuccess(res, 'ยืนยันตัวตนและตรวจสอบบัตรประชาชนสำเร็จเรียบร้อย',

@@ -14,6 +14,7 @@ const safeDecrypt = (value) => {
         try {
             return crypto.decryptGCM(value, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
         } catch (e) {
+            logger.error(`[safeDecrypt] Error decrypting value: ${e.message}, KEY length: ${process.env.CRYPTO_KEY ? process.env.CRYPTO_KEY.length : 'undefined'}`);
             return value;
         }
     }
@@ -104,7 +105,24 @@ const generateContractController = async (req, res) => {
                 loanTypeCode: selectedAccounts?.[0]?.planNo || '01',
             };
 
-            emailService.triggerSendContractEmail(emailData).catch(err => {
+            emailService.triggerSendContractEmail(emailData).then(async (resEmail) => {
+                if (resEmail.isSuccess && selectedAccounts && selectedAccounts.length > 0) {
+                    await Promise.all(selectedAccounts.map(async (acc) => {
+                        logger.info(`[Step Log] อัปเดต step stepSendMail: "1" สำหรับ AccountNo: ${acc.accountNo}`);
+                        await createStepService.updateStepService(acc.accountNo, { stepSendMail: "1" }, 'stepSendMail');
+                    }));
+
+                    await systemLogService({
+                        step: 'stepSendMail',
+                        controller: 'contractPdfController',
+                        payload: { customerInfo: customerInfo?.citizenId, selectedAccounts: selectedAccounts.map(a => a.accountNo) },
+                        responseStatus: 'SUCCESS',
+                        responseMessage: 'Sent email and updated stepSendMail'
+                    });
+                } else if (!resEmail.isSuccess) {
+                    logger.error(`Failed to send email: ${resEmail.message}`);
+                }
+            }).catch(err => {
                 logger.error(`Unhandled error in email trigger: ${err.message}`);
             });
         }
