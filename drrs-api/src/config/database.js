@@ -8,6 +8,9 @@ const tblAccountHairCut = require("../../src/entities/tblAccountHairCut");
 const tblAccountInstallment = require("../../src/entities/tblAccountInstallment");
 const tblMtMasterPlan = require("../../src/entities/tblMtMasterPlan");
 const tblMtMasterPlanDetail = require("../../src/entities/tblMtMasterPlanDetail");
+const tblMtProvince = require("../../src/entities/tblMtProvince");
+const tblMtDistrict = require("../../src/entities/tblMtDistrict");
+const tblMtSubDistrict = require("../../src/entities/tblMtSubDistrict");
 const tblTemplateCondition = require("../../src/entities/tblTemplateCondition");
 const tblSystemLog = require("../../src/entities/tblSystemLog");
 const tblSettingsStep = require("../../src/entities/tblSettingsStep");
@@ -31,6 +34,9 @@ const AppDataSource = new DataSource({
         tblAccountInstallment,
         tblMtMasterPlan,
         tblMtMasterPlanDetail,
+        tblMtProvince,
+        tblMtDistrict,
+        tblMtSubDistrict,
         tblTemplateCondition,
         tblSystemLog,
         tblSettingsStep
