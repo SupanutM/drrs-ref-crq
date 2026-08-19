@@ -95,7 +95,7 @@ function SelectPlan() {
                     flexGrow: 1,
                     display: "flex",
                     flexDirection: "column",
-                    overflow: "hidden", 
+                    overflow: "hidden",
                     backgroundColor: "#ffffff",
                 })}
             >

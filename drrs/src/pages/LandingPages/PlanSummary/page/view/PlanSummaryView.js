@@ -145,14 +145,19 @@ function PlanSummaryView(props) {
                         <Checkbox
                             checked={isAgreed}
                             onChange={(e) => setIsAgreed(e.target.checked)}
-                            sx={{ pt: 0.3, pl: 0 }}
+                            sx={{ 
+                                p: { xs: 0, md: 1 },
+                                pt: { xs: 0.2, md: 0.3 }, 
+                                pl: 0, 
+                                '& .MuiSvgIcon-root': { fontSize: { xs: '18px', md: '24px' } } 
+                            }}
                             disabled={isLoading || isDownloading || isDownloaded}
                         />
                         <MKTypography
                             variant="body2"
                             color="text"
                             onClick={() => { if (!isDownloaded && !isLoading && !isDownloading) setIsAgreed(!isAgreed); }}
-                            sx={{ fontSize: "12px", lineHeight: 1.6, color: "#000", ml: 1, cursor: "pointer", textAlign: "left" }}
+                            sx={{ fontSize: { xs: "12px", md: "14px" }, lineHeight: 1.6, color: "#000", ml: { xs: 1, md: 0 }, cursor: "pointer", textAlign: "left" }}
                         >
                             ข้าพเจ้าได้อ่านและเข้าใจข้อความโดยครบถ้วนแล้ว เห็นว่าถูกต้องตามความประสงค์ จึงได้แสดงเจตนาตกลงผูกพันตามแผนการชำระหนี้ที่ชำระหนี้ที่ข้าพเจ้าเลือกไว้ข้างต้น รวมถึงข้อตกลงนี้ด้วยการกด &quot;ยอมรับ&quot; ด้านล่างนี้
                         </MKTypography>
@@ -186,10 +191,10 @@ function PlanSummaryView(props) {
                     disabled={isLoading || isDownloading || isDownloaded}
                     sx={{
                         minWidth: { xs: "100%", sm: "200px" },
-                        py: 1.8,
+                        py: { xs: 1.2, sm: 1.8 },
                         px: 5,
                         borderRadius: "12px",
-                        fontSize: "1.1rem",
+                        fontSize: { xs: "0.95rem", sm: "1.1rem" },
                         fontWeight: "bold",
                         "&:hover": {
                             transform: "translateY(-2px)",
@@ -209,10 +214,10 @@ function PlanSummaryView(props) {
                     disabled={isLoading || isDownloading || isDownloaded || selectedAccounts.length === 0 || !isAgreed}
                     sx={{
                         minWidth: { xs: "100%", sm: "200px" },
-                        py: 1.8,
+                        py: { xs: 1.2, sm: 1.8 },
                         px: 5,
                         borderRadius: "12px",
-                        fontSize: "1.1rem",
+                        fontSize: { xs: "0.95rem", sm: "1.1rem" },
                         fontWeight: "bold",
                         "&:hover": {
                             transform: "translateY(-2px)",
@@ -235,7 +240,9 @@ function PlanSummaryView(props) {
                     <>
                         ท่านต้องการดาวน์โหลดสัญญาเพื่อเก็บไว้เป็นหลักฐาน และดำเนินการต่อหรือไม่?
                         <br /><br />
-                        <span style={{ color: "red" }}>หมายเหตุ: รหัสผ่านสำหรับเปิดไฟล์คือ วันเดือนปีเกิดของท่าน ในรูปแบบ DDMMYYYY (ปี พ.ศ.)</span>
+                        <MKTypography component="span" color="error" sx={{ fontSize: { xs: "12px", md: "inherit" } }}>
+                            หมายเหตุ: รหัสผ่านสำหรับเปิดไฟล์คือ วันเดือนปีเกิดของท่าน ในรูปแบบ DDMMYYYY (ปี พ.ศ.)
+                        </MKTypography>
                     </>
                 }
                 confirmText="ดาวน์โหลด"

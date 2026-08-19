@@ -49,7 +49,7 @@ function SelectPlanView(props) {
 
                     {accounts.map((acc, index) => (
                         <MKBox key={acc.accountNo} mb={5}>
-                            <MKTypography variant="h5" color="dark" mb={2}>
+                            <MKTypography variant="h5" color="dark" mb={2} sx={{ fontSize: { xs: "0.95rem", md: "1.25rem" } }}>
                                 {index + 1}. บัญชีเลขที่ {acc.accountNo}
                                 {acc.isRegistered && (
                                     <MKTypography component="span" variant="body2" color="error" ml={2}>
@@ -113,7 +113,7 @@ function SelectPlanView(props) {
                                                             />
                                                         </MKBox>
                                                         <MKBox flex={1}>
-                                                            <MKTypography variant="h6" color="dark" fontWeight="bold">
+                                                            <MKTypography variant="h6" color="dark" fontWeight="bold" sx={{ fontSize: { xs: "0.875rem", md: "1rem" } }}>
                                                                 {isHaircut ? `ปิดบัญชีเลขที่ ${acc.accountNo}` : "ผ่อนชำระ"}
                                                             </MKTypography>
                                                             <MKTypography variant="body2" color="text" mt={1}>
@@ -125,7 +125,8 @@ function SelectPlanView(props) {
                                                                 ) : (
                                                                     <>
                                                                         ผ่อนชำระงวดละ: <b>{Number(paymentAmount).toLocaleString()}</b> บาท<br />
-                                                                        จำนวน: <b>{installmentTerms}</b> งวด (อัตราดอกเบี้ย MRR ต่อปี)<br />
+                                                                        จำนวน: <b>{installmentTerms}</b> งวด <br />
+                                                                        (อัตราดอกเบี้ย MRR ต่อปี)<br />
                                                                         เริ่มชำระงวดแรก วันที่ {startDateDisplay}<br />
                                                                         เสร็จสิ้นภายในวันที่ {endDateDisplay}<br />
                                                                         โดยท่านตกลงชำระหนี้ให้ธนาคารทั้งหมดในงวดสุดท้าย

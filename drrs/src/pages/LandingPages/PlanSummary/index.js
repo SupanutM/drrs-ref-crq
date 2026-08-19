@@ -51,7 +51,7 @@ function PlanSummary() {
             {/* แบนเนอร์ด้านบน */}
             <MKBox
                 sx={{
-                    minHeight: { xs: "180px", md: "20vh" },
+                    minHeight: { xs: "180px", md: "35vh" },
                     flexShrink: 0,
                     width: "100%",
                     background: "linear-gradient(135deg, #eb3a75 0%, #c81b53 100%)",
@@ -60,8 +60,8 @@ function PlanSummary() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    pt: { xs: "50px", md: "56px" },
-                    pb: { xs: 4, md: 5 },
+                    pt: { xs: "50px", md: "64px" },
+                    pb: { xs: 8, md: 4 },
                 }}
             >
                 <Container>
@@ -73,7 +73,7 @@ function PlanSummary() {
                             sx={({ breakpoints, typography: { size } }) => ({
                                 textShadow: "0 2px 10px rgba(0,0,0,0.15)",
                                 fontSize: size["2xl"],
-                                [breakpoints.down("md")]: { fontSize: size["xl"] },
+                                [breakpoints.down("md")]: { fontSize: size["md"] },
                             })}
                         >
                             สรุปแผนการชำระหนี้
@@ -96,7 +96,7 @@ function PlanSummary() {
                     flexGrow: 1,
                     display: "flex",
                     flexDirection: "column",
-                    overflow: "hidden", 
+                    overflow: "hidden",
                     backgroundColor: "#ffffff",
                 })}
             >
