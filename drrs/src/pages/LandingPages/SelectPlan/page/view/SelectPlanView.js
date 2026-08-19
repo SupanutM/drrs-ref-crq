@@ -238,7 +238,11 @@ function SelectPlanView(props) {
                 onClose={handlers.handleCloseIncompleteModal}
                 onConfirm={handlers.handleProceedIncomplete}
                 variant="warning"
-                title="ท่านแจ้งความประสงค์ไม่ครบทุกบัญชี"
+                title={
+                    <MKTypography component="span" color="inherit" fontWeight="bold" sx={{ fontSize: { xs: "16px", sm: "inherit" } }}>
+                        ท่านแจ้งความประสงค์ไม่ครบทุกบัญชี
+                    </MKTypography>
+                }
                 content=""
                 confirmText="ยืนยันทำรายการเฉพาะบัญชีที่เลือก"
                 confirmColor="success"
