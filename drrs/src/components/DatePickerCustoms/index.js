@@ -81,6 +81,7 @@ const CustomInput = ({
       color={color}
       variant="outlined"
       fullWidth
+      inputProps={{ readOnly: true }}
     />
   );
 };
