@@ -34,29 +34,11 @@ function PlanSummaryController({ routerState }) {
             setIsLoadingHtml(true);
             try {
                 const { fetchContractHtml } = await import("api/register");
-                const { encryptGCM } = await import("api/crypto");
 
                 const customer = customerInfo || targetInfo || {};
 
-                const safeEncrypt = async (val) => {
-                    if (!val) return val;
-                    try {
-                        const res = await encryptGCM({ value: val });
-                        return res.encrypted;
-                    } catch (e) {
-                        return val;
-                    }
-                };
-
                 const encryptedCustomer = {
-                    cusTargetId: customer.cusTargetId,
-                    firstName: await safeEncrypt(customer.firstName),
-                    lastName: await safeEncrypt(customer.lastName),
-                    citizenId: await safeEncrypt(customer.citizenId),
-                    cifNo: await safeEncrypt(customer.cifNo),
-                    address: await safeEncrypt(customer.address),
-                    email: await safeEncrypt(customer.email),
-                    telNo: await safeEncrypt(customer.telNo)
+                    cusTargetId: customer.cusTargetId
                 };
 
                 const html = await fetchContractHtml({

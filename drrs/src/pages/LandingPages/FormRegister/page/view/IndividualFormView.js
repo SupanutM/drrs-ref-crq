@@ -247,7 +247,7 @@ function IndividualFormView(props) {
                         {/* 10. อีเมล */}
                         <Grid item xs={12} sm={12} md={4} lg={4}>
                             <MKTypography variant="body2" fontWeight="regular" color="dark"> อีเมล </MKTypography>
-                            <MKInput type="email" color="primary" label="ระบุอีเมล"
+                            <MKInput type="email" color="primary" label="ระบุอีเมล (สำหรับการจัดส่งสำเนาสัญญาอิเล็กทรอนิกส์)"
                                 onChange={handlers.handleChangeEmail} onBlur={handlers.handleBlurEmail} value={state.email || ""} error={state.validEmail} autoComplete="off" fullWidth />
                             {state.validEmail ? (
                                 <MKTypography variant="caption" fontWeight="medium" color="error"> กรุณาระบุอีเมลให้ถูกต้อง (เช่น example@domain.com) </MKTypography>

@@ -1,4 +1,4 @@
-const pdfService = require('../../services/condition/pdfService');
+const pdfService = require('../../services/condition/downloadConditionPdfService');
 const baseLogger = require('../../utils/logger');
 const createStepService = require('../../services/util/systemLog/createStepService');
 const logger = baseLogger.child({ context: 'pdfController' });

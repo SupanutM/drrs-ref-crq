@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { Document, Page, pdfjs } from 'react-pdf';
 import { generateContractPdf } from "api/register";
-import { encryptGCM } from "api/crypto";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -64,26 +63,8 @@ function PlanSummaryView(props) {
         try {
             const customer = customerInfo || targetInfo || {};
 
-            const safeEncrypt = async (val) => {
-                if (!val) return val;
-                try {
-                    const res = await encryptGCM({ value: val });
-                    return res.encrypted;
-                } catch (e) {
-                    return val;
-                }
-            };
-
             const encryptedCustomer = {
-                cusTargetId: customer.cusTargetId,
-                citizenId: await safeEncrypt(customer.citizenId),
-                cifNo: await safeEncrypt(customer.cifNo),
-                firstName: await safeEncrypt(customer.firstName),
-                lastName: await safeEncrypt(customer.lastName),
-                address: await safeEncrypt(customer.address),
-                email: await safeEncrypt(customer.email),
-                telNo: await safeEncrypt(customer.telNo),
-                birthday: customer.birthday || customer.dateOfBirth
+                cusTargetId: customer.cusTargetId
             };
 
             const pdfBlob = await generateContractPdf({
