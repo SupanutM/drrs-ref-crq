@@ -74,9 +74,24 @@ function IndividualController(props) {
         }
     };
 
+    const handleKeyDownLaserCardId = (e) => {
+        // ป้องกันไม่ให้กดปุ่มอักขระพิเศษตั้งแต่แรก (อนุญาตเฉพาะ a-z, A-Z, 0-9 และปุ่มควบคุมอื่นๆ)
+        if (e.key.length === 1 && !/[a-zA-Z0-9]/.test(e.key)) {
+            e.preventDefault();
+        }
+    };
+
     const handleChangeLaserCardId = (e) => {
-        const val = e.target.value.toUpperCase();
+        const rawValue = e.target.value;
+        const val = rawValue.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        
+        // บังคับให้ DOM อัปเดตค่าทันที (แก้ปัญหา React ไม่ re-render ถ้า state เดิมไม่เปลี่ยน)
+        if (rawValue !== val) {
+            e.target.value = val;
+        }
+        
         setLaserCardId(val);
+
         if (val !== "" && (!/^[A-Z]{0,2}\d{0,10}$/.test(val) || val.length > 12)) {
             setValidLaserCardId(true);
         } else if (val.length === 12) {
@@ -344,6 +359,7 @@ function IndividualController(props) {
     const handlers = {
         handleChangeCitizenId, handleBlurCitizenId,
         handleChangeLaserCardId, handleBlurLaserCardId,
+        handleKeyDownLaserCardId,
         handleChangeName, handleBlurName,
         handleChangeSurname, handleBlurSurname,
         handleSetDateOfBirth, handleSetBirthDateType,

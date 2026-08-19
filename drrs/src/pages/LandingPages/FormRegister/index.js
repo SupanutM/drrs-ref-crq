@@ -60,7 +60,7 @@ function FormRegister() {
   // ตรวจสอบการเข้าถึงหน้าเว็บผ่าน Consent
   useEffect(() => {
     if (!routerState) {
-      navigate("/ndrs-gsb-register/consent", { replace: true });
+      navigate("/drrs/consent", { replace: true });
     }
   }, [navigate, routerState]);
 
@@ -75,8 +75,8 @@ function FormRegister() {
         routes={routes}
         action={{
           type: "external",
-          route: "https://ln15.gsb.or.th/ndrs",
-          label: "GSB NDRS Website",
+          route: "https://ln15.gsb.or.th/drrs",
+          label: "GSB DRRS Website",
           color: "default",
         }}
         backRoute="/drrs/consent"

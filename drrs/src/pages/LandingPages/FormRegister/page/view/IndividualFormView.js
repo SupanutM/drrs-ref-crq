@@ -84,7 +84,7 @@ function IndividualFormView(props) {
                         <Grid item xs={12} sm={12} md={6} lg={6}>
                             <MKTypography variant="body2" fontWeight="regular" color="dark"> เลขหลังบัตรประชาชน </MKTypography>
                             <MKInput type="text" color="primary" label="ระบุเลขหลังบัตรประชาชน"
-                                onChange={handlers.handleChangeLaserCardId} onBlur={handlers.handleBlurLaserCardId} value={state.laserCardId || ""} error={state.validLaserCardId} inputProps={{ maxLength: 12 }} autoComplete="off" fullWidth required />
+                                onChange={handlers.handleChangeLaserCardId} onKeyDown={handlers.handleKeyDownLaserCardId} onBlur={handlers.handleBlurLaserCardId} value={state.laserCardId || ""} error={state.validLaserCardId} inputProps={{ maxLength: 12 }} autoComplete="off" fullWidth required />
                             {state.validLaserCardId ? (
                                 <MKTypography variant="caption" fontWeight="medium" color="error">
                                     กรุณาระบุเลขหลังบัตรประชาชนให้ถูกต้อง (2 ตัวอักษรภาษาอังกฤษ ตามด้วยตัวเลข 10 ตัว)
