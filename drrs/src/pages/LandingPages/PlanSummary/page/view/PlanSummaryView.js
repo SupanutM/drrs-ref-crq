@@ -3,7 +3,10 @@ import PropTypes from "prop-types";
 import { Document, Page, pdfjs } from 'react-pdf';
 import { generateContractPdf } from "api/register";
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/build/pdf.worker.min.mjs',
+    import.meta.url,
+).toString();
 
 // @mui material components
 import Container from "@mui/material/Container";
@@ -72,22 +75,28 @@ function PlanSummaryView(props) {
                 selectedAccounts: selectedAccounts
             });
 
-            const reader = new FileReader();
-            reader.readAsDataURL(new Blob([pdfBlob], { type: 'application/pdf' }));
-            reader.onloadend = () => {
-                const now = new Date();
-                const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-                const filePrefix = customer.cifNo || customer.citizenId || 'UNKNOWN';
-                const filename = `${filePrefix}_${timestamp}.pdf`;
+            const blob = new Blob([pdfBlob], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
 
-                const a = document.createElement('a');
-                a.href = reader.result;
-                a.setAttribute('download', filename);
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                setIsDownloaded(true);
-            };
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+            const filePrefix = customer.cifNo || customer.citizenId || 'UNKNOWN';
+            const filename = `${filePrefix}_${timestamp}.pdf`;
+
+            const downloadLink = document.createElement('a');
+            downloadLink.style.display = 'none';
+            downloadLink.href = url;
+            downloadLink.download = filename;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            
+            // ทำการลบ element และคืนค่า Memory หลังจาก delay เล็กน้อย (สำคัญสำหรับ iOS)
+            setTimeout(() => {
+                document.body.removeChild(downloadLink);
+                window.URL.revokeObjectURL(url);
+            }, 1000);
+
+            setIsDownloaded(true);
         } catch (error) {
             console.error("Failed to generate PDF from API", error);
         }
@@ -145,11 +154,11 @@ function PlanSummaryView(props) {
                         <Checkbox
                             checked={isAgreed}
                             onChange={(e) => setIsAgreed(e.target.checked)}
-                            sx={{ 
+                            sx={{
                                 p: { xs: 0, md: 1 },
-                                pt: { xs: 0.2, md: 0.3 }, 
-                                pl: 0, 
-                                '& .MuiSvgIcon-root': { fontSize: { xs: '18px', md: '24px' } } 
+                                pt: { xs: 0.2, md: 0.3 },
+                                pl: 0,
+                                '& .MuiSvgIcon-root': { fontSize: { xs: '18px', md: '24px' } }
                             }}
                             disabled={isLoading || isDownloading || isDownloaded}
                         />
