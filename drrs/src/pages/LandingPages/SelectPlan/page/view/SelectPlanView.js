@@ -41,8 +41,6 @@ function SelectPlanView(props) {
     // Check if at least one plan is selected
     const isAnySelected = Object.keys(selectedPlans).length > 0;
 
-    console.log("[SelectPlanView] Render - selectedPlans:", selectedPlans);
-
     return (
         <>
             {/* โซนที่ 1: พื้นที่เนื้อหาที่สามารถเลื่อน Scroll ได้ */}
@@ -71,7 +69,7 @@ function SelectPlanView(props) {
                                         const detail = plan.details?.[0] || plan || {};
                                         const paymentAmount = detail.paymentAmount || detail.amount || detail.installmentAmount || 0;
                                         const installmentTerms = detail.installmentTerms || detail.installmentTerm || 0;
-                                        
+
                                         const formatThaiDate = (d) => {
                                             if (!d) return "..............................";
                                             const date = new Date(d);

@@ -229,7 +229,6 @@ const savePlan = async (loantype, payload) => {
                 { desc: currentStep, accountNo: result.data.accountNo },
             ]
         }
-        console.log("Template data:", template);
 
         return {
             result: result.data,

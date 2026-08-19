@@ -47,7 +47,6 @@ function HaircutPlanController(props) {
             const apiResponse = await saveDebtRestructure(payload);
 
             if (apiResponse.success) {
-                // console.log("บันทึกสำเร็จ กำลังเปลี่ยนหน้า...");
                 setContractTemplate({
                     conditionMonth: apiResponse.template.conditionMonth,
                     conditionYear: apiResponse.template.conditionYear,
@@ -83,8 +82,8 @@ function HaircutPlanController(props) {
         setTimeout(() => {
             navigate("/drrs/contract", {
                 state: {
-                    ...routerState,         
-                    template: contractTemplate 
+                    ...routerState,
+                    template: contractTemplate
                 }
             });
         }, 1000);

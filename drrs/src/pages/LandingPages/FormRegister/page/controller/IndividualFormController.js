@@ -290,11 +290,7 @@ function IndividualController(props) {
 
         try {
             setIsLoading(true);
-            console.log(email);
-
             const resVerify = await FormService.verifyCitizenCard({ digitNo: tDigitNo, citizenId: tCitizenId, name: tName, surname: tSurname, dateOfBirth, laserCardId: tLaserCardId, email: tEmail, birthDateType, telNo: tTelNo });
-            console.log(resVerify);
-
             if (resVerify.success) {
                 if (typeof props.onVerifySuccess === "function") {
                     props.onVerifySuccess({

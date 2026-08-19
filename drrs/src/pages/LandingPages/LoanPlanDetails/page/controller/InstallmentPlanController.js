@@ -43,7 +43,6 @@ function InstallmentPlanController(props) {
             const apiResponse = await saveDebtRestructure(payload);
 
             if (apiResponse.success) {
-                // console.log("บันทึกสำเร็จ กำลังเปลี่ยนหน้า...");
                 setContractTemplate({
                     conditionMonth: apiResponse.template.conditionMonth,
                     conditionYear: apiResponse.template.conditionYear,

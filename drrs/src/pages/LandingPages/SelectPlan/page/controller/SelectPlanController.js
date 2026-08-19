@@ -41,7 +41,6 @@ function SelectPlanController(props) {
     const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
 
     const handlePlanSelect = (accountNo, planNo) => {
-        console.log(`[SelectPlan] handlePlanSelect called with accountNo: ${accountNo}, planNo: ${planNo}`);
         setSelectedPlans(prev => {
             const next = { ...prev };
             if (next[accountNo] === planNo) {
@@ -51,7 +50,6 @@ function SelectPlanController(props) {
                 // Select new plan
                 next[accountNo] = planNo;
             }
-            console.log(`[SelectPlan] New selectedPlans state:`, next);
             return next;
         });
     };
