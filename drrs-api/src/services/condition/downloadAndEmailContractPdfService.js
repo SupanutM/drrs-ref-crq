@@ -4,7 +4,7 @@ const ejs = require('ejs');
 const path = require('path');
 const fs = require('fs');
 const baseLogger = require('../../utils/logger');
-const logger = baseLogger.child({ context: 'contractPdfService' });
+const logger = baseLogger.child({ context: 'generateContractPdf' });
 
 const generateContractPdf = async (customerInfo, selectedAccounts) => {
     // 1. Render HTML Template

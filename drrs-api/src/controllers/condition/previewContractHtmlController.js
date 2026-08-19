@@ -1,6 +1,6 @@
 const contractPdfService = require('../../services/condition/previewContractHtmlService');
 const baseLogger = require('../../utils/logger');
-const logger = baseLogger.child({ context: 'contractPdfController' });
+const logger = baseLogger.child({ context: 'previewContractHtmlController' });
 const { augmentAccountsWithDbData, augmentCustomerInfoWithDbData } = require('../../utils/contractHelper');
 
 const previewContractHtmlController = async (req, res) => {
