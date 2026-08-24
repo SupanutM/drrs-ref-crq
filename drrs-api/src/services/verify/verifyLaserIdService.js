@@ -7,6 +7,20 @@ const verifyLaserIdService = async (payload) => {
     try {
         const { citizenId, name, surname, dateOfBirth, laserCardId } = payload;
 
+        // ============================================================
+        // 🧪 LOAD TEST MODE — ข้าม DOPA API จริง เพื่อ Load Test
+        // วิธีเปิดใช้: ตั้ง LOAD_TEST_MODE=true ใน .env แล้ว restart server
+        // ห้ามใช้ใน Production เด็ดขาด!
+        // ============================================================
+        if (process.env.LOAD_TEST_MODE === 'true') {
+            logger.warn('[LOAD_TEST_MODE] Bypassing DOPA Laser ID API — returning mock success');
+            return {
+                success: true,
+                code: '0',
+                message: '[MOCK] Laser ID verification bypassed for load testing'
+            };
+        }
+
         const citizenIdDecrypted = crypto.decryptGCM(citizenId, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
         const laserCardIdDecrypted = crypto.decryptGCM(laserCardId, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
         const nameDecrypted = crypto.decryptGCM(name, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
