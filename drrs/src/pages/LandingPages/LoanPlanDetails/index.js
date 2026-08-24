@@ -37,7 +37,7 @@ function LoanPlanDetail() {
     // ตรวจสอบว่ามีข้อมูล selectedPlan ส่งมาด้วยหรือไม่
     useEffect(() => {
         if (!routerState || !routerState.selectedPlan) {
-            navigate("/ndrs-gsb-register/loan-plan", { replace: true });
+            navigate("/drrs/plan", { replace: true });
         }
     }, [navigate, routerState]);
 

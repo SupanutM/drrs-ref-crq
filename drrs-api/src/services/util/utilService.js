@@ -3,12 +3,9 @@ require("dotenv").config();
 
 const UtilService = {
   encryptData: (value) => {
-    const { encrypted, tag } = crypto.encryptGCM(
-      value,
-      process.env.CRYPTO_KEY,
-      process.env.CRYPTO_IV
-    );
-    return `${encrypted}:${tag}`;
+    // สุ่ม IV ใหม่ทุกครั้ง (จัดการภายใน encryptGCM) แล้วแนบ iv ไปกับผลลัพธ์
+    const { iv, encrypted, tag } = crypto.encryptGCM(value, process.env.CRYPTO_KEY);
+    return `${iv}:${encrypted}:${tag}`;
   },
 
   decryptData: (encryptedValue) => {

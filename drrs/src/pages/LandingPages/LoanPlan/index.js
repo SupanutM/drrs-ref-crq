@@ -29,7 +29,7 @@ function LoanPlan() {
   // ตรวจสอบการเข้าถึงหน้าเว็บผ่าน Consent
   useEffect(() => {
     if (!routerState) {
-      navigate("/ndrs-gsb-register/form", { replace: true });
+      navigate("/drrs/form", { replace: true });
     }
   }, [navigate, routerState]);
 

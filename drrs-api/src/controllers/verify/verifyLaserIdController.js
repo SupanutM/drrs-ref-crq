@@ -9,8 +9,6 @@ const verifyLaserIdController = async (req, res) => {
         const { citizenId, name, surname, dateOfBirth, laserCardId } = req.body;
         const token = req.headers["authorization"];
 
-        logger.info(`token ${token}`)
-
         if (!veriryToken.verifyToken(token)) {
             return res.status(401).json({ status_flag: false, status_message: "unauthorized" });
         }

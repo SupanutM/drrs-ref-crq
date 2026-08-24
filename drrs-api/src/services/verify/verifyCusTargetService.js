@@ -14,7 +14,9 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
         const lastNameDecrypted = crypto.decryptGCM(lastName, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
 
         const tblCusTargetRepo = AppDataSource.getRepository(tblCusTarget);
+        
         logger.info(`payload:  ${firstNameDecrypted}, ${lastNameDecrypted}, ${verifyCode}`)
+
         const customer = await tblCusTargetRepo.findOne({
             where: {
                 firstName: firstNameDecrypted,

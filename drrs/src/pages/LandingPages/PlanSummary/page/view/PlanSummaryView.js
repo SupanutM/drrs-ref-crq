@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
+import DOMPurify from "dompurify";
 import { Document, Page, pdfjs } from 'react-pdf';
 import { generateContractPdf } from "api/register";
 
@@ -116,7 +117,7 @@ function PlanSummaryView(props) {
                             <MKTypography variant="body1">กำลังโหลดข้อมูลสัญญา...</MKTypography>
                         </MKBox>
                     ) : (
-                        <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+                        <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(htmlContent || "", { ADD_TAGS: ["style"], FORCE_BODY: true }) }} />
                     )}
 
                     <MKBox id="pdf-viewer-section" mt={5} mb={2} sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", overflow: "hidden" }}>

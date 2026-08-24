@@ -28,7 +28,7 @@ function GenContract() {
 
     useEffect(() => {
         if (!routerState || !routerState.selectedPlan) {
-            navigate("/ndrs-gsb-register/plan-detail", { replace: true });
+            navigate("/drrs/plan-detail", { replace: true });
         }
     }, [navigate, routerState]);
 

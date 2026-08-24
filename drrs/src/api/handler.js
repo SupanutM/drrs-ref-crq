@@ -71,34 +71,3 @@ export const get = async (url, params, config, axiosInstance, token) => {
   }
 };
 
-export const postGeneral = (url, data, token) => {
-  const headers = {
-    "Content-Type": "application/json",
-  };
-
-  if (token) {
-    axios.defaults.headers.common["Authorization"] = token;
-  }
-
-  return axios.post(url, data, {
-    headers: headers,
-  });
-};
-
-export const getGeneral = (url, params, token) => {
-  const headers = {
-    "Content-Type": "application/json",
-  };
-
-  if (token) {
-    axios.defaults.headers.common["Authorization"] = token;
-  }
-
-  return axios.get(url, params, {
-    headers: headers,
-  });
-};
-
-export const getPdf = async (url, params) => {
-  return await axios.get(url, params, { responseType: "blob" });
-};
