@@ -60,7 +60,7 @@ function FormRegister() {
   // ตรวจสอบการเข้าถึงหน้าเว็บผ่าน Consent
   useEffect(() => {
     if (!routerState) {
-      navigate("/ndrs-gsb-register/consent", { replace: true });
+      navigate("/drrs/consent", { replace: true });
     }
   }, [navigate, routerState]);
 
@@ -75,8 +75,8 @@ function FormRegister() {
         routes={routes}
         action={{
           type: "external",
-          route: "https://ln15.gsb.or.th/ndrs",
-          label: "GSB NDRS Website",
+          route: "https://ln15.gsb.or.th/drrs",
+          label: "GSB DRRS Website",
           color: "default",
         }}
         backRoute="/drrs/consent"
@@ -84,7 +84,7 @@ function FormRegister() {
         light
       />
 
-      <MKBox sx={{ minHeight: { xs: "280px", md: "35vh" }, flexShrink: 0, width: "100%", backgroundColor: "#eb3a75", backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", pt: { xs: "60px", md: "64px" }, pb: { xs: 3, md: 4 } }} >
+      <MKBox sx={{ minHeight: { xs: "180px", md: "35vh" }, flexShrink: 0, width: "100%", backgroundColor: "#eb3a75", backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", pt: { xs: "50px", md: "64px" }, pb: { xs: 5, md: 4 } }} >
         <Container>
           <Grid container item xs={12} lg={8} justifyContent="center" alignItems="center" flexDirection="column" sx={{ mx: "auto", textAlign: "center" }} >
             <MKTypography
@@ -116,7 +116,7 @@ function FormRegister() {
             </MKTypography>
           </Grid> */}
 
-          <Grid container item xs={12}>
+          <Grid container item xs={12} py={{ xs: 0, sm: 1 }}>
             <FormControl component="fieldset">
               <MKTypography variant="body2" fontWeight="bold" color="dark" mb={0.5}>
                 ประเภทบุคคล

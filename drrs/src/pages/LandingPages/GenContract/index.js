@@ -53,7 +53,7 @@ function GenContract() {
                 transparent
                 light
             />
-            <MKBox sx={{ minHeight: { xs: "280px", md: "35vh" }, flexShrink: 0, width: "100%", backgroundColor: "#eb3a75", backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", pt: { xs: "60px", md: "64px" }, pb: { xs: 3, md: 4 } }}>
+            <MKBox sx={{ minHeight: { xs: "180px", md: "35vh" }, flexShrink: 0, width: "100%", backgroundColor: "#eb3a75", backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", pt: { xs: "50px", md: "64px" }, pb: { xs: 5, md: 4 } }}>
                 <Container>
                     <Grid container item xs={12} lg={8} justifyContent="center" alignItems="center" flexDirection="column" sx={{ mx: "auto", textAlign: "center" }}>
                         <MKTypography variant="h2" color="white" sx={({ breakpoints, typography: { size } }) => ({ fontSize: size["2xl"], [breakpoints.down("md")]: { fontSize: size["xl"] } })}>

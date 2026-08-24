@@ -3,6 +3,8 @@ const { PDFDocument } = require('pdf-lib-plus-encrypt');
 const ejs = require('ejs');
 const path = require('path');
 const fs = require('fs');
+const baseLogger = require('../../utils/logger');
+const logger = baseLogger.child({ context: 'generateContractPdf' });
 
 const generateContractPdf = async (customerInfo, selectedAccounts) => {
     // 1. Render HTML Template
@@ -63,47 +65,14 @@ const generateContractPdf = async (customerInfo, selectedAccounts) => {
         mergedPdf.addPage(page);
     });
 
-    // Encrypt the merged PDF using the birthday as password (format DDMMYYYY)
-    let pwd = customerInfo?.birthday || '';
-    if (pwd && pwd.length === 8) {
-        // Assume YYYYMMDD from DB, convert to DDMMYYYY
-        const yyyy = pwd.substring(0, 4);
-        const mm = pwd.substring(4, 6);
-        const dd = pwd.substring(6, 8);
-        pwd = `${dd}${mm}${yyyy}`;
-    }
+    // Save the merged PDF to a Buffer (unencrypted)
+    const mergedBytes = await mergedPdf.save({ useObjectStreams: false });
+    const mergedBuffer = Buffer.from(mergedBytes);
 
-    if (pwd) {
-        mergedPdf.encrypt({
-            userPassword: pwd,
-            ownerPassword: process.env.PDF_OWNER_PASSWORD || 'GSB_SECRET_KEY_DRRS',
-            permissions: {
-                printing: 'highResolution',
-                modifying: false,
-                copying: false,
-                annotating: false,
-                fillingForms: false,
-                contentAccessibility: true,
-                documentAssembly: false
-            }
-        });
-    }
-
-    // Save the merged PDF to a Buffer
-    const encryptedBytes = await mergedPdf.save({ useObjectStreams: false });
-    return Buffer.from(encryptedBytes);
-};
-
-const previewContractHtml = async (customerInfo, selectedAccounts) => {
-    const templatePath = path.join(__dirname, '../../templates/planSummary.html');
-    const accounts = Array.isArray(selectedAccounts) ? selectedAccounts : [];
-
-    const htmlContent = await ejs.renderFile(templatePath, {
-        customerInfo: customerInfo || {},
-        selectedAccounts: accounts
-    });
-
-    return htmlContent;
+    // Use the centralized security helper to encrypt the PDF
+    const { encryptPdfBuffer } = require('../../utils/pdfSecurityHelper');
+    const encryptedBuffer = await encryptPdfBuffer(mergedBuffer, customerInfo?.birthday);
+    return encryptedBuffer;
 };
 
 const savePdfToDisk = (pdfBuffer, filename) => {
@@ -123,6 +92,5 @@ const savePdfToDisk = (pdfBuffer, filename) => {
 
 module.exports = {
     generateContractPdf,
-    previewContractHtml,
     savePdfToDisk
 };

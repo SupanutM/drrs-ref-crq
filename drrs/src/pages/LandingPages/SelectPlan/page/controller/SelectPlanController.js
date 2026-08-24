@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 import { saveDebtRestructure } from "api/register";
 import SelectPlanView from "../view/SelectPlanView";
 
+import Box from "@mui/material/Box";
+
 function SelectPlanController(props) {
     const navigate = useNavigate();
     const { routerState } = props;
@@ -41,7 +43,6 @@ function SelectPlanController(props) {
     const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
 
     const handlePlanSelect = (accountNo, planNo) => {
-        console.log(`[SelectPlan] handlePlanSelect called with accountNo: ${accountNo}, planNo: ${planNo}`);
         setSelectedPlans(prev => {
             const next = { ...prev };
             if (next[accountNo] === planNo) {
@@ -51,7 +52,6 @@ function SelectPlanController(props) {
                 // Select new plan
                 next[accountNo] = planNo;
             }
-            console.log(`[SelectPlan] New selectedPlans state:`, next);
             return next;
         });
     };
@@ -99,6 +99,9 @@ function SelectPlanController(props) {
         // แยกบัญชีที่เลือกออกเป็น 2 กลุ่ม: ต้องเช็ครายได้ vs ไม่ต้องเช็ค
         const accountsNeedCheck = accounts.filter(acc => selectedPlans[acc.accountNo] && needsIncomeCheck(acc));
 
+        // ตรวจสอบว่าเป็นการเลือกแผนครั้งแรกหรือไม่ (ไม่มีบัญชีที่เคยลงทะเบียน)
+        const isFirstTime = accounts.every(acc => !acc.isRegistered);
+
         // คำนวณยอด min_amount รวมเฉพาะบัญชีที่ต้องเช็ครายได้
         let totalMinAmount = accountsNeedCheck.reduce((sum, acc) => sum + (Number(acc.minAmount) || 0), 0);
 
@@ -123,18 +126,20 @@ function SelectPlanController(props) {
         if (accountsNeedCheck.length > 0 && currentNetIncome < totalMinAmount) {
             // ถ้ายอดรวมถูกบวกเพิ่มจากบัญชีเก่า ให้แจ้งให้ผู้ใช้ทราบด้วย
             const currentPlanMinAmount = accountsNeedCheck.reduce((sum, acc) => sum + (Number(acc.minAmount) || 0), 0);
-            const showOldInstallmentWarning = hasInstallmentPlan && totalMinAmount > currentPlanMinAmount;
+            const showOldInstallmentWarning = hasInstallmentPlan && totalMinAmount > currentPlanMinAmount && !isFirstTime;
 
             const warnMsg = (
-                <span>
-                    รายได้สุทธิไม่เพียงพอชำระหนี้<br />
-                    (รายได้สุทธิปัจจุบัน: {currentNetIncome.toLocaleString()} บาท / ต้องมียอดขั้นต่ำรวม: {totalMinAmount.toLocaleString()} บาท)
+                <Box>
+                    <Box sx={{ fontSize: { xs: "16px", sm: "inherit" } }}>
+                        รายได้สุทธิไม่เพียงพอชำระหนี้<br />
+                        (รายได้สุทธิปัจจุบัน: {currentNetIncome.toLocaleString()} บาท / ต้องมียอดขั้นต่ำรวม: {totalMinAmount.toLocaleString()} บาท)
+                    </Box>
                     {showOldInstallmentWarning && (
-                        <div style={{ fontSize: "12px", color: "#F44335", textAlign: "left", marginTop: "16px" }}>
+                        <Box sx={{ fontSize: { xs: "10px", sm: "12px" }, color: "#F44335", textAlign: "left", mt: 2 }}>
                             *หมายเหตุ: โดยยอดขั้นต่ำนี้ได้รวมภาระจากบัญชีที่คุณเคยลงทะเบียนผ่อนชำระไว้ก่อนหน้านี้แล้ว กรุณาระบุรายได้อื่นๆ เพื่อประกอบการพิจารณา หรือติดต่อสาขา
-                        </div>
+                        </Box>
                     )}
-                </span>
+                </Box>
             );
 
             setWarnMessage(warnMsg);
@@ -199,19 +204,20 @@ function SelectPlanController(props) {
 
                 const displayNetIncome = matchNetIncome ? matchNetIncome[1] : currentNetIncome.toLocaleString();
                 const displayMinAmount = matchMinAmount ? matchMinAmount[1] : totalMinAmount.toLocaleString();
-                const isOldInstallmentIncluded = errorMessage.includes("เคยลงทะเบียนผ่อนชำระ");
+                const isOldInstallmentIncluded = errorMessage.includes("เคยลงทะเบียนผ่อนชำระ") && !isFirstTime;
 
                 const formattedWarnMsg = (
-                    <span>
-                        รายได้สุทธิไม่เพียงพอชำระหนี้<br />
-                        (รายได้สุทธิปัจจุบัน: {displayNetIncome} บาท / ต้องมียอดขั้นต่ำรวม: {displayMinAmount} บาท)
+                    <Box>
+                        <Box sx={{ fontSize: { xs: "16px", sm: "inherit" } }}>
+                            รายได้สุทธิไม่เพียงพอชำระหนี้<br />
+                            (รายได้สุทธิปัจจุบัน: {displayNetIncome} บาท / ต้องมียอดขั้นต่ำรวม: {displayMinAmount} บาท)
+                        </Box>
                         {isOldInstallmentIncluded && (
-                            <div style={{ fontSize: "12px", color: "#F44335", textAlign: "left", marginTop: "16px" }}>
+                            <Box sx={{ fontSize: { xs: "10px", sm: "12px" }, color: "#F44335", textAlign: "left", mt: 2 }}>
                                 *หมายเหตุ: โดยยอดขั้นต่ำนี้ได้รวมภาระจากบัญชีที่คุณเคยลงทะเบียนผ่อนชำระไว้ก่อนหน้านี้แล้ว กรุณาระบุรายได้อื่นๆ เพื่อประกอบการพิจารณา หรือติดต่อสาขา
-                            </div>
+                            </Box>
                         )}
-
-                    </span>
+                    </Box>
                 );
                 setWarnMessage(formattedWarnMsg);
             } else {

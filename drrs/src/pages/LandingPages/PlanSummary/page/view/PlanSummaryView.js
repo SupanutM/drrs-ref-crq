@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { Document, Page, pdfjs } from 'react-pdf';
 import { generateContractPdf } from "api/register";
-import { encryptGCM } from "api/crypto";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -64,26 +63,8 @@ function PlanSummaryView(props) {
         try {
             const customer = customerInfo || targetInfo || {};
 
-            const safeEncrypt = async (val) => {
-                if (!val) return val;
-                try {
-                    const res = await encryptGCM({ value: val });
-                    return res.encrypted;
-                } catch (e) {
-                    return val;
-                }
-            };
-
             const encryptedCustomer = {
-                cusTargetId: customer.cusTargetId,
-                citizenId: await safeEncrypt(customer.citizenId),
-                cifNo: await safeEncrypt(customer.cifNo),
-                firstName: await safeEncrypt(customer.firstName),
-                lastName: await safeEncrypt(customer.lastName),
-                address: await safeEncrypt(customer.address),
-                email: await safeEncrypt(customer.email),
-                telNo: await safeEncrypt(customer.telNo),
-                birthday: customer.birthday || customer.dateOfBirth
+                cusTargetId: customer.cusTargetId
             };
 
             const pdfBlob = await generateContractPdf({
@@ -91,22 +72,28 @@ function PlanSummaryView(props) {
                 selectedAccounts: selectedAccounts
             });
 
-            const reader = new FileReader();
-            reader.readAsDataURL(new Blob([pdfBlob], { type: 'application/pdf' }));
-            reader.onloadend = () => {
-                const now = new Date();
-                const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-                const filePrefix = customer.cifNo || customer.citizenId || 'UNKNOWN';
-                const filename = `${filePrefix}_${timestamp}.pdf`;
+            const blob = new Blob([pdfBlob], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
 
-                const a = document.createElement('a');
-                a.href = reader.result;
-                a.setAttribute('download', filename);
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                setIsDownloaded(true);
-            };
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+            const filePrefix = customer.cifNo || customer.citizenId || 'UNKNOWN';
+            const filename = `${filePrefix}_${timestamp}.pdf`;
+
+            const downloadLink = document.createElement('a');
+            downloadLink.style.display = 'none';
+            downloadLink.href = url;
+            downloadLink.download = filename;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            
+            // ทำการลบ element และคืนค่า Memory หลังจาก delay เล็กน้อย (สำคัญสำหรับ iOS)
+            setTimeout(() => {
+                document.body.removeChild(downloadLink);
+                window.URL.revokeObjectURL(url);
+            }, 1000);
+
+            setIsDownloaded(true);
         } catch (error) {
             console.error("Failed to generate PDF from API", error);
         }
@@ -164,14 +151,19 @@ function PlanSummaryView(props) {
                         <Checkbox
                             checked={isAgreed}
                             onChange={(e) => setIsAgreed(e.target.checked)}
-                            sx={{ pt: 0.3, pl: 0 }}
+                            sx={{
+                                p: { xs: 0, md: 1 },
+                                pt: { xs: 0.2, md: 0.3 },
+                                pl: 0,
+                                '& .MuiSvgIcon-root': { fontSize: { xs: '18px', md: '24px' } }
+                            }}
                             disabled={isLoading || isDownloading || isDownloaded}
                         />
                         <MKTypography
                             variant="body2"
                             color="text"
                             onClick={() => { if (!isDownloaded && !isLoading && !isDownloading) setIsAgreed(!isAgreed); }}
-                            sx={{ fontSize: "12px", lineHeight: 1.6, color: "#000", ml: 1, cursor: "pointer", textAlign: "left" }}
+                            sx={{ fontSize: { xs: "12px", md: "14px" }, lineHeight: 1.6, color: "#000", ml: { xs: 1, md: 0 }, cursor: "pointer", textAlign: "left" }}
                         >
                             ข้าพเจ้าได้อ่านและเข้าใจข้อความโดยครบถ้วนแล้ว เห็นว่าถูกต้องตามความประสงค์ จึงได้แสดงเจตนาตกลงผูกพันตามแผนการชำระหนี้ที่ชำระหนี้ที่ข้าพเจ้าเลือกไว้ข้างต้น รวมถึงข้อตกลงนี้ด้วยการกด &quot;ยอมรับ&quot; ด้านล่างนี้
                         </MKTypography>
@@ -205,10 +197,10 @@ function PlanSummaryView(props) {
                     disabled={isLoading || isDownloading || isDownloaded}
                     sx={{
                         minWidth: { xs: "100%", sm: "200px" },
-                        py: 1.8,
+                        py: { xs: 1.2, sm: 1.8 },
                         px: 5,
                         borderRadius: "12px",
-                        fontSize: "1.1rem",
+                        fontSize: { xs: "0.95rem", sm: "1.1rem" },
                         fontWeight: "bold",
                         "&:hover": {
                             transform: "translateY(-2px)",
@@ -228,10 +220,10 @@ function PlanSummaryView(props) {
                     disabled={isLoading || isDownloading || isDownloaded || selectedAccounts.length === 0 || !isAgreed}
                     sx={{
                         minWidth: { xs: "100%", sm: "200px" },
-                        py: 1.8,
+                        py: { xs: 1.2, sm: 1.8 },
                         px: 5,
                         borderRadius: "12px",
-                        fontSize: "1.1rem",
+                        fontSize: { xs: "0.95rem", sm: "1.1rem" },
                         fontWeight: "bold",
                         "&:hover": {
                             transform: "translateY(-2px)",
@@ -254,7 +246,9 @@ function PlanSummaryView(props) {
                     <>
                         ท่านต้องการดาวน์โหลดสัญญาเพื่อเก็บไว้เป็นหลักฐาน และดำเนินการต่อหรือไม่?
                         <br /><br />
-                        <span style={{ color: "red" }}>หมายเหตุ: รหัสผ่านสำหรับเปิดไฟล์คือ วันเดือนปีเกิดของท่าน ในรูปแบบ DDMMYYYY (ปี พ.ศ.)</span>
+                        <MKTypography component="span" color="error" sx={{ fontSize: { xs: "12px", md: "inherit" } }}>
+                            หมายเหตุ: รหัสผ่านสำหรับเปิดไฟล์คือ วันเดือนปีเกิดของท่าน ในรูปแบบ DDMMYYYY (ปี พ.ศ.)
+                        </MKTypography>
                     </>
                 }
                 confirmText="ดาวน์โหลด"

@@ -74,9 +74,24 @@ function IndividualController(props) {
         }
     };
 
+    const handleKeyDownLaserCardId = (e) => {
+        // ป้องกันไม่ให้กดปุ่มอักขระพิเศษตั้งแต่แรก (อนุญาตเฉพาะ a-z, A-Z, 0-9 และปุ่มควบคุมอื่นๆ)
+        if (e.key.length === 1 && !/[a-zA-Z0-9]/.test(e.key)) {
+            e.preventDefault();
+        }
+    };
+
     const handleChangeLaserCardId = (e) => {
-        const val = e.target.value.toUpperCase();
+        const rawValue = e.target.value;
+        const val = rawValue.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        
+        // บังคับให้ DOM อัปเดตค่าทันที (แก้ปัญหา React ไม่ re-render ถ้า state เดิมไม่เปลี่ยน)
+        if (rawValue !== val) {
+            e.target.value = val;
+        }
+        
         setLaserCardId(val);
+
         if (val !== "" && (!/^[A-Z]{0,2}\d{0,10}$/.test(val) || val.length > 12)) {
             setValidLaserCardId(true);
         } else if (val.length === 12) {
@@ -146,34 +161,32 @@ function IndividualController(props) {
             setBirthDateMonthYear(buddhistDate);
             setBirthDateYear(null);
 
-            // 2. buddhistDate 2569-07 ให้เติม 01 แทนวันที่ขาดไป เช่น 2569-07-01
-            const formattedDate = `${buddhistDate}-01`;
+            // 2. buddhistDate 2569-07 ให้เติม 00 แทนวันที่ขาดไป เช่น 2569-07-00
+            const formattedDate = `${buddhistDate}-00`;
             const isInvalidPattern = validDate(buddhistDate, "YYYY-MM");
-            const isInvalidFullDate = validDate(formattedDate, "YYYY-MM-DD");
 
             setDateOfBirth(formattedDate);
-            setValidBirthDay(isInvalidPattern || isInvalidFullDate);
+            setValidBirthDay(isInvalidPattern);
         } else if (targetType === "year") {
             setBirthDateYear(buddhistDate);
             setBirthDateMonthYear(null);
 
-            // 3. buddhistDate 2569 ให้เติม 01 แทนวันที่และเดือนขาดไป เช่น 2569-01-01
-            const formattedDate = `${buddhistDate}-01-01`;
+            // 3. buddhistDate 2569 ให้เติม 00-00 แทนวันที่และเดือนขาดไป เช่น 2569-00-00
+            const formattedDate = `${buddhistDate}-00-00`;
             const isInvalidPattern = validDate(buddhistDate, "YYYY");
-            const isInvalidFullDate = validDate(formattedDate, "YYYY-MM-DD");
 
             setDateOfBirth(formattedDate);
-            setValidBirthDay(isInvalidPattern || isInvalidFullDate);
+            setValidBirthDay(isInvalidPattern);
         } else {
             let formattedDate = buddhistDate;
             const parts = buddhistDate.split("-");
             let isInvalid = validDate(buddhistDate, "YYYY-MM-DD");
             if (parts.length === 2) {
-                formattedDate = `${buddhistDate}-01`;
-                isInvalid = validDate(buddhistDate, "YYYY-MM") || validDate(formattedDate, "YYYY-MM-DD");
+                formattedDate = `${buddhistDate}-00`;
+                isInvalid = validDate(buddhistDate, "YYYY-MM");
             } else if (parts.length === 1 && buddhistDate.length === 4) {
-                formattedDate = `${buddhistDate}-01-01`;
-                isInvalid = validDate(buddhistDate, "YYYY") || validDate(formattedDate, "YYYY-MM-DD");
+                formattedDate = `${buddhistDate}-00-00`;
+                isInvalid = validDate(buddhistDate, "YYYY");
             }
             setDateOfBirth(formattedDate);
             setValidBirthDay(isInvalid);
@@ -292,11 +305,7 @@ function IndividualController(props) {
 
         try {
             setIsLoading(true);
-            console.log(email);
-
             const resVerify = await FormService.verifyCitizenCard({ digitNo: tDigitNo, citizenId: tCitizenId, name: tName, surname: tSurname, dateOfBirth, laserCardId: tLaserCardId, email: tEmail, birthDateType, telNo: tTelNo });
-            console.log(resVerify);
-
             if (resVerify.success) {
                 if (typeof props.onVerifySuccess === "function") {
                     props.onVerifySuccess({
@@ -350,6 +359,7 @@ function IndividualController(props) {
     const handlers = {
         handleChangeCitizenId, handleBlurCitizenId,
         handleChangeLaserCardId, handleBlurLaserCardId,
+        handleKeyDownLaserCardId,
         handleChangeName, handleBlurName,
         handleChangeSurname, handleBlurSurname,
         handleSetDateOfBirth, handleSetBirthDateType,

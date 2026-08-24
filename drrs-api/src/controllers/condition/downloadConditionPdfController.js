@@ -1,18 +1,14 @@
-const pdfService = require('../../services/condition/pdfService');
+const pdfService = require('../../services/condition/downloadConditionPdfService');
 const baseLogger = require('../../utils/logger');
 const createStepService = require('../../services/util/systemLog/createStepService');
-const logger = baseLogger.child({ context: 'pdfController' });
+const logger = baseLogger.child({ context: 'generatePdfController' });
 
 const generatePdfController = async (req, res) => {
     try {
         logger.info(`req: ${JSON.stringify(req.body)}`)
         const base64Pdf = await pdfService.generateInvoiceBase64(req.body);
 
-        const accountNo = req.body.accountNo || (Array.isArray(req.body.items) && req.body.items[0]?.accountNo);
-        if (accountNo) {
-            logger.info(`[Step Log] อัปเดต step stepSendToCbs: "1" สำหรับ AccountNo: ${accountNo}`);
-            await createStepService.updateStepService(accountNo, { stepSendToCbs: "1" }, 'stepSendToCbs');
-        }
+
 
         res.json({
             success: true,

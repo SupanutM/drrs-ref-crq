@@ -21,6 +21,11 @@ const tblCusTarget = new EntitySchema({
             length: 20,
             nullable: true
         },
+        address: {
+            name: "address",
+            type: "text",
+            nullable: true
+        },
         firstName: {
             name: "first_name",
             type: "varchar",

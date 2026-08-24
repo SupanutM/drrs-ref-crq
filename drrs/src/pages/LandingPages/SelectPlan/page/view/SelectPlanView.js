@@ -41,8 +41,6 @@ function SelectPlanView(props) {
     // Check if at least one plan is selected
     const isAnySelected = Object.keys(selectedPlans).length > 0;
 
-    console.log("[SelectPlanView] Render - selectedPlans:", selectedPlans);
-
     return (
         <>
             {/* โซนที่ 1: พื้นที่เนื้อหาที่สามารถเลื่อน Scroll ได้ */}
@@ -51,7 +49,7 @@ function SelectPlanView(props) {
 
                     {accounts.map((acc, index) => (
                         <MKBox key={acc.accountNo} mb={5}>
-                            <MKTypography variant="h5" color="dark" mb={2}>
+                            <MKTypography variant="h5" color="dark" mb={2} sx={{ fontSize: { xs: "0.95rem", md: "1.25rem" } }}>
                                 {index + 1}. บัญชีเลขที่ {acc.accountNo}
                                 {acc.isRegistered && (
                                     <MKTypography component="span" variant="body2" color="error" ml={2}>
@@ -71,7 +69,7 @@ function SelectPlanView(props) {
                                         const detail = plan.details?.[0] || plan || {};
                                         const paymentAmount = detail.paymentAmount || detail.amount || detail.installmentAmount || 0;
                                         const installmentTerms = detail.installmentTerms || detail.installmentTerm || 0;
-                                        
+
                                         const formatThaiDate = (d) => {
                                             if (!d) return "..............................";
                                             const date = new Date(d);
@@ -115,7 +113,7 @@ function SelectPlanView(props) {
                                                             />
                                                         </MKBox>
                                                         <MKBox flex={1}>
-                                                            <MKTypography variant="h6" color="dark" fontWeight="bold">
+                                                            <MKTypography variant="h6" color="dark" fontWeight="bold" sx={{ fontSize: { xs: "0.875rem", md: "1rem" } }}>
                                                                 {isHaircut ? `ปิดบัญชีเลขที่ ${acc.accountNo}` : "ผ่อนชำระ"}
                                                             </MKTypography>
                                                             <MKTypography variant="body2" color="text" mt={1}>
@@ -127,7 +125,8 @@ function SelectPlanView(props) {
                                                                 ) : (
                                                                     <>
                                                                         ผ่อนชำระงวดละ: <b>{Number(paymentAmount).toLocaleString()}</b> บาท<br />
-                                                                        จำนวน: <b>{installmentTerms}</b> งวด (อัตราดอกเบี้ย MRR ต่อปี)<br />
+                                                                        จำนวน: <b>{installmentTerms}</b> งวด <br />
+                                                                        (อัตราดอกเบี้ย MRR ต่อปี)<br />
                                                                         เริ่มชำระงวดแรก วันที่ {startDateDisplay}<br />
                                                                         เสร็จสิ้นภายในวันที่ {endDateDisplay}<br />
                                                                         โดยท่านตกลงชำระหนี้ให้ธนาคารทั้งหมดในงวดสุดท้าย
@@ -239,7 +238,11 @@ function SelectPlanView(props) {
                 onClose={handlers.handleCloseIncompleteModal}
                 onConfirm={handlers.handleProceedIncomplete}
                 variant="warning"
-                title="ท่านแจ้งความประสงค์ไม่ครบทุกบัญชี"
+                title={
+                    <MKTypography component="span" color="inherit" fontWeight="bold" sx={{ fontSize: { xs: "16px", sm: "inherit" } }}>
+                        ท่านแจ้งความประสงค์ไม่ครบทุกบัญชี
+                    </MKTypography>
+                }
                 content=""
                 confirmText="ยืนยันทำรายการเฉพาะบัญชีที่เลือก"
                 confirmColor="success"

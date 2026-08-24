@@ -83,8 +83,8 @@ function IndividualFormView(props) {
                         {/* 2. เลขหลังบัตรประชาชน */}
                         <Grid item xs={12} sm={12} md={6} lg={6}>
                             <MKTypography variant="body2" fontWeight="regular" color="dark"> เลขหลังบัตรประชาชน </MKTypography>
-                            <MKInput type="text" color="primary" label="ระบุเลขหลังบัตรประชาชน (ไม่ต้องระบุ - )"
-                                onChange={handlers.handleChangeLaserCardId} onBlur={handlers.handleBlurLaserCardId} value={state.laserCardId || ""} error={state.validLaserCardId} inputProps={{ maxLength: 12 }} autoComplete="off" fullWidth required />
+                            <MKInput type="text" color="primary" label="ระบุเลขหลังบัตรประชาชน"
+                                onChange={handlers.handleChangeLaserCardId} onKeyDown={handlers.handleKeyDownLaserCardId} onBlur={handlers.handleBlurLaserCardId} value={state.laserCardId || ""} error={state.validLaserCardId} inputProps={{ maxLength: 12 }} autoComplete="off" fullWidth required />
                             {state.validLaserCardId ? (
                                 <MKTypography variant="caption" fontWeight="medium" color="error">
                                     กรุณาระบุเลขหลังบัตรประชาชนให้ถูกต้อง (2 ตัวอักษรภาษาอังกฤษ ตามด้วยตัวเลข 10 ตัว)
@@ -180,6 +180,7 @@ function IndividualFormView(props) {
                                     <Grid item xs={12} sm={12} md={4} lg={4}>
                                         <MKTypography variant="body2" fontWeight="regular" color="dark"> วัน/เดือน/ปี (พ.ศ.) เกิด </MKTypography>
                                         <DatePickerCustoms
+                                            showTodayButton={false}
                                             value={state.birthDateFull}
                                             onChange={(christDate, buddhistDate) => handlers.handleSetDateOfBirth(buddhistDate, "full")}
                                             placeholder={"ระบุ วัน/เดือน/ปี (พ.ศ.) เกิด"} dateFormat={"yyyy-MM-dd"} displayFormat={"DD MMMM YYYY"}
@@ -199,6 +200,7 @@ function IndividualFormView(props) {
                                     <Grid item xs={12} sm={12} md={4} lg={4}>
                                         <MKTypography variant="body2" fontWeight="regular" color="dark"> เลือกเฉพาะ เดือน/ปี (พ.ศ.) เกิด </MKTypography>
                                         <DatePickerCustoms
+                                            showTodayButton={false}
                                             showMonthYearPicker={true}
                                             value={state.birthDateMonthYear}
                                             onChange={(christDate, buddhistDate) => handlers.handleSetDateOfBirth(buddhistDate, "monthYear")}
@@ -214,6 +216,7 @@ function IndividualFormView(props) {
                                     <Grid item xs={12} sm={12} md={4} lg={4}>
                                         <MKTypography variant="body2" fontWeight="regular" color="dark"> หรือเลือกเฉพาะ ปี (พ.ศ.) เกิด </MKTypography>
                                         <DatePickerCustoms
+                                            showTodayButton={false}
                                             showYearPicker={true}
                                             value={state.birthDateYear}
                                             onChange={(christDate, buddhistDate) => handlers.handleSetDateOfBirth(buddhistDate, "year")}
@@ -244,7 +247,7 @@ function IndividualFormView(props) {
                         {/* 10. อีเมล */}
                         <Grid item xs={12} sm={12} md={4} lg={4}>
                             <MKTypography variant="body2" fontWeight="regular" color="dark"> อีเมล </MKTypography>
-                            <MKInput type="email" color="primary" label="ระบุอีเมล"
+                            <MKInput type="email" color="primary" label="ระบุอีเมล (สำหรับการจัดส่งสำเนาสัญญาอิเล็กทรอนิกส์)"
                                 onChange={handlers.handleChangeEmail} onBlur={handlers.handleBlurEmail} value={state.email || ""} error={state.validEmail} autoComplete="off" fullWidth />
                             {state.validEmail ? (
                                 <MKTypography variant="caption" fontWeight="medium" color="error"> กรุณาระบุอีเมลให้ถูกต้อง (เช่น example@domain.com) </MKTypography>

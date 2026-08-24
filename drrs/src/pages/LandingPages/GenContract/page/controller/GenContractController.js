@@ -14,8 +14,6 @@ function GenContractController(props) {
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [isFinished, setIsFinished] = useState(false);
 
-    // console.log(routerState);
-
     const [payload] = useState({
         ...(routerState?.template || {}),
         birthDate: routerState?.targetInfo?.dateOfBirth || routerState?.targetInfo?.birthDate || routerState?.template?.birthDate || '',
@@ -55,15 +53,8 @@ function GenContractController(props) {
                 userPassword: payload?.birthDate || payload?.userPassword || routerState?.targetInfo?.dateOfBirth || routerState?.targetInfo?.birthDate || routerState?.template?.birthDate || ''
             };
             const response = await PdfService.generatePDF(sendPayload);
-            // console.log(payload);
-            // console.log("res.data", response.data);
-            console.log(response);
-            console.log(response.data);
-
 
             const { success, base64, fileName, message } = response;
-            // console.log("filename", fileName);
-
             if (!success || !base64) {
                 throw new Error(message || "เซิร์ฟเวอร์ไม่ได้ส่งข้อมูลไฟล์ PDF กลับมา");
             }

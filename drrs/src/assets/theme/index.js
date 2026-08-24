@@ -154,5 +154,15 @@ export default createTheme({
     MuiDialogContent: { ...dialogContent },
     MuiDialogContentText: { ...dialogContentText },
     MuiDialogActions: { ...dialogActions },
+    MuiTypography: {
+      styleOverrides: {
+        // body2 เล็กลงบน mobile (14px) และใหญ่ตามปกติบน desktop (16px)
+        body2: {
+          "@media (max-width: 899.95px)": {
+            fontSize: "0.875rem", // 14px
+          },
+        },
+      },
+    },
   },
 });

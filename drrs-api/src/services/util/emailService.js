@@ -78,11 +78,11 @@ async function triggerSendContractEmail(data) {
         ];
 
         logger.info(`Sending contract email to ${email} for CID: ${cid}`);
-        
+
         await transporter.sendMail({
             from: process.env.SMTP_FROM,
             to: email,
-            subject: "นำส่งไฟล์สัญญาอิเล็กทรอนิกส์ (e-Contract) ของสินเชื่อที่ท่านแจ้งความประสงค์เข้าร่วมมาตรการฯ ของธนาคาร",
+            subject: "สำเนาไฟล์สัญญาอิเล็กทรอนิกส์ (e-Contract) ของสินเชื่อที่ท่านแจ้งความประสงค์เข้าร่วมมาตรการฯ ของธนาคาร",
             html,
             attachments,
         });

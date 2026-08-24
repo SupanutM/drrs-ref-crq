@@ -20,7 +20,7 @@ function ConsentView(props) {
     const { handleChange, handleAcceptConsent } = handlers;
 
     return (
-        <MKBox component="section" py={{ xs: 6, sm: 12 }}>
+        <MKBox component="section" py={{ xs: 0.8, sm: 10 }}>
             <Container>
                 {isAlert ? (
                     <>
@@ -47,7 +47,7 @@ function ConsentView(props) {
                     </Grid>
                 ) : (
                     <Grid container item xs={12} justifyContent="center" mx="auto">
-                        <MKTypography variant="h4" color="primary" justifyContent="center">
+                        <MKTypography variant="h5" color="primary" justifyContent="center">
                             ข้อตกลงในการลงทะเบียน
                         </MKTypography>
                         <Grid container justifyContent="center" py={2}>

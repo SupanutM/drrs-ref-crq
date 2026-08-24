@@ -2,7 +2,6 @@ const baseLogger = require('../../utils/logger');
 const { sendSuccess, sendError } = require('../../utils/responseHandler');
 const HairCutService = require('../../services/debtRestructure/saveHairCutPlanService');
 const InstallmentService = require('../../services/debtRestructure/saveInstallmentPlanService');
-const ConditionXMLService = require('../../services/condition/getConditionXMLService');
 const createStepService = require('../../services/util/systemLog/createStepService');
 const { systemLogService } = require('../../services/util/systemLog/systemLogService');
 const { checkIncomeService } = require('../../services/debtRestructure/checkIncomeService');
@@ -39,7 +38,7 @@ const saveDebtRestructureController = async (req, res) => {
             if (!incomeCheck.isValid) {
                 logger.warn(`[Income Guard] รายได้สุทธิไม่เพียงพอ | netIncome: ${incomeCheck.netIncome} | totalMinAmount: ${incomeCheck.totalMinAmount} | accounts: ${incomeCheck.failedAccounts.join(', ')}`);
                 return sendError(res,
-                    `รายได้สุทธิไม่เพียงพอชำระหนี้ (รายได้สุทธิปัจจุบัน: ${incomeCheck.netIncome.toLocaleString()} บาท / ต้องมียอดขั้นต่ำรวม: ${incomeCheck.totalMinAmount.toLocaleString()} บาท) โดยยอดหนี้ขั้นต่ำนี้ได้รวมภาระจากบัญชีที่คุณเคยลงทะเบียนผ่อนชำระไว้ก่อนหน้านี้แล้ว กรุณาระบุรายได้เพิ่มเติมเพื่อประกอบการพิจารณา หรือติดต่อสาขา`,
+                    `รายได้สุทธิไม่เพียงพอชำระหนี้ (รายได้สุทธิปัจจุบัน: ${incomeCheck.netIncome.toLocaleString()} บาท / ต้องมียอดขั้นต่ำรวม: ${incomeCheck.totalMinAmount.toLocaleString()} บาท) *หมายเหตุ: โดยยอดขั้นต่ำนี้ได้รวมภาระจากบัญชีที่คุณเคยลงทะเบียนผ่อนชำระไว้ก่อนหน้านี้แล้ว กรุณาระบุรายได้อื่นๆ เพื่อประกอบการพิจารณา หรือติดต่อสาขา`,
                     400,
                     { netIncome: incomeCheck.netIncome, totalMinAmount: incomeCheck.totalMinAmount }
                 );
@@ -230,7 +229,6 @@ const savePlan = async (loantype, payload) => {
                 { desc: currentStep, accountNo: result.data.accountNo },
             ]
         }
-        console.log("Template data:", template);
 
         return {
             result: result.data,

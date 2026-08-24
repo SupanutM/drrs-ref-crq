@@ -81,6 +81,7 @@ const CustomInput = ({
       color={color}
       variant="outlined"
       fullWidth
+      inputProps={{ readOnly: true }}
     />
   );
 };
@@ -148,7 +149,7 @@ export const DatePickerCustoms = (props) => {
       showMonthDropdown
       showYearDropdown
       scrollableYearDropdown
-      todayButton="วันนี้"
+      todayButton={props.showTodayButton ? "วันนี้" : undefined}
       renderCustomHeader={({
         date,
         changeYear,

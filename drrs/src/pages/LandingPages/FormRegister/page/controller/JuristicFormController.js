@@ -106,7 +106,6 @@ function JuristicController(props) {
         try {
             setIsLoading(true);
             const resVerify = await FormService.verifyCitizenCard({ digitNo: tDigitNo, citizenId: tCitizenId, name: tName });
-            // console.log(resVerify);
 
             if (resVerify.success) {
                 if (typeof props.onVerifySuccess === "function") {

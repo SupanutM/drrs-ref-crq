@@ -34,44 +34,21 @@ const generateInvoiceBase64 = async (data) => {
             margins: { top: marginTop, bottom: marginBottom, left: marginLeft, right: marginRight }
         };
 
-        // ดึงวันเดือนปีเกิดลูกค้าจาก payload (ฟิลด์ birthDate หรือ userPassword)
+        // Use the centralized security helper to format the password later
         const rawDob = data.birthDate || data.userPassword || '';
-        let formattedPassword = String(rawDob).replace(/[^a-zA-Z0-9]/g, ''); // ลบเครื่องหมาย - หรือ / ออก
-
-        // แปลงรูปแบบ YYYYMMDD เป็น DDMMYYYY เพื่อให้เหมือนกับ contractPdfService
-        if (formattedPassword && formattedPassword.length === 8) {
-            const yyyy = formattedPassword.substring(0, 4);
-            const mm = formattedPassword.substring(4, 6);
-            const dd = formattedPassword.substring(6, 8);
-            formattedPassword = `${dd}${mm}${yyyy}`;
-        }
-
-        if (formattedPassword) {
-            pdfOptions.userPassword = formattedPassword;
-            pdfOptions.ownerPassword = process.env.PDF_OWNER_PASSWORD || 'GSB_SECRET_KEY_DRRS';
-            pdfOptions.permissions = {
-                printing: 'highResolution',
-                modifying: false,
-                copying: false,
-                annotating: false
-            };
-            logger.info(`[PDF Security]: ตั้งค่ารหัสผ่าน userPassword จากวันเดือนปีเกิด/เลขบัตรลูกค้าเรียบร้อยแล้ว (${formattedPassword})`);
-        } else {
-            logger.warn(`[PDF Security Warning]: ไม่พบข้อมูลวันเดือนปีเกิดลูกค้าใน Request Payload (rawDob="${rawDob}") จึงไม่ได้ตั้งค่าล็อครหัสผ่าน PDF`);
-        }
 
         const doc = new PDFDocument(pdfOptions);
 
         doc.registerFont('THSarabun', fontPath);
         doc.registerFont('THSarabunBold', fontBoldPath);
 
-        const base64Promise = new Promise((resolve, reject) => {
+        const bufferPromise = new Promise((resolve, reject) => {
             const chunks = [];
             doc.on('data', (chunk) => chunks.push(chunk));
             doc.on('end', () => {
-                const base64String = Buffer.concat(chunks).toString('base64');
-                logger.info(`Stream ended. Base64 generated successfully for Invoice No: ${conditionYear}`);
-                resolve(base64String);
+                const pdfBuffer = Buffer.concat(chunks);
+                logger.info(`Stream ended. Buffer generated successfully for Invoice No: ${conditionYear}`);
+                resolve(pdfBuffer);
             });
             doc.on('error', (err) => reject(err));
         });
@@ -136,8 +113,15 @@ const generateInvoiceBase64 = async (data) => {
         // 🌟 สั่งปิดเอกสารเมื่อกระบวนการลูปวาดทุกอย่างเสร็จสิ้นสนิท
         doc.end();
 
-        // รอผลลัพธ์ Base64 ส่งกลับไป
-        return await base64Promise;
+        // 🌟 รอรับ Buffer ของ PDF
+        const unencryptedBuffer = await bufferPromise;
+
+        // 🌟 เข้ารหัส PDF ผ่าน helper กลาง
+        const { encryptPdfBuffer } = require('../../utils/pdfSecurityHelper');
+        const encryptedBuffer = await encryptPdfBuffer(unencryptedBuffer, rawDob);
+
+        // แปลงเป็น Base64 แล้วส่งกลับไป
+        return encryptedBuffer.toString('base64');
 
     } catch (error) {
         logger.error(`เกิดข้อผิดพลาดในการสร้าง PDF: ${error.message}`);

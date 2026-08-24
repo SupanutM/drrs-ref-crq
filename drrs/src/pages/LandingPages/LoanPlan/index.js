@@ -54,7 +54,7 @@ function LoanPlan() {
       />
 
       {/* แบนเนอร์สีฟ้าด้านบน */}
-      <MKBox sx={{ minHeight: { xs: "280px", md: "35vh" }, flexShrink: 0, width: "100%", backgroundColor: "#eb3a75", backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", pt: { xs: "60px", md: "64px" }, pb: { xs: 3, md: 4 } }} >
+      <MKBox sx={{ minHeight: { xs: "180px", md: "35vh" }, flexShrink: 0, width: "100%", backgroundColor: "#eb3a75", backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", pt: { xs: "50px", md: "64px" }, pb: { xs: 5, md: 4 } }} >
         <Container>
           <Grid container item xs={12} lg={8} justifyContent="center" alignItems="center" flexDirection="column" sx={{ mx: "auto", textAlign: "center" }} >
             <MKTypography
