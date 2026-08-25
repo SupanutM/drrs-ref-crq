@@ -68,6 +68,35 @@ export const saveDebtRestructure = async (payload) => {
   (decrypt รองรับทั้งแบบใหม่ 3 ส่วน และแบบเก่า 2 ส่วนผ่าน legacy IV)
 - อย่า log ข้อมูลส่วนบุคคลดิบ (เลขบัตร, ชื่อ, ข้อมูลสินเชื่อ) ลง console/log ทั้ง frontend และ backend
 
+การสร้าง PDF จริง **ทำที่ backend** ไม่ใช่ frontend:
+
+- backend ใช้ `puppeteer` render HTML template (`drrs-api/src/templates/*.html`) เป็น PDF
+  และมี `pdf-lib` / `pdfkit` ช่วยจัดการ/ใส่รหัสไฟล์
+- frontend มีสองเส้นทางหลัก:
+  - **base64**: `api/register.js` `generatePdfBase64()` → `/api/generate-pdf` (ใช้ใน GenContract)
+  - **blob**: `generateContractPdf()` → `/api/generate-contract` ตั้ง `responseType: "blob"`
+- แสดงผล PDF บนหน้าเว็บด้วย `react-pdf` (`Document`, `Page`) — ต้องตั้ง worker:
+  `pdfjs.GlobalWorkerOptions.workerSrc = ...pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+- lib ฝั่ง frontend อย่าง `jspdf`/`html2canvas`/`pdfmake` มีติดตั้งไว้ แต่เส้นทางหลักคือให้ backend
+  สร้างให้ เพื่อความสม่ำเสมอของสัญญา — ก่อนสร้าง PDF ฝั่ง client ให้เช็คก่อนว่ามี endpoint รองรับแล้วหรือยัง
+
+## แนวทาง Log (สำคัญ)
+
+Log มี 2 ส่วน: debug log (ไฟล์ `drrs-api/logs/`) กับ audit log (DB `tbl_system_log`)
+
+หลักการ:
+- **ข้อมูลการลงทะเบียน + รายได้ + คำนวณรายได้สุทธิ** → ให้เก็บละเอียดใน debug log ได้เลย
+  ต้องตรวจสอบย้อนหลังได้เร็ว อ้างอิงด้วย `cusTargetId`
+- ให้ทุก log สำคัญมี `cusTargetId` และ/หรือ `accountNo` — ค้นคำเดียวเจอทุกเรื่องของลูกค้าคนนั้น
+- log ที่ไม่เกี่ยวกับการตรวจสอบ (เช่น ที่อยู่, ข้อมูลจาก CUST API) → log เฉพาะผล (สำเร็จ/ล้มเหลว) โดยไม่ dump ค่า
+- ความปลอดภัยเรื่อง PII ใน log มีทีม prod ดูแล ไม่ต้องปิดบังจนตรวจสอบไม่ได้
+
+ตัวอย่าง log ที่ต้องชัดเจน:
+- `[Update Income] cusTargetId: 42 | totalIncome: 50000 | netIncome: 49000`
+- `[Income Guard] cusTargetId: 42 | netIncome: 49000 >= totalMinAmount: 6000`
+- `[checkIncomeService] ผลสรุป | cusTargetId: 42 | isValid: true`
+- `[Registration] ยืนยันตัวตนสำเร็จ | cusTargetId: 42 | accounts: 0001, 0002`
+
 ## การสร้างและแสดง PDF
 
 การสร้าง PDF จริง **ทำที่ backend** ไม่ใช่ frontend:
