@@ -11,6 +11,7 @@ const tblAccountInstallment = require('../../entities/tblAccountInstallment');
 const tblAccountHairCut = require('../../entities/tblAccountHairCut');
 const { formatThaiMonthYear } = require('../../utils/formatThaiMonthYear');
 const { AppDataSource } = require('../../config/database');
+const { ownsAccount } = require('../../middleware/authMiddleware');
 
 const saveDebtRestructureController = async (req, res) => {
     let actionStep = ``;
@@ -21,12 +22,25 @@ const saveDebtRestructureController = async (req, res) => {
             return sendError(res, 'กรุณาส่งข้อมูลให้ครบถ้วน', 400);
         }
 
+        // cusTargetId มาจาก session token (req.auth) ไม่เชื่อค่าจาก body (กัน IDOR)
+        const cusTargetId = req.auth?.cusTargetId;
+        if (!cusTargetId) {
+            return sendError(res, 'unauthorized', 401);
+        }
+
+        // เช็กว่าทุก accountNo ที่ส่งมาเป็นของเจ้าของ session จริง (กัน IDOR ระดับบัญชี)
+        for (const p of payloads) {
+            if (!ownsAccount(req, p.accountNo)) {
+                logger.warn(`[IDOR Block] accountNo ${p.accountNo} ไม่ได้เป็นของ session นี้`);
+                return sendError(res, 'ไม่มีสิทธิ์ดำเนินการกับบัญชีนี้', 403);
+            }
+        }
+
         // =========================================================
         // 🛡️ INCOME VALIDATION GUARD — ตรวจสอบรายได้จาก DB โดยตรงก่อนบันทึก
         // ป้องกัน bypass ไม่ว่าจะมาจาก Frontend หรือ API call ตรงก็ตาม
         // =========================================================
-        const cusTargetId = payloads[0]?.cusTargetId;
-        if (cusTargetId) {
+        {
             const accountsToCheck = payloads.map(p => ({
                 accountNo: p.accountNo,
                 planNo: p.planNo,
@@ -36,7 +50,7 @@ const saveDebtRestructureController = async (req, res) => {
             const incomeCheck = await checkIncomeService(cusTargetId, accountsToCheck);
 
             if (!incomeCheck.isValid) {
-                logger.warn(`[Income Guard] รายได้สุทธิไม่เพียงพอ | netIncome: ${incomeCheck.netIncome} | totalMinAmount: ${incomeCheck.totalMinAmount} | accounts: ${incomeCheck.failedAccounts.join(', ')}`);
+                logger.warn(`[Income Guard] รายได้สุทธิไม่เพียงพอ | cusTargetId: ${cusTargetId} | netIncome: ${incomeCheck.netIncome} | totalMinAmount: ${incomeCheck.totalMinAmount} | accounts: ${incomeCheck.failedAccounts.join(', ')}`);
                 return sendError(res,
                     `รายได้สุทธิไม่เพียงพอชำระหนี้ (รายได้สุทธิปัจจุบัน: ${incomeCheck.netIncome.toLocaleString()} บาท / ต้องมียอดขั้นต่ำรวม: ${incomeCheck.totalMinAmount.toLocaleString()} บาท) *หมายเหตุ: โดยยอดขั้นต่ำนี้ได้รวมภาระจากบัญชีที่คุณเคยลงทะเบียนผ่อนชำระไว้ก่อนหน้านี้แล้ว กรุณาระบุรายได้อื่นๆ เพื่อประกอบการพิจารณา หรือติดต่อสาขา`,
                     400,
@@ -44,7 +58,7 @@ const saveDebtRestructureController = async (req, res) => {
                 );
             }
 
-            logger.info(`[Income Guard] ผ่านการตรวจสอบรายได้ | netIncome: ${incomeCheck.netIncome} >= totalMinAmount: ${incomeCheck.totalMinAmount}`);
+            logger.info(`[Income Guard] ผ่านการตรวจสอบรายได้ | cusTargetId: ${cusTargetId} | netIncome: ${incomeCheck.netIncome} >= totalMinAmount: ${incomeCheck.totalMinAmount}`);
         }
         // =========================================================
 
@@ -71,10 +85,7 @@ const saveDebtRestructureController = async (req, res) => {
                 return sendError(res, 'กรุณาส่งข้อมูลให้ครบถ้วน', 400);
             }
 
-            let cusTargetId = p.cusTargetId;
-            if (!cusTargetId) {
-                return sendError(res, 'กรุณาส่ง cusTargetId มาให้ครบถ้วน', 400);
-            }
+            // ใช้ cusTargetId จาก session token (ประกาศไว้ด้านบน) ไม่ใช่จาก body
 
             // =========================================================
             // 🌟 ตรวจสอบเงื่อนไขจาก tbl_settings_step ก่อนทำการบันทึก (Step Check)

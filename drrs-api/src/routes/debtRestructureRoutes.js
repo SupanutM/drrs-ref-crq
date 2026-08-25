@@ -5,10 +5,11 @@ const cancelController = require('../controllers/debtRestructure/cancelDebtRestr
 const checkPlanController = require('../controllers/plan/checkPlanController');
 const updateIncomeController = require('../controllers/debtRestructure/updateIncomeController');
 const { systemLogMiddleware } = require('../utils/systemLogMiddleware');
+const { authMiddleware } = require('../middleware/authMiddleware');
 
-router.post('/debt-restructure', systemLogMiddleware('save-debt-restructure', 'saveDebtRestructureController'), saveController.saveDebtRestructureController);
-router.post('/cancel-plan', systemLogMiddleware('cancel-debt-restructure', 'cancelDebtRestructureController'), cancelController.cancelDebtRestructureController);
-router.post('/check-plan', systemLogMiddleware('select-plan', 'checkPlanController'), checkPlanController.checkPlanController);
-router.post('/update-income', updateIncomeController.updateIncomeController);
+router.post('/debt-restructure', authMiddleware, systemLogMiddleware('save-debt-restructure', 'saveDebtRestructureController'), saveController.saveDebtRestructureController);
+router.post('/cancel-plan', authMiddleware, systemLogMiddleware('cancel-debt-restructure', 'cancelDebtRestructureController'), cancelController.cancelDebtRestructureController);
+router.post('/check-plan', authMiddleware, systemLogMiddleware('select-plan', 'checkPlanController'), checkPlanController.checkPlanController);
+router.post('/update-income', authMiddleware, updateIncomeController.updateIncomeController);
 
 module.exports = router;

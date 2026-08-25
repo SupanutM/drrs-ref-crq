@@ -14,6 +14,7 @@ import MKButton from "components/MKButton";
 import useSessionTimeout from "utils/useSessionTimeout";
 import useTabLimit from "utils/useTabLimit";
 import { getAppConfig } from "utils/appConfig";
+import { clearToken } from "utils/authToken";
 
 /**
  * SessionGuard
@@ -32,6 +33,7 @@ function SessionGuard({ children }) {
 
   useEffect(() => {
     setOnTimeout(() => {
+      clearToken();
       navigate("/drrs/consent");
     });
   }, [setOnTimeout, navigate]);
@@ -116,7 +118,10 @@ function SessionGuard({ children }) {
             variant="outlined"
             color="secondary"
             fullWidth
-            onClick={() => navigate("/drrs/consent")}
+            onClick={() => {
+              clearToken();
+              navigate("/drrs/consent");
+            }}
             sx={{ py: 1.2, borderRadius: "10px" }}
           >
             ออกจากระบบ
@@ -157,7 +162,10 @@ function SessionGuard({ children }) {
             variant="gradient"
             color="error"
             fullWidth
-            onClick={() => navigate("/drrs/consent")}
+            onClick={() => {
+              clearToken();
+              navigate("/drrs/consent");
+            }}
             sx={{ py: 1.5, borderRadius: "10px", fontWeight: "bold" }}
           >
             ตกลง

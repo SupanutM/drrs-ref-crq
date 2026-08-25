@@ -8,9 +8,17 @@
 - **react-router-dom 6** สำหรับ routing
 - **axios** สำหรับเรียก API
 - **dayjs** สำหรับจัดการวันที่ (ใช้ helper ใน `utils/day.js`)
-- สร้าง/แสดง PDF: `pdfmake`, `jspdf`, `html2canvas`, `react-pdf`
+- แสดง PDF บนเว็บ: `react-pdf` (การ *สร้าง* PDF ทำที่ backend — ดู steering `api-and-pdf`)
+- ความปลอดภัยฝั่ง client: `dompurify` (sanitize ก่อน `dangerouslySetInnerHTML`)
 - ตรวจสอบข้อมูล: `validator` + validator เฉพาะทางใน `utils/valid-*.js`
 - ภาษา: **JavaScript (.js) เท่านั้น** — ไม่ใช้ TypeScript
+
+### Backend (`drrs-api/`) โดยย่อ
+
+- **Node.js + Express 5**, **TypeORM + PostgreSQL** (`pg`)
+- Auth: **jsonwebtoken** (session token), `express-rate-limit`, logger = **winston**
+- สร้าง PDF: `puppeteer` (render HTML template) + `pdf-lib`/`pdfkit`, ส่งเมลด้วย `nodemailer`
+- รัน `npm run dev` (nodemon) ในโฟลเดอร์ `drrs-api/` พอร์ต 5000
 
 ## คำสั่งที่ใช้บ่อย (รันในโฟลเดอร์ `drrs/`)
 

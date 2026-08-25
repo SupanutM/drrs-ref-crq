@@ -6,11 +6,13 @@ const { systemLogService } = require('../../services/util/systemLog/systemLogSer
 
 const updateIncomeController = async (req, res) => {
     try {
-        const { cusTargetId, totalIncome, otherIncome, totalCost, netIncome } = req.body;
+        const { totalIncome, otherIncome, totalCost, netIncome } = req.body;
+        // cusTargetId มาจาก session token (req.auth) ไม่เชื่อค่าจาก body (กัน IDOR)
+        const cusTargetId = req.auth?.cusTargetId;
 
         if (!cusTargetId) {
-            logger.warn('ข้อมูล Request ไม่ครบถ้วนสำหรับการบันทึกรายได้');
-            return sendError(res, 'กรุณาส่ง cusTargetId', 400);
+            logger.warn('ไม่พบ cusTargetId ใน session token');
+            return sendError(res, 'unauthorized', 401);
         }
 
         if (totalIncome === undefined || totalCost === undefined) {
@@ -18,7 +20,7 @@ const updateIncomeController = async (req, res) => {
             return sendError(res, 'กรุณาส่ง totalIncome และ totalCost', 400);
         }
 
-        logger.info(`[Update Income] อัปเดตข้อมูลรายได้สำหรับ cusTargetId: ${cusTargetId} | totalIncome: ${totalIncome} | otherIncome: ${otherIncome} | totalCost: ${totalCost} | netIncome: ${netIncome}`);
+        logger.info(`[Update Income] cusTargetId: ${cusTargetId} | totalIncome: ${totalIncome} | otherIncome: ${otherIncome} | totalCost: ${totalCost} | netIncome: ${netIncome}`);
         
         await updateCusTargetService.updateCusTargetService(cusTargetId, { totalIncome, otherIncome, totalCost, netIncome });
 

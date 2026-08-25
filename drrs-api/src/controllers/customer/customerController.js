@@ -7,10 +7,11 @@ const tblCusTarget = require('../../entities/tblCusTarget');
 
 const lookupCustomer = async (req, res) => {
     try {
-        const { cusTargetId } = req.body;
+        // cusTargetId มาจาก session token (req.auth) ไม่เชื่อค่าจาก body (กัน IDOR)
+        const cusTargetId = req.auth?.cusTargetId;
 
         if (!cusTargetId) {
-            return res.status(400).json({ success: false, message: "cusTargetId is required" });
+            return res.status(401).json({ success: false, message: "unauthorized" });
         }
 
         const cusTargetRepo = AppDataSource.getRepository(tblCusTarget);
@@ -45,7 +46,7 @@ const lookupCustomer = async (req, res) => {
             }
         };
 
-        logger.info(`Calling CUST API: ${url} for citizen_id: ${citizen_id}`);
+        logger.info(`Calling CUST API for cusTargetId: ${cusTargetId}`);
 
         const httpsAgent = new https.Agent({
             rejectUnauthorized: false
@@ -62,7 +63,7 @@ const lookupCustomer = async (req, res) => {
     } catch (error) {
         logger.error(`[lookupCustomer] Error calling CUST API: ${error.message}`);
         if (error.response) {
-            logger.error(`[lookupCustomer] Response Error Data: ${JSON.stringify(error.response.data)}`);
+            logger.error(`[lookupCustomer] CUST API error status: ${error.response.status}`);
             return res.status(error.response.status).json({
                 success: false,
                 message: "ไม่สามารถดึงข้อมูลลูกค้าจากระบบได้",
@@ -79,10 +80,12 @@ const lookupCustomer = async (req, res) => {
 
 const updateCustomerAddress = async (req, res) => {
     try {
-        const { cusTargetId, address } = req.body;
-        
+        const { address } = req.body;
+        // cusTargetId มาจาก session token (req.auth) ไม่เชื่อค่าจาก body (กัน IDOR)
+        const cusTargetId = req.auth?.cusTargetId;
+
         if (!cusTargetId) {
-            return res.status(400).json({ success: false, message: "cusTargetId is required" });
+            return res.status(401).json({ success: false, message: "unauthorized" });
         }
         if (!address) {
             return res.status(400).json({ success: false, message: "address is required" });

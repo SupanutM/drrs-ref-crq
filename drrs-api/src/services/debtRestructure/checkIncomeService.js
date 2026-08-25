@@ -104,7 +104,7 @@ const checkIncomeService = async (cusTargetId, accounts) => {
         //   - netIncomeFound = true  → ใช้ netIncome จาก DB จริงๆ (แม้เป็น 0) เทียบกับ totalMinAmount
         const isValid = !netIncomeFound || netIncome >= totalMinAmount;
 
-        logger.info(`[checkIncomeService] ผลสรุป | netIncomeFound: ${netIncomeFound} | netIncome: ${netIncome} | totalMinAmount: ${totalMinAmount} | isValid: ${isValid}`);
+        logger.info(`[checkIncomeService] ผลสรุป | cusTargetId: ${cusTargetId} | netIncomeFound: ${netIncomeFound} | netIncome: ${netIncome} | totalMinAmount: ${totalMinAmount} | isValid: ${isValid}`);
 
         if (!isValid) {
             accounts.forEach(acc => failedAccounts.push(acc.accountNo));

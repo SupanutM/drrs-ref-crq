@@ -9,6 +9,7 @@ const requiredVariables = [
     'CRYPTO_KEY', 
     'CRYPTO_IV', 
     'CRYPTO_ALGORITHM',
+    'JWT_SECRET',
     'VERIFY_LASERID_URL', 
     'VERIFY_LASERID_APP_ID',
     'VERIFY_LASERID_APP_KEY',
@@ -51,6 +52,10 @@ module.exports = {
     cryptoKey: process.env.CRYPTO_KEY,
     cryptoIv: process.env.CRYPTO_IV,
     cryptoAlgorithm: process.env.CRYPTO_ALGORITHM,
+
+    // JWT session (auth)
+    jwtSecret: process.env.JWT_SECRET,
+    jwtExpiresIn: process.env.JWT_EXPIRES_IN || '60m',
 
     //Utils
     logDir: process.env.LOG_DIR,

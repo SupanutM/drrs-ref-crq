@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import ConsentView from "../view/ConsentView";
 
 import { checkCloseSystem } from "api/master";
+import { clearToken } from "utils/authToken";
 
 
 function ConsentController({ onVersionLoad }) {
@@ -46,6 +47,8 @@ function ConsentController({ onVersionLoad }) {
     };
 
     useEffect(() => {
+        // เริ่มต้นใหม่ทุกครั้งที่มาหน้า consent — ล้าง session token เก่าทิ้ง
+        clearToken();
         getCheckCloseSystem();
     }, []);
 

@@ -4,6 +4,7 @@ const { AppDataSource } = require('../../config/database');
 const createStepService = require('../../services/util/systemLog/createStepService');
 const tblAccountHairCut = require('../../entities/tblAccountHairCut');
 const tblAccountInstallment = require('../../entities/tblAccountInstallment');
+const { ownsAccount } = require('../../middleware/authMiddleware');
 const logger = baseLogger.child({ context: 'cancelDebtRestructureController' });
 
 const cancelDebtRestructureController = async (req, res) => {
@@ -12,6 +13,14 @@ const cancelDebtRestructureController = async (req, res) => {
 
         if (!accounts || !Array.isArray(accounts) || accounts.length === 0) {
             return sendError(res, 'กรุณาส่งข้อมูลบัญชีที่ต้องการยกเลิกให้ครบถ้วน', 400);
+        }
+
+        // เช็กว่าทุก accountNo เป็นของเจ้าของ session จริง (กัน IDOR)
+        for (const accountNo of accounts) {
+            if (!ownsAccount(req, accountNo)) {
+                logger.warn(`[IDOR Block] accountNo ${accountNo} ไม่ได้เป็นของ session นี้`);
+                return sendError(res, 'ไม่มีสิทธิ์ดำเนินการกับบัญชีนี้', 403);
+            }
         }
 
         const username = 'DRRS';

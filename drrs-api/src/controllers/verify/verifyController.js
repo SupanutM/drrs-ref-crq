@@ -9,6 +9,7 @@ const createStepService = require('../../services/util/systemLog/createStepServi
 const { sendSuccess, sendError } = require('../../utils/responseHandler');
 const baseLogger = require('../../utils/logger');
 const veriryToken = require('../../utils/verifyToken');
+const { signSession } = require('../../utils/jwt');
 const tblSettingsStep = require('../../entities/tblSettingsStep');
 const { AppDataSource } = require('../../config/database');
 const { loggers } = require('winston');
@@ -29,12 +30,12 @@ const verifyController = async (req, res) => {
         // =========================================================
         // 🌟 Step 1: ตรวจสอบข้อมูลลูกค้าใน Database (tbl_cus_target)
         // =========================================================
-        logger.info(`[Step 1] เริ่มตรวจสอบ Customer Target: ${name} ${surname} ${verifyCode}`);
+        logger.info(`[Step 1] เริ่มตรวจสอบ Customer Target (verifyCode: ${verifyCode})`);
         const targetResult = await cusTargetService.verifyCusTargetService(name, surname, verifyCode);
 
         // ถ้าหาลูกค้าไม่เจอ หรือรหัส Verify Code ไม่ตรง ให้ตีกลับทันที (Fail-Fast)
         if (!targetResult.success) {
-            logger.warn(`[Step 1 Failed] Verify Name And verifyCode: ${name} ${verifyCode} - ${targetResult.message}`);
+            logger.warn(`[Step 1 Failed] ตรวจสอบ Customer Target ไม่ผ่าน (verifyCode: ${verifyCode}) - ${targetResult.message}`);
             res.locals.step = 'stepVerifyTarget';
             return sendError(res, targetResult.message, 400);
         }
@@ -149,7 +150,7 @@ const verifyController = async (req, res) => {
         // =========================================================
         // 🌟 Step 2: ตรวจสอบ Laser ID DOPA
         // =========================================================
-        logger.info(`[Step 2] ผ่านการตรวจสอบ Target. เริ่มตรวจสอบ Laser ID สำหรับ PID: ${citizenId}`);
+        logger.info(`[Step 2] ผ่านการตรวจสอบ Target. เริ่มตรวจสอบ Laser ID (cusTargetId: ${targetResult.data?.cusTargetId})`);
 
         // แพ็คข้อมูลเตรียมส่งให้ Laser Service
         const laserPayload = { citizenId, name, surname, dateOfBirth, laserCardId };
@@ -169,7 +170,6 @@ const verifyController = async (req, res) => {
         // =========================================================
         // 🌟 Step 2.1: อัปเดตข้อมูล email และ dateOfBirth ลง table tbl_cus_target (เมื่อผ่านการตรวจสอบ Laser ID แล้วเท่านั้น)
         // =========================================================
-        logger.info(`email: ${email} dateOfBirth: ${dateOfBirth}`);
         // ใช้ cusTargetId จาก verify response แทน accountNo เพื่อ update tbl_cus_target โดยตรง
         const cusTargetId = targetResult.data.cusTargetId;
         if (cusTargetId) {
@@ -178,10 +178,8 @@ const verifyController = async (req, res) => {
                 try {
                     const customer_number = targetResult.data.cifNo || "";
                     const dbCitizenId = targetResult.data.citizenId || "";
-                    logger.info(`customer_number: ${customer_number}`);
-                    logger.info(`dbCitizenId: ${dbCitizenId}`);
+                    logger.info(`[Step 2.1] ดึงที่อยู่จาก CUST API (cusTargetId: ${cusTargetId})`);
                     fullAddress = await customerLookupService.getCustomerFullAddress(customer_number, dbCitizenId);
-                    logger.info(`fullAddress: ${fullAddress}`);
                 } catch (error) {
                     logger.warn(`[Step 2.1] Error looking up customer address: ${error.message}`);
                 }
@@ -205,7 +203,7 @@ const verifyController = async (req, res) => {
         // =========================================================
         // 🌟 Success: ผ่านทั้ง 2 ขั้นตอน ส่งข้อมูลกลับหน้าบ้าน
         // =========================================================
-        logger.info(`ยืนยันตัวตนสำเร็จ 100% สำหรับ cusTargetId: ${cusTargetId}`);
+        logger.info(`[Registration] ยืนยันตัวตนสำเร็จ | cusTargetId: ${cusTargetId} | accounts: ${(targetResult.data.accounts || []).map((a) => a.accountNo).join(', ')}`);
 
         // =========================================================
         // 🌟 Step Log (2): อัปเดตสถานะ stepVerifyLaser = "1" ลงใน tbl_settings_step
@@ -220,11 +218,21 @@ const verifyController = async (req, res) => {
         if (dateOfBirth) targetResult.data.dateOfBirth = dateOfBirth;
         if (citizenId) targetResult.data.citizenId = crypto.decryptGCM(citizenId, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
 
+        // =========================================================
+        // 🌟 ออก session token (JWT) — ผูก cusTargetId + รายการบัญชีที่เป็นเจ้าของ
+        // ทุก endpoint ที่ต้อง login จะอ่านค่าเหล่านี้จาก token (กัน IDOR)
+        // =========================================================
+        const accountNos = (targetResult.data.accounts || [])
+            .map((a) => a.accountNo)
+            .filter(Boolean);
+        const sessionToken = signSession({ cusTargetId, accountNos });
+
         // ส่ง Success Response พร้อมข้อมูลที่จำเป็น (เช่น firstName ที่ได้จาก Step 1)
         return sendSuccess(res, 'ยืนยันตัวตนและตรวจสอบบัตรประชาชนสำเร็จเรียบร้อย',
             {
                 targetInfo: targetResult.data,
-                laserStatus: laserResult.message
+                laserStatus: laserResult.message,
+                token: sessionToken
             }
         );
 

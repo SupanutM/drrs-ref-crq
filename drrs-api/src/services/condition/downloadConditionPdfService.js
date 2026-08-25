@@ -14,7 +14,7 @@ const generateInvoiceBase64 = async (data) => {
         const { conditionMonth, conditionYear, items } = data;
         const xmlTemplate = fs.readFileSync(xmlTemplatePath, 'utf8');
 
-        logger.info(`[Check Data]: name="${conditionMonth}", year="${conditionYear}", rawData=${JSON.stringify(data)}`);
+        logger.info(`[Check Data]: month="${conditionMonth}", year="${conditionYear}", items=${Array.isArray(items) ? items.length : 0}`);
 
         const parser = new XMLParser({
             ignoreAttributes: false,

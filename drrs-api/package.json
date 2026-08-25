@@ -23,6 +23,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.6.2",
     "fast-xml-parser": "^5.8.0",
+    "jsonwebtoken": "^9.0.2",
     "nodemailer": "^9.0.5",
     "pdf-lib": "^1.17.1",
     "pdf-lib-plus-encrypt": "^1.1.0",

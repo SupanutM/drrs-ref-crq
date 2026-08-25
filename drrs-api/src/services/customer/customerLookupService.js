@@ -35,13 +35,12 @@ const getCustomerFullAddress = async (customer_number, citizen_id) => {
         };
         const httpsAgent = new https.Agent({ rejectUnauthorized: false });
         const response = await axios.post(url, payload, { headers, httpsAgent });
-        logger.info(`response: ${JSON.stringify(response.data)}`);
+        logger.info(`[customerLookup] ได้รับ response จาก CUST API แล้ว`);
 
         if (response.data && response.data.rs_body) {
             const data = response.data;
             const addressList = data.rs_body.address_information || [];
             const addressObj = addressList.find(addr => addr.address_type === "01") || {};
-            logger.info(`addressObj: ${JSON.stringify(addressObj)}`);
             if (addressObj.address_long_lines) {
                 let subDistrictName = "";
                 let districtName = "";
@@ -84,7 +83,7 @@ const getCustomerFullAddress = async (customer_number, citizen_id) => {
                 ].filter(p => p && p.trim() !== "");
                 fullAddress = parts.join(" ");
             }
-            logger.info(`fullAddress: ${fullAddress}`);
+            logger.info(`[customerLookup] ประกอบที่อยู่สำเร็จ (${fullAddress ? 'มีข้อมูล' : 'ไม่มีข้อมูล'})`);
         }
     } catch (error) {
         logger.warn(`Error looking up customer address: ${error.message}`);

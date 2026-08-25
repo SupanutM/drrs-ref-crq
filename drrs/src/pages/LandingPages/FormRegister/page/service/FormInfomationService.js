@@ -3,6 +3,7 @@ import { verifyLaserId } from "api/verify";
 // import { findCustTargetByCitizenIdAndCifNo } from "api/master";
 // import { addRegister, checkDupEarthQuake, exportCidToDebtTracking } from "api/register";
 import { encryptGCM } from "api/crypto";
+import { setToken } from "utils/authToken";
 
 /**
  * 1. ฟังก์ชันตรวจสอบการลงทะเบียนซ้ำ (ใช้ได้ทั้งบุคคลธรรมดาและนิติบุคคล)
@@ -55,6 +56,12 @@ export const verifyCitizenCard = async ({ digitNo, citizenId, name, surname, dat
         };
 
         const resVerify = await verifyLaserId(payload);
+
+        // เก็บ session token (JWT) ที่ได้จาก verify สำเร็จ ไว้แนบกับทุก request ถัดไป
+        if (resVerify?.success && resVerify?.data?.token) {
+            setToken(resVerify.data.token);
+        }
+
         return resVerify;
     } catch (error) {
         console.error("Service Error (verifyCitizenCard):", error);

@@ -5,7 +5,8 @@ const checkCloseSystemController = require("../controllers/util/checkCloseSystem
 const { systemLogMiddleware } = require('../utils/systemLogMiddleware');
 
 router.post('/encryption', utilController.encryptionController);
-router.post('/decryption', utilController.decryptionController);
+// /decryption ถูกปิด: เป็น decryption oracle ที่เปิดสาธารณะ และ frontend ไม่ได้เรียกใช้
+// การถอดรหัสทำภายใน server เท่านั้น (ผ่าน utils/crypto โดยตรง)
 router.post('/checkCloseSystem', checkCloseSystemController.checkCloseSystemController);
 
 module.exports = router;

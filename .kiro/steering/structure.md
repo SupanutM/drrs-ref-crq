@@ -13,13 +13,13 @@ drrs/
 │   ├── config.js          # runtime config -> window.APP_CONFIG
 │   └── contract*.pdf      # ไฟล์สัญญาตัวอย่าง
 └── src/
-    ├── api/               # ชั้นเรียก backend ด้วย axios (handler, register, crypto, master ...)
+    ├── api/               # ชั้นเรียก backend ด้วย axios (handler, register, crypto, verify, master ...)
     ├── assets/            # css, fonts (ไทย), images, theme (Material Kit)
     ├── components/        # คอมโพเนนต์ใช้ซ้ำ (MK* และ SessionGuard)
     ├── examples/          # คอมโพเนนต์จากเทมเพลต (Navbars, Cards, Footer)
     ├── layouts/pages/landing-pages/<name>/   # wrapper บางๆ ต่อ route -> เรียกหน้าจริง
     ├── pages/LandingPages/<Name>/            # ★ หน้าจริงของ DRRS (โค้ดหลักอยู่ที่นี่)
-    ├── utils/             # helper: logger, validators, session, date
+    ├── utils/             # helper: logger, validators, session, date, authToken (JWT)
     ├── App.js             # ประกาศ Routes ทั้งหมด
     └── index.js           # entry point
 ```
@@ -45,17 +45,19 @@ SelectPlan, PlanPreview, PlanSummary, GenContract
 drrs-api/
 ├── server.js              # entry: express + CORS + rate limiter, ต่อ /api และ /utils
 └── src/
-    ├── config/            # database (TypeORM DataSource), config
-    ├── routes/            # router.js รวม route ย่อย (debtRestructure, pdf, customer ...)
+    ├── config/            # database (TypeORM DataSource), env (ตรวจ required env vars)
+    ├── routes/            # router.js รวม route ย่อย (debtRestructure, pdf, customer, verify, util ...)
+    ├── middleware/        # authMiddleware.js (บังคับ JWT + ownsAccount กัน IDOR)
     ├── controllers/       # รับ request -> เรียก service
     ├── services/          # business logic (รวมสร้าง PDF)
     ├── entities/ model/   # TypeORM entities / data models
     ├── templates/         # HTML template สำหรับ render เป็น PDF (planSummary.html ฯลฯ)
-    └── utils/             # logger (winston), rateLimiter ฯลฯ
+    └── utils/             # logger (winston), rateLimiter, crypto (AES-GCM), jwt (sign/verify) ฯลฯ
 ```
 
 - รันด้วย `npm run dev` (nodemon) ใน `drrs-api/`, ฟังพอร์ต `5000`
-- endpoint ขึ้นต้น `/api/...` (business) และ `/utils/...` (encrypt/decrypt) ผ่าน rate limiter
+- endpoint ขึ้นต้น `/api/...` (business) และ `/utils/...` (utility) ผ่าน rate limiter
+- endpoint ที่ต้อง login ต้องมี `authMiddleware` (ดูรายละเอียดใน steering `api-and-pdf`)
 
 ## กฎการวางไฟล์
 
@@ -72,6 +74,7 @@ drrs-api/
 - `SessionGuard` (`components/SessionGuard/`) ป้องกันทุกหน้าหลัง consent
 - `utils/useSessionTimeout.js` — idle timeout + warning dialog (อ่านค่าจาก `appConfig`)
 - `utils/useTabLimit.js` — จำกัดจำนวน tab พร้อมกันตาม `MAX_CONNECTIONS`
+- `utils/authToken.js` — เก็บ/อ่าน/ล้าง JWT ใน sessionStorage; ล้าง token เมื่อ timeout/ออกจากระบบ/เข้าหน้า consent
 - แก้พฤติกรรม timeout/warning ที่ `public/config.js` และ hook ข้างบน อย่า hardcode ตัวเลขในหน้า
 
 ## ข้อควรระวังเรื่องเทมเพลต

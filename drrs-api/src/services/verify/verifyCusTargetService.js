@@ -15,7 +15,7 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
 
         const tblCusTargetRepo = AppDataSource.getRepository(tblCusTarget);
         
-        logger.info(`payload:  ${firstNameDecrypted}, ${lastNameDecrypted}, ${verifyCode}`)
+        logger.info(`[verify] ค้นหา customer target (verifyCode: ${verifyCode})`)
 
         const customer = await tblCusTargetRepo.findOne({
             where: {
@@ -26,7 +26,7 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
             },
             relations: { accounts: true }
         });
-        logger.info(`Customer Data: ${JSON.stringify(customer)}`);
+        logger.info(`[verify] ผลค้นหา customer target: ${customer ? `พบ (id: ${customer.id})` : 'ไม่พบ'}`);
 
         if (!customer) {
             return {

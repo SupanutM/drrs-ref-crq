@@ -1,5 +1,6 @@
 import axios from "axios";
 import { logger } from "utils/logger";
+import { getToken } from "utils/authToken";
 
 const baseURL = `${process.env.REACT_APP_BACKEND_URL}`;
 
@@ -11,6 +12,16 @@ const createAxiosInstance = (baseUrl) => {
       "Content-Type": "application/json",
       // Add any custom headers here
     },
+  });
+
+  // แนบ session token (JWT) ให้ทุก request อัตโนมัติ ถ้ามี
+  instance.interceptors.request.use((config) => {
+    const token = getToken();
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
   });
 
   instance.interceptors.response.use(
