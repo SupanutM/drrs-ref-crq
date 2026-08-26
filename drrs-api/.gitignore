@@ -6,3 +6,4 @@ web.config
 server.js
 .cache/
 assets/contracts/
+loadtest/*-summary.json

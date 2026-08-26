@@ -26,3 +26,13 @@ package-lock.json
 yarn.lock
 
 commit.sh
+
+# playwright
+/playwright-report/
+/playwright-report-real/
+/test-results/
+/test-results-real/
+/blob-report/
+
+# ข้อมูลลูกค้าสำหรับเทสต์ backend จริง (มีข้อมูลส่วนบุคคล ห้าม commit)
+.env.e2e

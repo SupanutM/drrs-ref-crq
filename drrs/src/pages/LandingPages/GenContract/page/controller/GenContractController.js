@@ -16,6 +16,8 @@ function GenContractController(props) {
 
     const [payload] = useState({
         ...(routerState?.template || {}),
+        // การันตีว่า items เป็น array เสมอ กัน backend/หน้าจอพังถ้า template ไม่ถูกส่งมา
+        items: routerState?.template?.items || [],
         birthDate: routerState?.targetInfo?.dateOfBirth || routerState?.targetInfo?.birthDate || routerState?.template?.birthDate || '',
         dateOfBirth: routerState?.targetInfo?.dateOfBirth || routerState?.targetInfo?.birthDate || routerState?.template?.dateOfBirth || '',
         userPassword: routerState?.targetInfo?.dateOfBirth || routerState?.targetInfo?.birthDate || routerState?.template?.birthDate || ''

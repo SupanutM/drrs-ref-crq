@@ -134,9 +134,10 @@ function GenContractView({ state, handlers }) {
                             <MKTypography variant="button" color="info" fontWeight="bold" display="block" mb={1}>
                                 ข้อมูลเอกสารที่เตรียมสร้าง:
                             </MKTypography>
-                            <MKTypography variant="body2" color="dark"><b>เดือนที่ทำสัญญา: </b> {payload.conditionMonth}</MKTypography>
-                            <MKTypography variant="body2" color="dark"><b>ปีที่ทำสัญญา: </b> {payload.conditionYear}</MKTypography>
-                            <MKTypography variant="body2" color="dark"><b>จำนวน: </b> {payload.items.length} รายการ</MKTypography>
+                            <MKTypography variant="body2" color="dark"><b>เดือนที่ทำสัญญา: </b> {payload?.conditionMonth || "-"}</MKTypography>
+                            <MKTypography variant="body2" color="dark"><b>ปีที่ทำสัญญา: </b> {payload?.conditionYear || "-"}</MKTypography>
+                            {/* ป้องกันหน้าจอขาว: ถ้า template/items ไม่ถูกส่งมา ให้นับเป็น 0 รายการ */}
+                            <MKTypography variant="body2" color="dark"><b>จำนวน: </b> {payload?.items?.length || 0} รายการ</MKTypography>
                         </MKBox>
 
                         <Divider sx={{ my: 3 }} />

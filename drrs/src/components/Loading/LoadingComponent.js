@@ -8,7 +8,11 @@ import CircularProgress from "@mui/material/CircularProgress";
 import MKTypography from "components/MKTypography"; 
 
 function LoadingComponent(props) {
-    const { isOpen, text } = props;
+    const { isOpen, text, message } = props;
+
+    // ทุกจุดที่เรียกใช้ส่ง prop ชื่อ "message" มา จึงรับทั้งสองชื่อ
+    // (message มาก่อน, text เก็บไว้เพื่อความเข้ากันได้ย้อนหลัง)
+    const displayText = message || text;
 
     return (
         <Portal>
@@ -24,7 +28,7 @@ function LoadingComponent(props) {
             >
                 <CircularProgress color="inherit" size={50} />
                 <MKTypography variant="h5" color="white" textAlign="center">
-                    {text}
+                    {displayText}
                 </MKTypography>
             </Backdrop>
         </Portal>
@@ -34,12 +38,14 @@ function LoadingComponent(props) {
 // 🌟 ตั้งค่าข้อความเริ่มต้น (ถ้าตอนเรียกใช้ไม่ได้ส่งคำอะไรมา จะใช้คำนี้แทน)
 LoadingComponent.defaultProps = {
     text: "กำลังบันทึกข้อมูล กรุณารอสักครู่...",
+    message: undefined,
 };
 
 // ลงทะเบียน Props
 LoadingComponent.propTypes = {
     isOpen: PropTypes.bool.isRequired,
     text: PropTypes.string,
+    message: PropTypes.string,
 };
 
 export default LoadingComponent;

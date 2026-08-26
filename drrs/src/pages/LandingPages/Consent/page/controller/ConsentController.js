@@ -34,14 +34,20 @@ function ConsentController({ onVersionLoad }) {
             channel: "DRRS",
         };
 
-        const response = await checkCloseSystem(parms);
-        if (response?.status && response?.data?.length > 0) {
-            const isSystemOpen = response.data[0].status_flag;
-            setIsClose(isSystemOpen ? "ON" : "OFF");
-            const ver = response.data[0].appVersion || "1.0.0";
-            setAppVersion(ver);
-            if (typeof onVersionLoad === "function") onVersionLoad(ver);
-        } else {
+        try {
+            const response = await checkCloseSystem(parms);
+            if (response?.status && response?.data?.length > 0) {
+                const isSystemOpen = response.data[0].status_flag;
+                setIsClose(isSystemOpen ? "ON" : "OFF");
+                const ver = response.data[0].appVersion || "1.0.0";
+                setAppVersion(ver);
+                if (typeof onVersionLoad === "function") onVersionLoad(ver);
+            } else {
+                setIsClose("OFF");
+            }
+        } catch (error) {
+            // เมื่อ API ล้มเหลว (network error, 500 ฯลฯ) ให้ fail-safe เป็นสถานะปิดระบบ
+            // ป้องกันไม่ให้ผู้ใช้เข้าฟอร์มลงทะเบียนได้ในสถานะที่ไม่แน่ใจ
             setIsClose("OFF");
         }
     };
