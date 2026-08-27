@@ -38,8 +38,8 @@ function SelectPlan() {
                 routes={routes}
                 action={{
                     type: "external",
-                    route: "https://ln15.gsb.or.th/ndrs",
-                    label: "GSB NDRS Website",
+                    route: "https://ln15.gsb.or.th/drrs",
+                    label: "GSB DRRS Website",
                     color: "default",
                 }}
                 backRoute
