@@ -32,9 +32,26 @@ const generateContractController = async (req, res) => {
         const augmentedCustomerInfo = await augmentCustomerInfoWithDbData(cusTargetId, selectedAccounts?.[0]?.accountNo);
 
         // ==========================================
-        // STEP 1: ยอมรับสัญญา (ส่งไป CBS)
+        // STEP 1: สร้างไฟล์สัญญา (PDF)
         // ==========================================
-        // * ต้องทำก่อนสร้าง PDF เพราะในอนาคตจะต้องเอาข้อมูลที่ได้จาก CBS มาใส่ในไฟล์ PDF *
+        // ต้องทำ "ก่อน" ตั้ง stepSendToCbs
+        //
+        // เดิมโค้ดตั้ง stepSendToCbs = "1" ก่อนสร้าง PDF ซึ่งถ้า PDF พังจะเกิดเรื่องนี้:
+        //   verifyController จะบล็อกลูกค้าที่มี stepConfirmPlan=1 และ stepSendToCbs=1
+        //   ทุกบัญชี ด้วย 403 "ท่านได้ลงทะเบียนปรับปรุงโครงสร้างหนี้เรียบร้อยแล้ว"
+        //   ผลคือลูกค้าถูกมาร์คว่าทำเสร็จ เข้าระบบใหม่ไม่ได้ตลอดไป แต่ไม่เคยได้สัญญา
+        //   ต้องให้ทีมงานเข้าไปแก้ DB ให้ทีละคน
+        // สลับลำดับแล้ว ถ้า PDF พังลูกค้าจะยังกลับมาทำใหม่ได้เอง
+        const pdfBuffer = await contractPdfService.generateContractPdf(augmentedCustomerInfo, augmentedAccounts);
+        logger.info(`PDF generated successfully with length: ${pdfBuffer.length}`);
+
+        const currentTimestamp = format(new Date(), 'yyyyMMdd_HHmmss');
+        const filePrefix = augmentedCustomerInfo.cifNo;
+        const filename = `${filePrefix}_${currentTimestamp}.pdf`;
+
+        // ==========================================
+        // STEP 2: ยอมรับสัญญา (ส่งไป CBS)
+        // ==========================================
         if (selectedAccounts && selectedAccounts.length > 0) {
             await Promise.all(selectedAccounts.map(async (acc) => {
                 logger.info(`[Step Log] อัปเดต step stepSendToCbs: "1" สำหรับ AccountNo: ${acc.accountNo}`);
@@ -51,20 +68,8 @@ const generateContractController = async (req, res) => {
         }
 
         // ==========================================
-        // STEP 2: Download สัญญา (สร้างไฟล์ PDF)
+        // STEP 3: ส่งไฟล์ให้ผู้ใช้ดาวน์โหลด
         // ==========================================
-        const pdfBuffer = await contractPdfService.generateContractPdf(augmentedCustomerInfo, augmentedAccounts);
-        logger.info(`PDF generated successfully with length: ${pdfBuffer.length}`);
-
-        const currentTimestamp = format(new Date(), 'yyyyMMdd_HHmmss');
-        const filePrefix = augmentedCustomerInfo.cifNo;
-        const filename = `${filePrefix}_${currentTimestamp}.pdf`;
-        contractPdfService.savePdfToDisk(pdfBuffer, filename);
-
-        // ==========================================
-        // STEP 2.5: Download สัญญา
-        // ==========================================
-        // ส่งไฟล์กลับไปให้ผู้ใช้งานโหลดก่อน เพื่อให้ไม่รู้สึกว่ารอนาน
         res.set({
             'Content-Type': 'application/pdf',
             'Content-Disposition': `attachment; filename="${filename}"`,
@@ -73,7 +78,16 @@ const generateContractController = async (req, res) => {
         res.send(pdfBuffer);
 
         // ==========================================
-        // STEP 3: ส่ง E-mail
+        // STEP 3.5: เก็บสำเนาลงดิสก์
+        // ==========================================
+        // ทำ "หลัง" ส่งไฟล์ให้ผู้ใช้แล้ว ผู้ใช้จึงไม่ต้องรอเขียนดิสก์เสร็จ
+        // (เดิมเรียกก่อน res.send และเป็นแบบ writeFileSync ซึ่งหยุด event loop ทั้งระบบ)
+        contractPdfService.savePdfToDisk(pdfBuffer, filename).catch((error) => {
+            logger.error(`เก็บสำเนาสัญญาลงดิสก์ไม่สำเร็จ (${filename}): ${error.message}`);
+        });
+
+        // ==========================================
+        // STEP 4: ส่ง E-mail
         // ==========================================
         const emailAddress = augmentedCustomerInfo.email;
         if (emailAddress) {
@@ -111,6 +125,12 @@ const generateContractController = async (req, res) => {
         }
     } catch (error) {
         logger.error(`Error generating contract PDF: ${error.message}`);
+
+        // ถ้าส่ง response ออกไปแล้ว (พังหลัง res.send) จะส่ง header ซ้ำไม่ได้
+        if (res.headersSent) {
+            return;
+        }
+
         res.status(500).json({
             success: false,
             message: 'Failed to generate contract PDF',

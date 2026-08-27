@@ -46,7 +46,11 @@ module.exports = {
     // ทุกตัวมีค่า default จึงไม่ต้องใส่ใน .env ก็ทำงานได้
     // และไม่ได้อยู่ใน requiredVariables ข้างบน ระบบเดิมจึงไม่พัง
     dbPoolMax: Number(process.env.DB_POOL_MAX) || 20,
-    dbConnTimeoutMs: Number(process.env.DB_CONN_TIMEOUT_MS) || 5000,
+    // เดิมไม่มี timeout เลย (รอไม่จำกัด) การใส่ค่าสั้นเกินไปทำให้ start ไม่ขึ้น
+    // ตอนเครื่องมีงานอื่นแย่ง CPU อยู่ (เจอจริงตอน Chromium อุ่นเครื่องพร้อมกัน
+    // ที่ 5000 ms แล้วได้ "Connection terminated due to connection timeout")
+    // ตั้ง 30 วินาที เพื่อยังมีเพดานกันค้างถาวร แต่ไม่ไปตัดการ start ปกติ
+    dbConnTimeoutMs: Number(process.env.DB_CONN_TIMEOUT_MS) || 30000,
     dbIdleTimeoutMs: Number(process.env.DB_IDLE_TIMEOUT_MS) || 30000,
     dbLogQueries: process.env.DB_LOG_QUERIES === 'true',
     dbSlowQueryMs: Number(process.env.DB_SLOW_QUERY_MS) || 1000,

@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import DOMPurify from "dompurify";
 import { Document, Page, pdfjs } from 'react-pdf';
 import { generateContractPdf } from "api/register";
+import { logger } from "utils/logger";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -25,6 +26,7 @@ function PlanSummaryView(props) {
     const [isDownloading, setIsDownloading] = useState(false);
     const [isDownloaded, setIsDownloaded] = useState(false);
     const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+    const [downloadError, setDownloadError] = useState("");
     const containerRef = React.useRef(null);
     const [pdfWidth, setPdfWidth] = useState(800);
 
@@ -96,10 +98,20 @@ function PlanSummaryView(props) {
 
             setIsDownloaded(true);
         } catch (error) {
-            console.error("Failed to generate PDF from API", error);
+            // เดิมโค้ดแค่ console.error แล้วเรียก handleSubmit() ต่อทุกกรณี
+            // (เพราะ handleSubmit อยู่นอก try/catch) ผลคือถ้าสร้างสัญญาไม่สำเร็จ
+            // ผู้ใช้จะไม่ได้ไฟล์ ไม่เห็นข้อความเตือนอะไรเลย แต่ระบบบันทึกว่าทำเสร็จแล้ว
+            // ผู้ใช้จะเข้าใจว่ายังไม่เสร็จแล้วกดซ้ำ
+            logger.error("สร้างไฟล์สัญญาไม่สำเร็จ", error);
+            setIsDownloading(false);
+            setDownloadError(
+                "ไม่สามารถสร้างไฟล์สัญญาได้ ระบบยังไม่บันทึกการยอมรับของท่าน กรุณากดยอมรับอีกครั้ง หากยังไม่สำเร็จ กรุณาติดต่อธนาคาร"
+            );
+            return;
         }
+
         setIsDownloading(false);
-        // Call the original submit logic (API, etc)
+        // ทำต่อเฉพาะเมื่อได้ไฟล์สัญญาแล้วเท่านั้น
         handleSubmit();
     };
 
@@ -253,6 +265,17 @@ function PlanSummaryView(props) {
                     </>
                 }
                 confirmText="ดาวน์โหลด"
+                hideCancel={true}
+            />
+
+            <ModalComponent
+                isOpen={downloadError !== ""}
+                onClose={() => setDownloadError("")}
+                onConfirm={() => setDownloadError("")}
+                variant="error"
+                title="สร้างไฟล์สัญญาไม่สำเร็จ"
+                content={downloadError}
+                confirmText="ปิด"
                 hideCancel={true}
             />
         </>

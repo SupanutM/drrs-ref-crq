@@ -1,35 +1,28 @@
 const ejs = require('ejs');
 const path = require('path');
-const fs = require('fs');
 
+const TEMPLATE_PATH = path.join(__dirname, '../../templates/planSummary.html');
+
+/**
+ * render HTML สัญญาไว้แสดงบนหน้าเว็บ (ไม่ได้แปลงเป็น PDF)
+ *
+ * @param {object} customerInfo
+ * @param {Array} selectedAccounts
+ * @returns {Promise<string>} HTML
+ */
 const previewContractHtml = async (customerInfo, selectedAccounts) => {
-    const templatePath = path.join(__dirname, '../../templates/planSummary.html');
     const accounts = Array.isArray(selectedAccounts) ? selectedAccounts : [];
 
-    const htmlContent = await ejs.renderFile(templatePath, {
+    return ejs.renderFile(TEMPLATE_PATH, {
         customerInfo: customerInfo || {},
         selectedAccounts: accounts
     });
-
-    return htmlContent;
 };
 
-const savePdfToDisk = (pdfBuffer, filename) => {
-    const env = require('../../config/env');
-    const savePath = env.contractSavePath || path.join(__dirname, '../../../assets/contracts');
-    const resolvedPath = path.resolve(savePath);
-
-    // Create directory if not exists
-    if (!fs.existsSync(resolvedPath)) {
-        fs.mkdirSync(resolvedPath, { recursive: true });
-    }
-
-    const filePath = path.join(resolvedPath, filename);
-    fs.writeFileSync(filePath, pdfBuffer);
-    return filePath;
-};
+// หมายเหตุ: เดิมไฟล์นี้มีฟังก์ชัน savePdfToDisk(pdfBuffer, filename) ติดมาด้วย
+// ซึ่งเป็นโค้ดที่คัดลอกมาจาก downloadAndEmailContractPdfService และไม่มีใครเรียกใช้
+// (service นี้คืน HTML ไม่มี PDF buffer เลย) จึงลบออกเพื่อไม่ให้เข้าใจผิด
 
 module.exports = {
-    previewContractHtml,
-    savePdfToDisk
+    previewContractHtml
 };

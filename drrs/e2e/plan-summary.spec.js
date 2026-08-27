@@ -294,7 +294,7 @@ test.describe("หน้า PlanSummary (สรุปแผน + สัญญา
       await expect(page.getByRole("button", { name: "ยอมรับ" })).toBeDisabled();
     });
 
-    test("สร้าง PDF สัญญาไม่ได้ (500) → ไม่ดาวน์โหลด แต่ยังพากลับ consent", async ({
+    test("สร้าง PDF สัญญาไม่ได้ (500) → แจ้ง error และไม่พาไปหน้าอื่น", async ({
       page,
     }) => {
       await mockContractHtmlSuccess(page);
@@ -311,8 +311,23 @@ test.describe("หน้า PlanSummary (สรุปแผน + สัญญา
       await page.getByRole("button", { name: "ยอมรับ" }).click();
       await page.getByRole("button", { name: "ดาวน์โหลด" }).click();
 
-      // controller ดัก error แล้วยัง submit ต่อ → กลับไป consent
-      await expect(page).toHaveURL(/\/drrs\/consent/, { timeout: 25000 });
+      // ต้องขึ้น modal แจ้งว่าสร้างไฟล์ไม่สำเร็จ
+      await expect(
+        page.getByText("สร้างไฟล์สัญญาไม่สำเร็จ")
+      ).toBeVisible({ timeout: 25000 });
+      await expect(
+        page.getByText(/ระบบยังไม่บันทึกการยอมรับของท่าน/)
+      ).toBeVisible();
+
+      // และต้องยังอยู่หน้าเดิม ไม่ถูกพากลับ consent
+      // (เดิมโค้ดเรียก handleSubmit() ต่อทุกกรณีเพราะอยู่นอก try/catch
+      //  ผู้ใช้จึงถูกพากลับหน้าแรกโดยไม่ได้ไฟล์และไม่เห็นข้อความเตือนอะไร)
+      await expect(page).toHaveURL(/\/drrs\/plan-summary/);
+
+      // กดปิด modal แล้วยังอยู่หน้าเดิม กดยอมรับใหม่ได้
+      await page.getByRole("button", { name: "ปิด" }).click();
+      await expect(page.getByText("สร้างไฟล์สัญญาไม่สำเร็จ")).toBeHidden();
+      await expect(page).toHaveURL(/\/drrs\/plan-summary/);
     });
   });
 });
