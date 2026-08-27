@@ -42,6 +42,15 @@ module.exports = {
     dbName: process.env.DB_NAME,
     dbSchema: process.env.DB_SCHEMA,
 
+    // Database — connection pool & logging
+    // ทุกตัวมีค่า default จึงไม่ต้องใส่ใน .env ก็ทำงานได้
+    // และไม่ได้อยู่ใน requiredVariables ข้างบน ระบบเดิมจึงไม่พัง
+    dbPoolMax: Number(process.env.DB_POOL_MAX) || 20,
+    dbConnTimeoutMs: Number(process.env.DB_CONN_TIMEOUT_MS) || 5000,
+    dbIdleTimeoutMs: Number(process.env.DB_IDLE_TIMEOUT_MS) || 30000,
+    dbLogQueries: process.env.DB_LOG_QUERIES === 'true',
+    dbSlowQueryMs: Number(process.env.DB_SLOW_QUERY_MS) || 1000,
+
     // DOPA
     laserIdUrl: process.env.VERIFY_LASERID_URL,
     laserIdAppId: process.env.VERIFY_LASERID_APP_ID,

@@ -33,12 +33,26 @@ import { setToken } from "utils/authToken";
 export const verifyCitizenCard = async ({ digitNo, citizenId, name, surname, dateOfBirth, laserCardId, email, birthDateType, telNo }) => {
     try {
         // Service จัดการเรื่องความปลอดภัย (เข้ารหัส) ทั้งหมด
-        const citizenIdEncrypted = await encryptGCM({ value: citizenId });
-        const laserCardIdEncrypted = await encryptGCM({ value: laserCardId });
-        const nameEncrypted = await encryptGCM({ value: name });
-        const surnameEncrypted = await encryptGCM({ value: surname });
-        const emailEncrypted = email ? await encryptGCM({ value: email }) : { encrypted: "" };
-        const telNoEncrypted = await encryptGCM({ value: telNo });
+        //
+        // ยิงพร้อมกันด้วย Promise.all — ก่อนหน้านี้เป็น await เรียงกัน 6 บรรทัด
+        // ทำให้ต้องวิ่งไป-กลับ server 6 รอบทีละรอบก่อนจะเริ่ม verify ได้
+        // ตอนระบบว่าง 1 รอบ ~30ms (รวม ~180ms) แต่ตอนระบบตันวัดได้ 1 วินาที/รอบ
+        // ซึ่งจะกลายเป็นรอ ~6 วินาที ตอนนี้เหลือรอรอบเดียว
+        const [
+            citizenIdEncrypted,
+            laserCardIdEncrypted,
+            nameEncrypted,
+            surnameEncrypted,
+            emailEncrypted,
+            telNoEncrypted,
+        ] = await Promise.all([
+            encryptGCM({ value: citizenId }),
+            encryptGCM({ value: laserCardId }),
+            encryptGCM({ value: name }),
+            encryptGCM({ value: surname }),
+            email ? encryptGCM({ value: email }) : Promise.resolve({ encrypted: "" }),
+            encryptGCM({ value: telNo }),
+        ]);
 
         // จัดฟอร์แมตวันเกิดให้อยู่ในรูป YYYYMMDD ตามที่ API ต้องการ
         const formattedDob = dateOfBirth.split("-").join("");

@@ -1,5 +1,6 @@
 const env = require('../config/env')
 const { DataSource } = require("typeorm");
+const DbLogger = require("../utils/dbLogger");
 const tblSettingsApp = require("../../src/entities/tblSettingsApp");
 const tblCusTarget = require("../../src/entities/tblCusTarget");
 const tblAccountCusTarget = require("../../src/entities/tblAccountCusTarget");
@@ -23,8 +24,30 @@ const AppDataSource = new DataSource({
     password: env.dbPass,
     database: env.dbName,
     schema: env.dbSchema,
-    synchronize: false,  // ให้ TypeORM สร้างตารางให้อัตโนมัติ (ควรปรับเป็น false บน Production)
+    synchronize: false,  // ไม่ให้ TypeORM แก้โครงสร้างตารางเอง (ต้องเป็น false บน Production)
+
+    // ใช้ logger ของเราเอง เพื่อไม่ให้ค่า parameters (ชื่อ-นามสกุลลูกค้าที่ถอดรหัสแล้ว)
+    // หลุดลงไฟล์ log — การเปิด/ปิด query log อยู่ใน DbLogger ทั้งหมด
+    // จึงตั้ง logging: true ไว้ให้ TypeORM เรียก logger ทุก event
+    // เปิด query log กลับได้โดยไม่ต้องแก้โค้ด: ตั้ง DB_LOG_QUERIES=true ใน .env
+    logger: new DbLogger({ logQueries: env.dbLogQueries }),
     logging: true,
+
+    // query ที่ใช้เวลาเกินค่านี้จะถูก log เป็น warn (ไว้ตามหาคอขวด — ของใหม่ ก่อนหน้านี้ไม่มี)
+    maxQueryExecutionTime: env.dbSlowQueryMs,
+
+    // ---- connection pool ----
+    // ก่อนแก้: ไม่ได้ตั้งไว้เลย pg จึงใช้ค่า default max = 10
+    // ผล load test 0.9.5 (POST /api/checkCloseSystem):
+    //   20 req/s -> p50 23ms  p95 35ms
+    //   50 req/s -> p50 24ms  p95 125ms
+    //  100 req/s -> p50 1001ms p95 2921ms  <- พัง ทุกคนรอ ไม่ใช่แค่บางคน
+    poolSize: env.dbPoolMax,                // -> pg max
+    connectTimeoutMS: env.dbConnTimeoutMs,  // -> pg connectionTimeoutMillis
+    extra: {
+        idleTimeoutMillis: env.dbIdleTimeoutMs,
+    },
+
     entities: [
         tblSettingsApp,
         tblCusTarget,
