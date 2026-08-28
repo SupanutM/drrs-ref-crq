@@ -1,0 +1,27 @@
+# ===== ความลับ / ค่าเฉพาะเครื่อง (ห้าม commit) =====
+.env
+*.env
+!*.env.example
+.env.uat
+.env.e2e
+
+# ===== ไฟล์บีบอัด / artifact ตอน deploy =====
+*.zip
+
+# ===== ผล/ไฟล์ชั่วคราวของ load test =====
+drrs-api/loadtest/*.txt
+drrs-api/loadtest/flow-payloads.json
+*-summary.json
+drrs-api/loadtest/verify-payload.json
+
+# ===== log =====
+*.log
+logs/
+
+# ===== ไฟล์ชั่วคราวที่ root =====
+/*.txt
+/*.tmp
+/*.cmd
+
+# ===== dependencies (เผื่อยังไม่ถูก ignore ในโฟลเดอร์ย่อย) =====
+node_modules/
