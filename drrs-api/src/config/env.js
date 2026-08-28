@@ -73,6 +73,11 @@ module.exports = {
     //Utils
     logDir: process.env.LOG_DIR,
 
+    // Load Test Mode — ตั้ง true เพื่อลดงานที่ไม่เกี่ยวกับการวัดประสิทธิภาพแอปจริง
+    // (ข้าม DOPA/CUST API ภายนอก, ลดการเขียน log ลงไฟล์, ข้ามการเซฟ PDF ลงดิสก์)
+    // ห้ามเปิดบน Production เด็ดขาด
+    loadTestMode: process.env.LOAD_TEST_MODE === 'true',
+
     // PDF & Email
     contractSavePath: process.env.CONTRACT_SAVE_PATH,
     smtpHost: process.env.SMTP_HOST,

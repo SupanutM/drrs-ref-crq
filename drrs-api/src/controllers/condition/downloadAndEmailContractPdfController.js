@@ -91,9 +91,15 @@ const generateContractController = async (req, res) => {
         // STEP 3.5: เก็บสำเนาลงดิสก์ (ใช้เวอร์ชันมีรหัส)
         // ==========================================
         // ทำ "หลัง" ตอบ response แล้ว ผู้ใช้จึงไม่ต้องรอเขียนดิสก์เสร็จ
-        contractPdfService.savePdfToDisk(downloadBuffer, filename).catch((error) => {
-            logger.error(`เก็บสำเนาสัญญาลงดิสก์ไม่สำเร็จ (${filename}): ${error.message}`);
-        });
+        // ระหว่าง Load Test: ข้ามการเซฟไฟล์ (ไฟล์ ~97KB ต่อสัญญา ทำ Disk IO ตันตอนโหลดสูง)
+        if (require('../../config/env').loadTestMode) {
+            // ยืนยันใน log ว่าโค้ดข้ามเซฟดิสก์ทำงานจริง (ถ้า Disk IO ยังไม่ลด ให้ดูว่ามีบรรทัดนี้ไหม)
+            logger.warn(`[LOAD_TEST_MODE] ข้ามการเซฟ PDF ลงดิสก์ (${filename})`);
+        } else {
+            contractPdfService.savePdfToDisk(downloadBuffer, filename).catch((error) => {
+                logger.error(`เก็บสำเนาสัญญาลงดิสก์ไม่สำเร็จ (${filename}): ${error.message}`);
+            });
+        }
 
         // ==========================================
         // STEP 4: ส่ง E-mail

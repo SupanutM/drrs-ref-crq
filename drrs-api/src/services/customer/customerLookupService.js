@@ -14,6 +14,19 @@ const logger = baseLogger.child({ context: 'customerLookupService' });
 //  */
 const getCustomerFullAddress = async (customer_number, citizen_id) => {
     let fullAddress = "";
+
+    // ============================================================
+    // 🧪 LOAD TEST MODE — ข้าม CUST Profile API จริง (ภายนอก) เพื่อ Load Test
+    // ระบบภายนอก (custprofileuat.gsb.or.th) ยิงระหว่างโหลดเทสต์ไม่ได้ และทำให้
+    // verify ช้า/แกว่ง (รอ timeout) — โหมดนี้ตัดออกเพื่อวัดเฉพาะแอปของเรา
+    // วิธีเปิดใช้: ตั้ง LOAD_TEST_MODE=true ใน .env แล้ว restart server
+    // ห้ามใช้ใน Production เด็ดขาด!
+    // ============================================================
+    if (process.env.LOAD_TEST_MODE === 'true') {
+        logger.warn('[LOAD_TEST_MODE] ข้ามการเรียก CUST Profile API — คืนที่อยู่ว่าง');
+        return "";
+    }
+
     try {
         const CUST_API_BASE_URL = process.env.CUST_API_BASE_URL;
         const url = `${CUST_API_BASE_URL}/customer-management/v1/customers/lookup`;

@@ -17,6 +17,14 @@ const transporter = nodemailer.createTransport({
 
 async function triggerSendContractEmail(data) {
     try {
+        // ระหว่าง Load Test: ข้ามการส่งอีเมลทั้งหมด
+        // (อ่าน template จากดิสก์ทุกนัด + ต่อ SMTP ไป email ปลอมที่ค้าง/ช้า
+        //  = เพิ่ม Disk IO และงานค้างโดยไม่จำเป็นต่อการวัดประสิทธิภาพแอป)
+        if (require('../../config/env').loadTestMode) {
+            logger.warn('[LOAD_TEST_MODE] ข้ามการส่งอีเมลสัญญา');
+            return { isSuccess: false, message: 'skipped in load test mode' };
+        }
+
         const {
             cid,
             email,
