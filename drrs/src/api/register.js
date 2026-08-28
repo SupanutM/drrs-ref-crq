@@ -33,9 +33,9 @@ export const generatePdfBase64 = async (payload) => {
 
 export const generateContractPdf = async (payload) => {
     try {
-        const response = await apiAxiosInstance.post("/api/generate-contract", payload, {
-            responseType: "blob"
-        });
+        // backend ตอบเป็น base64 JSON ({ success, base64, fileName }) — ไม่ใช่ blob แล้ว
+        // (เปลี่ยนมาใช้ pdfkit ฝั่ง backend แทน puppeteer)
+        const response = await apiAxiosInstance.post("/api/generate-contract", payload);
         return response.data;
     } catch (error) {
         logger.error("generate-contract Error:", error);

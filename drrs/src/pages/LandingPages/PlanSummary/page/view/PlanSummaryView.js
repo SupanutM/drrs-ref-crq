@@ -27,8 +27,28 @@ function PlanSummaryView(props) {
     const [isDownloaded, setIsDownloaded] = useState(false);
     const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
     const [downloadError, setDownloadError] = useState("");
+    // URL ของสัญญาจริงที่ backend สร้างมา (base64 -> blob) ใช้ทั้งโชว์บนจอและดาวน์โหลด
+    // เดิมจอโชว์ไฟล์ตัวอย่างคงที่ contract_522_2569.pdf ซึ่งไม่ใช่ของลูกค้า
+    const [contractPdfUrl, setContractPdfUrl] = useState(null);
     const containerRef = React.useRef(null);
     const [pdfWidth, setPdfWidth] = useState(800);
+
+    // คืนหน่วยความจำของ blob url เมื่อออกจากหน้า
+    React.useEffect(() => {
+        return () => {
+            if (contractPdfUrl) window.URL.revokeObjectURL(contractPdfUrl);
+        };
+    }, [contractPdfUrl]);
+
+    /** แปลง base64 -> Blob (application/pdf) */
+    const base64ToBlob = (base64) => {
+        const binary = window.atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return new Blob([bytes.buffer], { type: "application/pdf" });
+    };
 
     React.useEffect(() => {
         if (!containerRef.current) return;
@@ -70,30 +90,45 @@ function PlanSummaryView(props) {
                 cusTargetId: customer.cusTargetId
             };
 
-            const pdfBlob = await generateContractPdf({
+            // backend ตอบ 2 เวอร์ชัน:
+            //   base64Preview  = ไม่มีรหัส สำหรับโชว์บนจอ (เบราว์เซอร์ไม่เด้งถามรหัส)
+            //   base64Download = มีรหัสวันเกิด สำหรับดาวน์โหลดเก็บเป็นหลักฐาน
+            // (fallback ไป base64 ตัวเดียวเผื่อ backend เวอร์ชันเก่า)
+            const response = await generateContractPdf({
                 customerInfo: encryptedCustomer,
                 selectedAccounts: selectedAccounts
             });
 
-            const blob = new Blob([pdfBlob], { type: 'application/pdf' });
-            const url = window.URL.createObjectURL(blob);
+            const { success, base64, base64Preview, base64Download, fileName, message } = response || {};
+            const previewB64 = base64Preview || base64;
+            const downloadB64 = base64Download || base64;
+            if (!success || !downloadB64) {
+                throw new Error(message || "เซิร์ฟเวอร์ไม่ได้ส่งไฟล์สัญญากลับมา");
+            }
+
+            // โชว์สัญญาจริงบนจอด้วยเวอร์ชันไม่มีรหัส (เนื้อหาตรงกับไฟล์ที่ดาวน์โหลด)
+            const previewUrl = window.URL.createObjectURL(base64ToBlob(previewB64));
+            setContractPdfUrl(previewUrl);
 
             const now = new Date();
             const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
             const filePrefix = customer.cifNo || customer.citizenId || 'UNKNOWN';
-            const filename = `${filePrefix}_${timestamp}.pdf`;
+            const filename = fileName || `${filePrefix}_${timestamp}.pdf`;
 
+            // ดาวน์โหลดด้วยเวอร์ชันมีรหัส
+            const downloadUrl = window.URL.createObjectURL(base64ToBlob(downloadB64));
             const downloadLink = document.createElement('a');
             downloadLink.style.display = 'none';
-            downloadLink.href = url;
+            downloadLink.href = downloadUrl;
             downloadLink.download = filename;
             document.body.appendChild(downloadLink);
             downloadLink.click();
-            
-            // ทำการลบ element และคืนค่า Memory หลังจาก delay เล็กน้อย (สำคัญสำหรับ iOS)
+
+            // ลบ element + คืน url ของตัวดาวน์โหลด หลัง delay เล็กน้อย (สำคัญสำหรับ iOS)
+            // url ของ preview ไม่ revoke ที่นี่ เพราะยังใช้โชว์บนจอ (revoke ตอนออกจากหน้า)
             setTimeout(() => {
                 document.body.removeChild(downloadLink);
-                window.URL.revokeObjectURL(url);
+                window.URL.revokeObjectURL(downloadUrl);
             }, 1000);
 
             setIsDownloaded(true);
@@ -134,7 +169,9 @@ function PlanSummaryView(props) {
 
                     <MKBox id="pdf-viewer-section" mt={5} mb={2} sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", overflow: "hidden" }}>
                         <Document
-                            file={`${process.env.PUBLIC_URL}/contract_522_2569.pdf`}
+                            // ถ้าสร้างสัญญาจริงแล้วโชว์ไบต์ชุดนั้น (ตรงกับไฟล์ที่ดาวน์โหลด)
+                            // ถ้ายังไม่ได้กดยอมรับ โชว์เอกสารตัวอย่างเงื่อนไขไปก่อน
+                            file={contractPdfUrl || `${process.env.PUBLIC_URL}/contract_522_2569.pdf`}
                             onLoadSuccess={onDocumentLoadSuccess}
                             loading={
                                 <MKTypography variant="body2" color="text">

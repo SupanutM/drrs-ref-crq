@@ -1,4 +1,5 @@
-const contractPdfService = require('../../services/condition/downloadAndEmailContractPdfService');
+// ใช้ service ที่สร้าง PDF ด้วย pdfkit (ไม่เปิด Chromium) แทน puppeteer เดิม
+const contractPdfService = require('../../services/condition/contractPdfKitService');
 const baseLogger = require('../../utils/logger');
 const logger = baseLogger.child({ context: 'generateContractController' });
 const createStepService = require('../../services/util/systemLog/createStepService');
@@ -42,8 +43,12 @@ const generateContractController = async (req, res) => {
         //   ผลคือลูกค้าถูกมาร์คว่าทำเสร็จ เข้าระบบใหม่ไม่ได้ตลอดไป แต่ไม่เคยได้สัญญา
         //   ต้องให้ทีมงานเข้าไปแก้ DB ให้ทีละคน
         // สลับลำดับแล้ว ถ้า PDF พังลูกค้าจะยังกลับมาทำใหม่ได้เอง
-        const pdfBuffer = await contractPdfService.generateContractPdf(augmentedCustomerInfo, augmentedAccounts);
-        logger.info(`PDF generated successfully with length: ${pdfBuffer.length}`);
+        // service คืน 2 เวอร์ชันจากเอกสารชุดเดียว:
+        //   preview  = ไม่ใส่รหัส สำหรับโชว์บนจอ (react-pdf ไม่เด้งถามรหัส)
+        //   download = ใส่รหัส (วันเกิดลูกค้า) สำหรับดาวน์โหลด/เก็บ/ส่งเมล
+        const { preview: previewBuffer, download: downloadBuffer } =
+            await contractPdfService.generateContractPdf(augmentedCustomerInfo, augmentedAccounts);
+        logger.info(`PDF generated successfully (preview ${previewBuffer.length} / download ${downloadBuffer.length} bytes)`);
 
         const currentTimestamp = format(new Date(), 'yyyyMMdd_HHmmss');
         const filePrefix = augmentedCustomerInfo.cifNo;
@@ -68,21 +73,25 @@ const generateContractController = async (req, res) => {
         }
 
         // ==========================================
-        // STEP 3: ส่งไฟล์ให้ผู้ใช้ดาวน์โหลด
+        // STEP 3: ส่งไฟล์ให้หน้าเว็บเป็น base64
         // ==========================================
-        res.set({
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="${filename}"`,
-            'Content-Length': pdfBuffer.length
+        // ส่ง 2 เวอร์ชันจากเอกสารชุดเดียว (เนื้อหาตรงกัน 100%):
+        //   base64Preview  = โชว์บนจอ (ไม่มีรหัส เบราว์เซอร์เปิดได้เลย)
+        //   base64Download = ดาวน์โหลด (มีรหัสวันเกิด เก็บเป็นหลักฐาน)
+        // จอกับไฟล์จึงตรงกัน แต่จอไม่ถูกถามรหัส
+        res.json({
+            success: true,
+            base64: downloadBuffer.toString('base64'),     // เผื่อ client เก่า (ถ้ามี) — เป็นตัว download
+            base64Preview: previewBuffer.toString('base64'),
+            base64Download: downloadBuffer.toString('base64'),
+            fileName: filename
         });
-        res.send(pdfBuffer);
 
         // ==========================================
-        // STEP 3.5: เก็บสำเนาลงดิสก์
+        // STEP 3.5: เก็บสำเนาลงดิสก์ (ใช้เวอร์ชันมีรหัส)
         // ==========================================
-        // ทำ "หลัง" ส่งไฟล์ให้ผู้ใช้แล้ว ผู้ใช้จึงไม่ต้องรอเขียนดิสก์เสร็จ
-        // (เดิมเรียกก่อน res.send และเป็นแบบ writeFileSync ซึ่งหยุด event loop ทั้งระบบ)
-        contractPdfService.savePdfToDisk(pdfBuffer, filename).catch((error) => {
+        // ทำ "หลัง" ตอบ response แล้ว ผู้ใช้จึงไม่ต้องรอเขียนดิสก์เสร็จ
+        contractPdfService.savePdfToDisk(downloadBuffer, filename).catch((error) => {
             logger.error(`เก็บสำเนาสัญญาลงดิสก์ไม่สำเร็จ (${filename}): ${error.message}`);
         });
 
@@ -94,7 +103,7 @@ const generateContractController = async (req, res) => {
             const emailData = {
                 cid: augmentedCustomerInfo.citizenId || 'Unknown',
                 email: emailAddress,
-                pdfBuffer: pdfBuffer,
+                pdfBuffer: downloadBuffer,
                 pdfFilename: filename,
                 customerName: `${augmentedCustomerInfo.firstName || ''} ${augmentedCustomerInfo.lastName || ''}`.trim(),
                 acceptTermCondDate: format(new Date(), 'yyyyMMdd'),

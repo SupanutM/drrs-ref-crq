@@ -292,19 +292,35 @@ async function mockContractHtmlSuccess(page) {
 }
 
 /**
- * Mock generate-contract (blob) สำเร็จ
+ * Mock generate-contract สำเร็จ
+ *
+ * backend เปลี่ยนจากส่ง blob เป็น base64 JSON ({ success, base64, fileName })
+ * (เปลี่ยนมาใช้ pdfkit แทน puppeteer) — mock จึงตอบ base64 ให้ตรงกับของจริง
+ * base64 นี้คือ PDF ขั้นต่ำที่ react-pdf โหลดได้
  */
-async function mockGenerateContractBlobSuccess(page) {
+async function mockGenerateContractSuccess(page) {
   await page.route("**/api/generate-contract", (route) => {
-    // Return a minimal PDF blob
-    const pdfContent = "%PDF-1.4\n1 0 obj\n<</Type /Catalog>>\nendobj\ntrailer\n<</Root 1 0 R>>\n%%EOF";
     route.fulfill({
       status: 200,
-      contentType: "application/pdf",
-      body: Buffer.from(pdfContent),
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        // backend จริงส่ง 2 เวอร์ชัน (preview ไม่มีรหัส / download มีรหัส)
+        // ใน mock ใช้ base64 เดียวกันทั้งคู่ก็พอสำหรับตรวจ flow
+        base64:
+          "JVBERi0xLjQKMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwo+PgplbmRvYmoKdHJhaWxlcgo8PAovUm9vdCAxIDAgUgo+PgolJUVPRgo=",
+        base64Preview:
+          "JVBERi0xLjQKMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwo+PgplbmRvYmoKdHJhaWxlcgo8PAovUm9vdCAxIDAgUgo+PgolJUVPRgo=",
+        base64Download:
+          "JVBERi0xLjQKMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwo+PgplbmRvYmoKdHJhaWxlcgo8PAovUm9vdCAxIDAgUgo+PgolJUVPRgo=",
+        fileName: "contract_test.pdf",
+      }),
     });
   });
 }
+
+// ชื่อเดิม เก็บไว้เป็น alias เพื่อไม่ให้เทสต์ที่ import ชื่อเก่าพัง
+const mockGenerateContractBlobSuccess = mockGenerateContractSuccess;
 
 /**
  * Mock update-income สำเร็จ
@@ -364,6 +380,7 @@ module.exports = {
   mockGeneratePdfSuccess,
   mockGeneratePdfFail,
   mockContractHtmlSuccess,
+  mockGenerateContractSuccess,
   mockGenerateContractBlobSuccess,
   mockUpdateIncomeSuccess,
   mockEncrypt,
