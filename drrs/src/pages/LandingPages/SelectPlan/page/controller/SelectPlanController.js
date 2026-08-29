@@ -132,11 +132,12 @@ function SelectPlanController(props) {
                 <Box>
                     <Box sx={{ fontSize: { xs: "16px", sm: "inherit" } }}>
                         รายได้สุทธิไม่เพียงพอชำระหนี้<br />
-                        (รายได้สุทธิปัจจุบัน: {currentNetIncome.toLocaleString()} บาท / ต้องมียอดขั้นต่ำรวม: {totalMinAmount.toLocaleString()} บาท)
+                        (รายได้สุทธิปัจจุบัน: {currentNetIncome.toLocaleString()} บาท / ต้องมียอดขั้นต่ำรวม: {totalMinAmount.toLocaleString()} บาท)<br />
+                            กรุณาระบุรายได้อื่นๆ เพื่อประกอบการพิจารณา หรือติดต่อสาขา
                     </Box>
                     {showOldInstallmentWarning && (
                         <Box sx={{ fontSize: { xs: "10px", sm: "12px" }, color: "#F44335", textAlign: "left", mt: 2 }}>
-                            *หมายเหตุ: โดยยอดขั้นต่ำนี้ได้รวมภาระจากบัญชีที่คุณเคยลงทะเบียนผ่อนชำระไว้ก่อนหน้านี้แล้ว กรุณาระบุรายได้อื่นๆ เพื่อประกอบการพิจารณา หรือติดต่อสาขา
+                            *หมายเหตุ: โดยยอดขั้นต่ำนี้ได้รวมภาระจากบัญชีที่คุณเคยลงทะเบียนผ่อนชำระไว้ก่อนหน้านี้แล้ว
                         </Box>
                     )}
                 </Box>
@@ -210,11 +211,12 @@ function SelectPlanController(props) {
                     <Box>
                         <Box sx={{ fontSize: { xs: "16px", sm: "inherit" } }}>
                             รายได้สุทธิไม่เพียงพอชำระหนี้<br />
-                            (รายได้สุทธิปัจจุบัน: {displayNetIncome} บาท / ต้องมียอดขั้นต่ำรวม: {displayMinAmount} บาท)
+                            (รายได้สุทธิปัจจุบัน: {displayNetIncome} บาท / ต้องมียอดขั้นต่ำรวม: {displayMinAmount} บาท)<br />
+                            กรุณาระบุรายได้อื่นๆ เพื่อประกอบการพิจารณา หรือติดต่อสาขา
                         </Box>
                         {isOldInstallmentIncluded && (
                             <Box sx={{ fontSize: { xs: "10px", sm: "12px" }, color: "#F44335", textAlign: "left", mt: 2 }}>
-                                *หมายเหตุ: โดยยอดขั้นต่ำนี้ได้รวมภาระจากบัญชีที่คุณเคยลงทะเบียนผ่อนชำระไว้ก่อนหน้านี้แล้ว กรุณาระบุรายได้อื่นๆ เพื่อประกอบการพิจารณา หรือติดต่อสาขา
+                                *หมายเหตุ: โดยยอดขั้นต่ำนี้ได้รวมภาระจากบัญชีที่คุณเคยลงทะเบียนผ่อนชำระไว้ก่อนหน้านี้แล้ว 
                             </Box>
                         )}
                     </Box>

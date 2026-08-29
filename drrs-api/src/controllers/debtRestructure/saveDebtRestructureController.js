@@ -52,7 +52,6 @@ const saveDebtRestructureController = async (req, res) => {
             if (!incomeCheck.isValid) {
                 // ไม่ log ตัวเลขรายได้ (PII) — เก็บแค่บัญชีที่ไม่ผ่าน
                 logger.warn(`[Income Guard] รายได้สุทธิไม่เพียงพอ | cusTargetId: ${cusTargetId} | accounts: ${incomeCheck.failedAccounts.join(', ')}`);
-                // override step ให้ tbl_system_log บันทึกว่าถูกบล็อกเพราะรายได้ไม่พอ (ไม่ใช่ SAVE_PLAN ปกติ)
                 res.locals.step = 'INCOME_INSUFFICIENT';
                 return sendError(res,
                     `รายได้สุทธิไม่เพียงพอชำระหนี้ (รายได้สุทธิปัจจุบัน: ${incomeCheck.netIncome.toLocaleString()} บาท / ต้องมียอดขั้นต่ำรวม: ${incomeCheck.totalMinAmount.toLocaleString()} บาท) *หมายเหตุ: โดยยอดขั้นต่ำนี้ได้รวมภาระจากบัญชีที่คุณเคยลงทะเบียนผ่อนชำระไว้ก่อนหน้านี้แล้ว กรุณาระบุรายได้อื่นๆ เพื่อประกอบการพิจารณา หรือติดต่อสาขา`,
