@@ -26,6 +26,7 @@ function PlanSummaryView(props) {
     const [isDownloading, setIsDownloading] = useState(false);
     const [isDownloaded, setIsDownloaded] = useState(false);
     const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [downloadError, setDownloadError] = useState("");
     // URL ของสัญญาจริงที่ backend สร้างมา (base64 -> blob) ใช้ทั้งโชว์บนจอและดาวน์โหลด
     // เดิมจอโชว์ไฟล์ตัวอย่างคงที่ contract_522_2569.pdf ซึ่งไม่ใช่ของลูกค้า
@@ -40,14 +41,15 @@ function PlanSummaryView(props) {
         };
     }, [contractPdfUrl]);
 
-    /** แปลง base64 -> Blob (application/pdf) */
-    const base64ToBlob = (base64) => {
-        const binary = window.atob(base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i += 1) {
-            bytes[i] = binary.charCodeAt(i);
-        }
-        return new Blob([bytes.buffer], { type: "application/pdf" });
+    /**
+     * แปลง base64 -> Blob (application/pdf) แบบไม่บล็อกจอ
+     * ใช้ fetch(data URI) ให้เบราว์เซอร์ decode เอง (native, เร็วกว่า loop charCodeAt
+     * ทีละ byte มาก) — เดิม loop ~130,000 รอบต่อไฟล์ x2 ไฟล์ ทำ main thread ค้าง
+     * spinner หมุนไม่ได้ตอนกดดาวน์โหลด
+     */
+    const base64ToBlob = async (base64) => {
+        const res = await fetch(`data:application/pdf;base64,${base64}`);
+        return res.blob();
     };
 
     React.useEffect(() => {
@@ -107,7 +109,8 @@ function PlanSummaryView(props) {
             }
 
             // โชว์สัญญาจริงบนจอด้วยเวอร์ชันไม่มีรหัส (เนื้อหาตรงกับไฟล์ที่ดาวน์โหลด)
-            const previewUrl = window.URL.createObjectURL(base64ToBlob(previewB64));
+            const previewBlob = await base64ToBlob(previewB64);
+            const previewUrl = window.URL.createObjectURL(previewBlob);
             setContractPdfUrl(previewUrl);
 
             const now = new Date();
@@ -116,7 +119,8 @@ function PlanSummaryView(props) {
             const filename = fileName || `${filePrefix}_${timestamp}.pdf`;
 
             // ดาวน์โหลดด้วยเวอร์ชันมีรหัส
-            const downloadUrl = window.URL.createObjectURL(base64ToBlob(downloadB64));
+            const downloadBlob = await base64ToBlob(downloadB64);
+            const downloadUrl = window.URL.createObjectURL(downloadBlob);
             const downloadLink = document.createElement('a');
             downloadLink.style.display = 'none';
             downloadLink.href = downloadUrl;
@@ -146,8 +150,11 @@ function PlanSummaryView(props) {
         }
 
         setIsDownloading(false);
-        // ทำต่อเฉพาะเมื่อได้ไฟล์สัญญาแล้วเท่านั้น
-        handleSubmit();
+        // สำเร็จแล้ว — โชว์ modal แจ้งสำเร็จ แล้วเด้งไปหน้าถัดไปเองใน 2 วิ (ไม่ต้องกดปุ่ม)
+        setIsSuccessModalOpen(true);
+        setTimeout(() => {
+            handleSubmit();
+        }, 2000);
     };
 
 
@@ -314,6 +321,22 @@ function PlanSummaryView(props) {
                 content={downloadError}
                 confirmText="ปิด"
                 hideCancel={true}
+            />
+
+            <ModalComponent
+                isOpen={isSuccessModalOpen}
+                variant="success"
+                title="ทำรายการสำเร็จ"
+                content={
+                    <>
+                        ระบบบันทึกการยอมรับแผนการชำระหนี้ของท่านเรียบร้อยแล้ว และดาวน์โหลดไฟล์สัญญาให้ท่านแล้ว
+                        <br /><br />
+                        <MKTypography component="span" color="text" sx={{ fontSize: { xs: "12px", md: "inherit" } }}>
+                            หากไม่พบไฟล์ กรุณาตรวจสอบที่โฟลเดอร์ดาวน์โหลดของอุปกรณ์ท่าน
+                        </MKTypography>
+                    </>
+                }
+                showActions={false}
             />
         </>
     );

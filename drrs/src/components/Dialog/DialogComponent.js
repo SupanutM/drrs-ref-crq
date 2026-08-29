@@ -14,7 +14,7 @@ function ModalComponent(props) {
     const {
         isOpen, onClose, onConfirm, title, content,
         confirmColor, isConfirmDisabled, confirmText, hideCancel,
-        variant, cancelText, cancelColor, buttonDirection
+        variant, cancelText, cancelColor, buttonDirection, showActions
     } = props;
 
     // ฟังก์ชันจัดการหน้าตา Modal ตามประเภท
@@ -71,7 +71,7 @@ function ModalComponent(props) {
     const isColumn = buttonDirection === "column";
 
     return (
-        <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="xs">
+        <Dialog open={isOpen} onClose={onClose || (() => {})} fullWidth maxWidth="xs">
             
             {variant === "confirm" && title && (
                 <DialogTitle>
@@ -85,6 +85,7 @@ function ModalComponent(props) {
                 {renderContent()}
             </DialogContent>
 
+            {showActions && (
             <DialogActions sx={{ pb: 2, px: 3, justifyContent: "center", flexDirection: isColumn ? "column" : "row", flexWrap: "wrap", gap: 1 }}>
 
                 {!shouldHideCancel && (
@@ -109,6 +110,7 @@ function ModalComponent(props) {
                 </MKButton>
 
             </DialogActions>
+            )}
         </Dialog>
     );
 }
@@ -119,12 +121,16 @@ ModalComponent.defaultProps = {
     confirmText: "ตกลง",
     hideCancel: false,
     isConfirmDisabled: false,
+    showActions: true,
+    onClose: () => {},
+    onConfirm: () => {},
 };
 
 ModalComponent.propTypes = {
     isOpen: PropTypes.bool.isRequired,
-    onClose: PropTypes.func.isRequired,
-    onConfirm: PropTypes.func.isRequired,
+    onClose: PropTypes.func,
+    onConfirm: PropTypes.func,
+    showActions: PropTypes.bool,
     content: PropTypes.node.isRequired,
     title: PropTypes.node,
     variant: PropTypes.oneOf(["confirm", "success", "warning", "error"]),

@@ -73,6 +73,20 @@ const generateContractController = async (req, res) => {
         }
 
         // ==========================================
+        // STEP 2.5: พักไฟล์สัญญา (base64 ตัวไม่มีรหัส = preview) ไว้ที่ tbl_system_log ชั่วคราว
+        // ==========================================
+        // เลิกเขียนไฟล์ลงดิสก์แล้ว แต่ยังต้องเก็บสำเนาไว้ให้ค้นย้อนหลังได้
+        // *** ชั่วคราว *** รอย้ายไป table เฉพาะ + หน้า admin ที่จะทำภายหลัง
+        // หมายเหตุ: เก็บ "ตัวไม่มีรหัส" (preview) เพื่อให้ admin เปิดดูได้โดยไม่ต้องรู้วันเกิดลูกค้า
+        await systemLogService({
+            step: 'CONTRACT_FILE',
+            controller: 'contractPdfController',
+            payload: { cusTargetId, fileName: filename, accountNos: selectedAccounts?.map(a => a.accountNo) },
+            responseStatus: 200,
+            response: { fileName: filename, base64Preview: previewBuffer.toString('base64') }
+        }).catch((err) => logger.error(`พักไฟล์สัญญาลง system_log ไม่สำเร็จ (${filename}): ${err.message}`));
+
+        // ==========================================
         // STEP 3: ส่งไฟล์ให้หน้าเว็บเป็น base64
         // ==========================================
         // ส่ง 2 เวอร์ชันจากเอกสารชุดเดียว (เนื้อหาตรงกัน 100%):

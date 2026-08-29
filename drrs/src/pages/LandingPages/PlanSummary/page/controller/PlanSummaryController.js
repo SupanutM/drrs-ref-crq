@@ -58,11 +58,9 @@ function PlanSummaryController({ routerState }) {
     }, [customerInfo, targetInfo, selectedAccounts]);
 
     const handleSubmit = async () => {
-        // Simulate API call or processing
-        // Delay navigation so the user can see the buttons are disabled as requested previously
-        setTimeout(() => {
-            navigate("/drrs/consent", { replace: true });
-        }, 2000);
+        // ผู้ใช้กด "ตกลง" ใน modal แจ้งสำเร็จแล้ว จึงพากลับหน้าเริ่มต้นทันที
+        // (เดิมหน่วง 2 วิ แล้วเด้งเองเงียบๆ ผู้ใช้ไม่รู้ว่าสำเร็จ — ตอนนี้มี modal แจ้งแทน)
+        navigate("/drrs/consent", { replace: true });
     };
 
     const state = {
