@@ -85,7 +85,7 @@ async function triggerSendContractEmail(data) {
             }
         ];
 
-        logger.info(`Sending contract email (loanType: ${loanTypeCode})`);
+        // logger.info(`Sending contract email (loanType: ${loanTypeCode})`);
 
         await transporter.sendMail({
             from: process.env.SMTP_FROM,
@@ -95,7 +95,7 @@ async function triggerSendContractEmail(data) {
             attachments,
         });
 
-        logger.info(`Email sent successfully (loanType: ${loanTypeCode})`);
+        // logger.info(`Email sent successfully (loanType: ${loanTypeCode})`);
         return {
             isSuccess: true,
             message: "Email sent successfully",

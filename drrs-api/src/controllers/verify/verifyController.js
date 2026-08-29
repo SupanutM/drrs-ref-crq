@@ -30,13 +30,13 @@ const verifyController = async (req, res) => {
         // =========================================================
         // 🌟 Step 1: ตรวจสอบข้อมูลลูกค้าใน Database (tbl_cus_target)
         // =========================================================
-        logger.info(`[Step 1] เริ่มตรวจสอบ Customer Target (verifyCode: ${verifyCode})`);
+        // logger.info(`[Step 1] เริ่มตรวจสอบ Customer Target`);
         const targetResult = await cusTargetService.verifyCusTargetService(name, surname, verifyCode);
 
         // ถ้าหาลูกค้าไม่เจอ หรือรหัส Verify Code ไม่ตรง ให้ตีกลับทันที (Fail-Fast)
         if (!targetResult.success) {
-            logger.warn(`[Step 1 Failed] ตรวจสอบ Customer Target ไม่ผ่าน (verifyCode: ${verifyCode}) - ${targetResult.message}`);
-            res.locals.step = 'stepVerifyTarget';
+            logger.warn(`[Step 1 Failed] ตรวจสอบ Customer Target ไม่ผ่าน - ${targetResult.message}`);
+            res.locals.step = 'VERIFY_REGISTER_TARGET_FAIL';
             return sendError(res, targetResult.message, 400);
         }
 
@@ -142,7 +142,7 @@ const verifyController = async (req, res) => {
 
         if (accountsToUpdate.length > 0) {
             await Promise.all(accountsToUpdate.map(async (acc) => {
-                logger.info(`[Step Log] บันทึก step stepVerifyTarget: "1" สำหรับ AccountNo: ${acc.accountNo}`);
+                // logger.info(`[Step Log] บันทึก step stepVerifyTarget: "1" สำหรับ AccountNo: ${acc.accountNo}`);
                 await createStepService.createStepService(acc.accountNo, { stepVerifyTarget: "1" }, 'verify-register');
             }));
         }
@@ -150,8 +150,7 @@ const verifyController = async (req, res) => {
         // =========================================================
         // 🌟 Step 2: ตรวจสอบ Laser ID DOPA
         // =========================================================
-        logger.info(`[Step 2] ผ่านการตรวจสอบ Target. เริ่มตรวจสอบ Laser ID (cusTargetId: ${targetResult.data?.cusTargetId})`);
-
+        // logger.info(`[Step 2] ผ่านการตรวจสอบ Target. เริ่มตรวจสอบ Laser ID (cusTargetId: ${targetResult.data?.cusTargetId})`);
         // แพ็คข้อมูลเตรียมส่งให้ Laser Service
         const laserPayload = { citizenId, name, surname, dateOfBirth, laserCardId };
         const laserResult = await laserIdService.verifyLaserIdService(laserPayload);
@@ -159,11 +158,12 @@ const verifyController = async (req, res) => {
         // ถ้าข้อมูลบัตรประชาชนไม่ถูกต้องตามฐานข้อมูลกรมการปกครอง
         if (!laserResult.success) {
             const errorMessage = laserResult.message || "Laser ID verification failed";
-            logger.warn(`[Step 2 Failed] Laser ID verification failed`);
-            res.locals.step = 'stepVerifyLaser';
+            // logger.warn(`[Step 2 Failed] Laser ID verification failed`);
+            logger.warn(`Laser ID verification failed`);
+            res.locals.step = 'VERIFY_REGISTER_LASER_FAIL';
             return res.status(401).json({
                 success: false,
-                message: `[Step 2 Failed] ${errorMessage}`
+                message: `${errorMessage}`
             });
         }
 
@@ -178,17 +178,16 @@ const verifyController = async (req, res) => {
                 try {
                     const customer_number = targetResult.data.cifNo || "";
                     const dbCitizenId = targetResult.data.citizenId || "";
-                    logger.info(`[Step 2.1] ดึงที่อยู่จาก CUST API (cusTargetId: ${cusTargetId})`);
+                    // logger.info(`[Step 2.1] ดึงที่อยู่จาก CUST API (cusTargetId: ${cusTargetId})`);
                     fullAddress = await customerLookupService.getCustomerFullAddress(customer_number, dbCitizenId);
                 } catch (error) {
                     logger.warn(`[Step 2.1] Error looking up customer address: ${error.message}`);
                 }
             } else {
-                logger.info(`[Step 2.1] มีที่อยู่แล้วในระบบ ไม่ต้องดึงจาก Lookup API`);
+                // logger.info(`[Step 2.1] มีที่อยู่แล้วในระบบ ไม่ต้องดึงจาก Lookup API`);
             }
 
-            logger.info(`[Step 2.1] ผ่าน Laser ID สำหรับ cusTargetId: ${cusTargetId} ทำการอัปเดต Email, วันเกิด, เบอร์โทร และที่อยู่ ที่ตาราง tbl_cus_target`);
-            
+            // logger.info(`[Step 2.1] ผ่าน Laser ID สำหรับ cusTargetId: ${cusTargetId} ทำการอัปเดต Email, วันเกิด, เบอร์โทร และที่อยู่ ที่ตาราง tbl_cus_target`);
             const payloadToUpdate = { email, dateOfBirth, telNo };
             if (!targetResult.data.address) {
                 payloadToUpdate.address = fullAddress;
@@ -203,14 +202,14 @@ const verifyController = async (req, res) => {
         // =========================================================
         // 🌟 Success: ผ่านทั้ง 2 ขั้นตอน ส่งข้อมูลกลับหน้าบ้าน
         // =========================================================
-        logger.info(`[Registration] ยืนยันตัวตนสำเร็จ | cusTargetId: ${cusTargetId} | accounts: ${(targetResult.data.accounts || []).map((a) => a.accountNo).join(', ')}`);
+        // logger.info(`[Registration] ยืนยันตัวตนสำเร็จ | cusTargetId: ${cusTargetId} | accounts: ${(targetResult.data.accounts || []).map((a) => a.accountNo).join(', ')}`);
 
         // =========================================================
         // 🌟 Step Log (2): อัปเดตสถานะ stepVerifyLaser = "1" ลงใน tbl_settings_step
         // =========================================================
         if (accountsToUpdate.length > 0) {
             await Promise.all(accountsToUpdate.map(async (acc) => {
-                logger.info(`[Step Log] อัปเดต step stepVerifyLaser: "1" สำหรับ AccountNo: ${acc.accountNo}`);
+                // logger.info(`[Step Log] อัปเดต step stepVerifyLaser: "1" สำหรับ AccountNo: ${acc.accountNo}`);
                 await createStepService.updateStepService(acc.accountNo, { stepVerifyLaser: "1" }, 'verify-register');
             }));
         }

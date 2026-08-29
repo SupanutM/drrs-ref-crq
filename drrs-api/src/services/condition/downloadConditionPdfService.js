@@ -14,7 +14,7 @@ const generateInvoiceBase64 = async (data) => {
         const { conditionMonth, conditionYear, items } = data;
         const xmlTemplate = fs.readFileSync(xmlTemplatePath, 'utf8');
 
-        logger.info(`[Check Data]: month="${conditionMonth}", year="${conditionYear}", items=${Array.isArray(items) ? items.length : 0}`);
+        // logger.info(`[Check Data]: month="${conditionMonth}", year="${conditionYear}", items=${Array.isArray(items) ? items.length : 0}`);
 
         const parser = new XMLParser({
             ignoreAttributes: false,
@@ -47,7 +47,7 @@ const generateInvoiceBase64 = async (data) => {
             doc.on('data', (chunk) => chunks.push(chunk));
             doc.on('end', () => {
                 const pdfBuffer = Buffer.concat(chunks);
-                logger.info(`Stream ended. Buffer generated successfully for Invoice No: ${conditionYear}`);
+                // logger.info(`Stream ended. Buffer generated successfully for Invoice No: ${conditionYear}`);
                 resolve(pdfBuffer);
             });
             doc.on('error', (err) => reject(err));

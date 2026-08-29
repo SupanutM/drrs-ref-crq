@@ -18,7 +18,7 @@ const checkCloseSystemService = async (channel) => {
             appVersion: item.appVersion
         }));
 
-        logger.info(`result plan: ${JSON.stringify(mappedResult)}`);
+        // logger.info(`result plan: ${JSON.stringify(mappedResult)}`);
 
         return {
             status: true, 

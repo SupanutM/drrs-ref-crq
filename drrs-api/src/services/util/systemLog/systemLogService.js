@@ -43,7 +43,7 @@ const systemLogService = async (logData = {}) => {
         });
 
         const savedLog = await logRepo.save(newLog);
-        logger.info(`[System Log] บันทึก Log สำเร็จ (ID: ${savedLog.id}) | Step: ${step} | Controller: ${controller} | Status: ${responseStatus}`);
+        // logger.info(`[System Log] บันทึก Log สำเร็จ (ID: ${savedLog.id}) | Step: ${step} | Controller: ${controller} | Status: ${responseStatus}`);
 
         return {
             success: true,

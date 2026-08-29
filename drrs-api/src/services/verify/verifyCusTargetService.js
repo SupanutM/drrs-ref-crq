@@ -5,6 +5,7 @@ const tblAccountInstallment = require('../../entities/tblAccountInstallment');
 const masterPlan = require('../../services/plan/masterPlanService');
 const baseLogger = require('../../utils/logger');
 const crypto = require('../../utils/crypto');
+const { systemLogService } = require('../util/systemLog/systemLogService');
 const logger = baseLogger.child({ context: 'verifyService' });
 
 const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
@@ -14,8 +15,10 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
         const lastNameDecrypted = crypto.decryptGCM(lastName, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
 
         const tblCusTargetRepo = AppDataSource.getRepository(tblCusTarget);
-        
-        logger.info(`[verify] ค้นหา customer target (verifyCode: ${verifyCode})`)
+
+        // ปิด log info ตอนสำเร็จ — ซ้ำซ้อนกับ tbl_system_log + ลด Disk IO
+        // (ห้าม log verifyCode — เป็นข้อมูลอ่อนไหว)
+        // logger.info(`[verify] ค้นหา customer target`)
 
         const customer = await tblCusTargetRepo.findOne({
             where: {
@@ -26,7 +29,7 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
             },
             relations: { accounts: true }
         });
-        logger.info(`[verify] ผลค้นหา customer target: ${customer ? `พบ (id: ${customer.id})` : 'ไม่พบ'}`);
+        // logger.info(`[verify] ผลค้นหา customer target: ${customer ? `พบ (id: ${customer.id})` : 'ไม่พบ'}`);
 
         if (!customer) {
             return {
@@ -137,10 +140,23 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
             oldInstallments = await AppDataSource.getRepository(tblAccountInstallment)
                 .find({
                     where: { cusTargetId: customer.id, status: '1' },
-                    select: ['accountNo', 'installmentAmount']
+                    select: { accountNo: true, installmentAmount: true }
                 });
         } catch (err) {
             logger.warn(`Error fetching oldInstallments for customer ${customer.id}: ${err.message}`);
+        }
+
+        // audit PLAN_PREVIEW ครั้งเดียวต่อ verify (รวมทุกบัญชีที่ดูแผน) — ไม่แยกราย account
+        const viewedAccountNos = accountsWithPlans.map((a) => a.accountNo).filter(Boolean);
+        if (viewedAccountNos.length > 0) {
+            await systemLogService({
+                step: 'PLAN_PREVIEW',
+                controller: 'verifyCusTargetService',
+                payload: { cusTargetId: customer.id, accountNos: viewedAccountNos },
+                responseStatus: 200,
+                response: { message: 'ดูแผนสำเร็จ', accountCount: viewedAccountNos.length },
+                createdBy: 'system'
+            }).catch((err) => logger.warn(`บันทึก audit PLAN_PREVIEW ไม่สำเร็จ: ${err.message}`));
         }
 
         return {

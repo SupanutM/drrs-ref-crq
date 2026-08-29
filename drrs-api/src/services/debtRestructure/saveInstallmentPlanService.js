@@ -11,9 +11,9 @@ const saveInstallmentPlanService = async (targetPlan) => {
         const payload = payloadFormat(targetPlan);
         const newRecord = InstallmentRepo.create(payload);
 
-        logger.info(`newRecord tbl_account_installment: ${JSON.stringify(newRecord)}`);
+        // logger.info(`newRecord tbl_account_installment: ${JSON.stringify(newRecord)}`);
         const savedAcc = await InstallmentRepo.save(newRecord);
-        logger.info(`บันทึก tbl_account_installment สำเร็จเรียบร้อย`);
+        // logger.info(`บันทึก tbl_account_installment สำเร็จเรียบร้อย`);
 
         return { success: true, data: savedAcc };
     } catch (error) {

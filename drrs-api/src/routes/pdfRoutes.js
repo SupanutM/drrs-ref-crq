@@ -6,7 +6,7 @@ const previewContractHtmlController = require('../controllers/condition/previewC
 const { systemLogMiddleware } = require('../utils/systemLogMiddleware');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
-router.post('/generate-pdf', authMiddleware, systemLogMiddleware('gen-template', 'pdfController'), downloadConditionPdfController.generatePdfController);
+router.post('/generate-pdf', authMiddleware, systemLogMiddleware('GEN_CONTRACT', 'pdfController'), downloadConditionPdfController.generatePdfController);
 router.post('/generate-contract', authMiddleware, downloadAndEmailContractPdfController.generateContractController);
 router.post('/preview-contract-html', authMiddleware, previewContractHtmlController.previewContractHtmlController);
 

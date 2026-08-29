@@ -58,19 +58,19 @@ const checkIncomeService = async (cusTargetId, accounts) => {
             if (!netIncomeFound) {
                 netIncome = Number(row.netIncome || 0);
                 netIncomeFound = true;
-                logger.info(`[checkIncomeService] อ่าน netIncome จาก DB: ${netIncome}`);
+                // logger.info(`[checkIncomeService] อ่าน netIncome จาก DB: ${netIncome}`); // PII — ห้าม log รายได้
             }
 
             // isCheckIncome = '0' → ไม่ต้องเช็ค, อื่นๆ → ต้องเช็ค
             if (String(row.isCheckIncome).trim() === '0') {
-                logger.info(`[checkIncomeService] accountNo: ${acc.accountNo} ไม่ต้องเช็ครายได้ (isCheckIncome=0)`);
+                // logger.info(`[checkIncomeService] accountNo: ${acc.accountNo} ไม่ต้องเช็ครายได้ (isCheckIncome=0)`);
                 continue;
             }
 
             const minAmount = Number(row.minAmount || 0);
             totalMinAmount += minAmount;
 
-            logger.info(`[checkIncomeService] accountNo: ${acc.accountNo} | minAmount: ${minAmount} | isCheckIncome: ${row.isCheckIncome}`);
+            // logger.info(`[checkIncomeService] accountNo: ${acc.accountNo} | minAmount: ${minAmount} | isCheckIncome: ${row.isCheckIncome}`);
         }
 
         // เช็คว่ามีบัญชีผ่อนชำระ (LT) ส่งมาด้วยหรือไม่
@@ -94,7 +94,7 @@ const checkIncomeService = async (cusTargetId, accounts) => {
             const oldTotalInstallment = Number(oldInstallmentsRow?.oldTotalInstallment || 0);
             
             if (oldTotalInstallment > 0) {
-                logger.info(`[checkIncomeService] พบยอดผ่อนชำระเดิม (ไม่รวมบัญชีที่เลือก) รวม = ${oldTotalInstallment}`);
+                // logger.info(`[checkIncomeService] พบยอดผ่อนชำระเดิม (ไม่รวมบัญชีที่เลือก) รวม = ${oldTotalInstallment}`);
                 totalMinAmount += oldTotalInstallment;
             }
         }
@@ -104,7 +104,7 @@ const checkIncomeService = async (cusTargetId, accounts) => {
         //   - netIncomeFound = true  → ใช้ netIncome จาก DB จริงๆ (แม้เป็น 0) เทียบกับ totalMinAmount
         const isValid = !netIncomeFound || netIncome >= totalMinAmount;
 
-        logger.info(`[checkIncomeService] ผลสรุป | cusTargetId: ${cusTargetId} | netIncomeFound: ${netIncomeFound} | netIncome: ${netIncome} | totalMinAmount: ${totalMinAmount} | isValid: ${isValid}`);
+        // logger.info(`[checkIncomeService] ผลสรุป | cusTargetId: ${cusTargetId} | netIncomeFound: ${netIncomeFound} | netIncome: ${netIncome} | totalMinAmount: ${totalMinAmount} | isValid: ${isValid}`); // PII
 
         if (!isValid) {
             accounts.forEach(acc => failedAccounts.push(acc.accountNo));

@@ -5,7 +5,7 @@ const logger = baseLogger.child({ context: 'generatePdfController' });
 
 const generatePdfController = async (req, res) => {
     try {
-        logger.info(`[generatePdf] เริ่มสร้าง PDF (conditionYear: ${req.body?.conditionYear || '-'})`)
+        // logger.info(`[generatePdf] เริ่มสร้าง PDF (conditionYear: ${req.body?.conditionYear || '-'})`)
         const base64Pdf = await pdfService.generateInvoiceBase64(req.body);
 
 

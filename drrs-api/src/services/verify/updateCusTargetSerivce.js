@@ -77,7 +77,8 @@ const updateCusTargetService = async (cusTargetId, payloadInput) => {
 
         // Note: planNo is NOT cleared on income update (DB column plan_no is NOT NULL)
 
-        logger.info(`กำลังอัปเดตข้อมูลสำหรับ cusTargetId: ${cusTargetId} ด้วยข้อมูล: ${JSON.stringify(updateFields)}`);
+        // ปิด log — updateFields มีข้อมูลส่วนบุคคล (email/เบอร์โทร/วันเกิด/ที่อยู่) ห้าม log
+        // logger.info(`กำลังอัปเดตข้อมูลสำหรับ cusTargetId: ${cusTargetId} ด้วยข้อมูล: ${JSON.stringify(updateFields)}`);
 
         // อัปเดต tbl_cus_target โดยตรงด้วย id — ไม่ต้อง lookup ผ่านตารางอื่น
         const updateResult = await tblCusTargetRepo.update(
@@ -85,7 +86,7 @@ const updateCusTargetService = async (cusTargetId, payloadInput) => {
             updateFields
         );
 
-        logger.info(`อัปเดตด้วย cusTargetId: ${cusTargetId} — affected: ${updateResult.affected}`);
+        // logger.info(`อัปเดตด้วย cusTargetId: ${cusTargetId} — affected: ${updateResult.affected}`);
 
         if (!updateResult.affected || updateResult.affected === 0) {
             logger.warn(`ไม่พบข้อมูลใน tbl_cus_target สำหรับ cusTargetId: ${cusTargetId}`);

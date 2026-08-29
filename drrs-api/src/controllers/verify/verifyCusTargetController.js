@@ -11,12 +11,12 @@ const verifyCusTargetController = async (req, res) => {
             return res.status(400).json({ success: false, message: 'กรุณาส่ง target_id และ verify_code ให้ครบถ้วน' });
         }
 
-        logger.info(`Start verifying target ID: ${target_id}`);
+        // logger.info(`Start verifying target ID: ${target_id}`);
 
         const result = await verifyService.verifyCustomerCode(target_id, verify_code);
 
         if (!result.success) {
-            logger.info(`Verification failed for target ID: ${target_id} - ${result.message}`);
+            logger.warn(`Verification failed for target ID: ${target_id} - ${result.message}`);
             return res.status(400).json({ success: false, message: result.message });
         }
 

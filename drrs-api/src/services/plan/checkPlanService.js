@@ -6,7 +6,7 @@ const tblMtMasterPlanDetail = require('../../entities/tblMtMasterPlanDetail');
 
 const checkPlanService = async (planNo) => {
     try {
-        logger.info(`กำลังตรวจสอบสิทธิ์สำหรับแผนหมายเลข: ${planNo}`);
+        // logger.info(`กำลังตรวจสอบสิทธิ์สำหรับแผนหมายเลข: ${planNo}`);
 
         const result = await AppDataSource.getRepository(tblMtMasterPlan)
             .createQueryBuilder('tmmp')
@@ -17,7 +17,7 @@ const checkPlanService = async (planNo) => {
             .where('tmmp.code LIKE :planNo', { planNo: planNo })
             .getRawMany();
 
-        logger.info(`result plan: ${JSON.stringify(result)}`);
+        // logger.info(`result plan: ${JSON.stringify(result)}`);
 
         return {
             status: true, 

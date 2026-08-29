@@ -15,7 +15,6 @@ const requiredVariables = [
     'VERIFY_LASERID_APP_KEY',
     'VERIFY_LASERID_TOKEN',
     'LOG_DIR',
-    'CONTRACT_SAVE_PATH',
     'SMTP_HOST',
     'SMTP_PORT',
     'SMTP_FROM'

@@ -41,7 +41,7 @@ const getContractPdfBytes = () => {
     contractPdfPromise = fsp
         .readFile(CONTRACT_PDF_PATH)
         .then((bytes) => {
-            logger.info(`โหลด contract.pdf เข้าหน่วยความจำแล้ว (${(bytes.length / 1024).toFixed(1)} KB)`);
+            // logger.info(`โหลด contract.pdf เข้าหน่วยความจำแล้ว (${(bytes.length / 1024).toFixed(1)} KB)`);
             return bytes;
         })
         .catch((error) => {
@@ -352,27 +352,9 @@ const generateContractPdf = async (customerInfo, selectedAccounts) => {
     };
 };
 
-/** เก็บสำเนาไฟล์ลงดิสก์ (async) */
-let saveDirReady = null;
-const savePdfToDisk = async (pdfBuffer, filename) => {
-    const env = require('../../config/env');
-    const savePath = env.contractSavePath || path.join(__dirname, '../../../assets/contracts');
-    const resolvedPath = path.resolve(savePath);
-
-    if (!saveDirReady) {
-        saveDirReady = fsp.mkdir(resolvedPath, { recursive: true }).catch((error) => {
-            saveDirReady = null;
-            throw error;
-        });
-    }
-    await saveDirReady;
-
-    const filePath = path.join(resolvedPath, filename);
-    await fsp.writeFile(filePath, pdfBuffer);
-    return filePath;
-};
+// หมายเหตุ: เดิมมีฟังก์ชัน savePdfToDisk() เขียนไฟล์ PDF ลงดิสก์ที่ backend
+// เลิกใช้แล้ว (เปลือง Disk IO) — คืน PDF เป็น base64 ให้ผู้เรียกไปเก็บที่ปลายทางแทน
 
 module.exports = {
-    generateContractPdf,
-    savePdfToDisk
+    generateContractPdf
 };

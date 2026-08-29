@@ -50,7 +50,10 @@ const saveDebtRestructureController = async (req, res) => {
             const incomeCheck = await checkIncomeService(cusTargetId, accountsToCheck);
 
             if (!incomeCheck.isValid) {
-                logger.warn(`[Income Guard] รายได้สุทธิไม่เพียงพอ | cusTargetId: ${cusTargetId} | netIncome: ${incomeCheck.netIncome} | totalMinAmount: ${incomeCheck.totalMinAmount} | accounts: ${incomeCheck.failedAccounts.join(', ')}`);
+                // ไม่ log ตัวเลขรายได้ (PII) — เก็บแค่บัญชีที่ไม่ผ่าน
+                logger.warn(`[Income Guard] รายได้สุทธิไม่เพียงพอ | cusTargetId: ${cusTargetId} | accounts: ${incomeCheck.failedAccounts.join(', ')}`);
+                // override step ให้ tbl_system_log บันทึกว่าถูกบล็อกเพราะรายได้ไม่พอ (ไม่ใช่ SAVE_PLAN ปกติ)
+                res.locals.step = 'INCOME_INSUFFICIENT';
                 return sendError(res,
                     `รายได้สุทธิไม่เพียงพอชำระหนี้ (รายได้สุทธิปัจจุบัน: ${incomeCheck.netIncome.toLocaleString()} บาท / ต้องมียอดขั้นต่ำรวม: ${incomeCheck.totalMinAmount.toLocaleString()} บาท) *หมายเหตุ: โดยยอดขั้นต่ำนี้ได้รวมภาระจากบัญชีที่คุณเคยลงทะเบียนผ่อนชำระไว้ก่อนหน้านี้แล้ว กรุณาระบุรายได้อื่นๆ เพื่อประกอบการพิจารณา หรือติดต่อสาขา`,
                     400,
@@ -58,7 +61,7 @@ const saveDebtRestructureController = async (req, res) => {
                 );
             }
 
-            logger.info(`[Income Guard] ผ่านการตรวจสอบรายได้ | cusTargetId: ${cusTargetId} | netIncome: ${incomeCheck.netIncome} >= totalMinAmount: ${incomeCheck.totalMinAmount}`);
+            // logger.info(`[Income Guard] ผ่านการตรวจสอบรายได้ | cusTargetId: ${cusTargetId} | netIncome: ${incomeCheck.netIncome} >= totalMinAmount: ${incomeCheck.totalMinAmount}`); // PII — รายได้
         }
         // =========================================================
 
@@ -97,7 +100,7 @@ const saveDebtRestructureController = async (req, res) => {
             const stepConfirmPlan = settingStep?.stepConfirmPlan ? String(settingStep.stepConfirmPlan).trim() : '0';
             const stepSendToCbs = settingStep?.stepSendToCbs ? String(settingStep.stepSendToCbs).trim() : '0';
 
-            logger.info(`[Step Check Before Save] Account: ${accountNo} | stepConfirmPlan: ${stepConfirmPlan} | stepSendToCbs: ${stepSendToCbs}`);
+            // logger.info(`[Step Check Before Save] Account: ${accountNo} | stepConfirmPlan: ${stepConfirmPlan} | stepSendToCbs: ${stepSendToCbs}`);
 
             if (stepConfirmPlan === '1' && stepSendToCbs === '1') {
                 logger.warn(`Account ${accountNo} ผ่านขั้นตอนการเลือกแผนและสร้างเอกสารครบแล้ว ไม่สามารถบันทึกซ้ำได้`);
@@ -143,10 +146,10 @@ const saveDebtRestructureController = async (req, res) => {
 
                 const { result, xmlTemplate } = await savePlan(loantype, hairCutPlanPayload);
 
-                logger.info(`[Step Log] อัปเดต step selectPlan: "1" สำหรับ AccountNo: ${accountNo}`);
+                // logger.info(`[Step Log] อัปเดต step selectPlan: "1" สำหรับ AccountNo: ${accountNo}`);
                 await createStepService.updateStepService(accountNo, { stepConfirmPlan: "1" }, 'stepConfirmPlan');
 
-                logger.info(`บันทึก HAIRCUT PLAN สำเร็จ: ${JSON.stringify(result)}`);
+                // logger.info(`บันทึก HAIRCUT PLAN สำเร็จ: ${JSON.stringify(result)}`);
                 combinedResults.push(result);
                 if (xmlTemplate && xmlTemplate.items) {
                     combinedTemplateItems.push(...xmlTemplate.items);
@@ -172,10 +175,10 @@ const saveDebtRestructureController = async (req, res) => {
 
                 const { result, xmlTemplate } = await savePlan(loantype, InstallmentPlanPayload);
 
-                logger.info(`[Step Log] อัปเดต step selectPlan: "1" สำหรับ AccountNo: ${accountNo}`);
+                // logger.info(`[Step Log] อัปเดต step selectPlan: "1" สำหรับ AccountNo: ${accountNo}`);
                 await createStepService.updateStepService(accountNo, { stepConfirmPlan: "1" }, 'stepConfirmPlan');
 
-                logger.info(`บันทึก INSTALLMENT PLAN สำเร็จ: ${JSON.stringify(result)}`);
+                // logger.info(`บันทึก INSTALLMENT PLAN สำเร็จ: ${JSON.stringify(result)}`);
                 combinedResults.push(result);
                 if (xmlTemplate && xmlTemplate.items) {
                     combinedTemplateItems.push(...xmlTemplate.items);
@@ -225,9 +228,7 @@ const savePlan = async (loantype, payload) => {
             throw new Error(`บัญชี ${payload.accountNo} มีการสร้างรายการแล้ว ไม่สามารถสร้างซ้ำได้`);
         }
 
-        logger.warn(`-=-----------------------------------------`)
         const result = await (loantype === "LT" ? InstallmentService.saveInstallmentPlanService(payload) : HairCutService.saveAccHairCutPlanService(payload));
-        logger.warn(`-2=-----------------------------------------`)
 
         const currentTimestamp = result.data.createdDate;
         const { month, year } = formatThaiMonthYear(currentTimestamp);

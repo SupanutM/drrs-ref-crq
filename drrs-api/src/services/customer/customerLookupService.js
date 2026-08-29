@@ -6,6 +6,7 @@ const tblMtProvince = require('../../entities/tblMtProvince');
 const tblMtDistrict = require('../../entities/tblMtDistrict');
 const tblMtSubDistrict = require('../../entities/tblMtSubDistrict');
 const baseLogger = require('../../utils/logger');
+const { systemLogService } = require('../util/systemLog/systemLogService');
 const logger = baseLogger.child({ context: 'customerLookupService' });
 //  * ดึงข้อมูลที่อยู่ลูกค้าจาก API ภายนอก และประกอบเป็นที่อยู่บรรทัดเดียว
 //  * @param {string} customer_number - CIF No. ของลูกค้า
@@ -48,7 +49,6 @@ const getCustomerFullAddress = async (customer_number, citizen_id) => {
         };
         const httpsAgent = new https.Agent({ rejectUnauthorized: false });
         const response = await axios.post(url, payload, { headers, httpsAgent });
-        logger.info(`[customerLookup] ได้รับ response จาก CUST API แล้ว`);
 
         if (response.data && response.data.rs_body) {
             const data = response.data;
@@ -96,10 +96,30 @@ const getCustomerFullAddress = async (customer_number, citizen_id) => {
                 ].filter(p => p && p.trim() !== "");
                 fullAddress = parts.join(" ");
             }
-            logger.info(`[customerLookup] ประกอบที่อยู่สำเร็จ (${fullAddress ? 'มีข้อมูล' : 'ไม่มีข้อมูล'})`);
         }
+
+        // audit: บันทึกว่าไปเรียก CUST360 มา — ไม่ log ที่อยู่จริง (PII) เก็บแค่ว่าเจอไหม
+        await systemLogService({
+            step: 'CUST360_LOOKUP',
+            controller: 'customerLookupService',
+            payload: { customer_number },
+            responseStatus: 200,
+            response: { message: 'ดึงข้อมูลที่อยู่จาก CUST360', addressFound: !!fullAddress },
+            createdBy: 'system'
+        }).catch((err) => logger.warn(`บันทึก audit CUST360 ไม่สำเร็จ: ${err.message}`));
+
     } catch (error) {
         logger.warn(`Error looking up customer address: ${error.message}`);
+
+        // audit: บันทึกกรณีเรียก CUST360 ล้มเหลว (ไม่โยน error ต่อ — flow verify ยังไปต่อได้)
+        await systemLogService({
+            step: 'CUST360_LOOKUP',
+            controller: 'customerLookupService',
+            payload: { customer_number },
+            responseStatus: 500,
+            response: { message: 'เรียก CUST360 ไม่สำเร็จ', error: error.message },
+            createdBy: 'system'
+        }).catch((err) => logger.warn(`บันทึก audit CUST360 (error) ไม่สำเร็จ: ${err.message}`));
     }
     return fullAddress;
 };

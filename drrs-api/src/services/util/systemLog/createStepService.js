@@ -25,7 +25,7 @@ const createStepService = async (accountNo, stepData = { stepVerifyTarget: "1" }
         });
 
         if (!existingRecord) {
-            logger.info(`[Step Log] ไม่พบข้อมูลเดิม ทำการสร้าง record ใหม่ใน tbl_settings_step สำหรับ Account: ${accountNo}`);
+            // logger.info(`[Step Log] ไม่พบข้อมูลเดิม ทำการสร้าง record ใหม่ใน tbl_settings_step สำหรับ Account: ${accountNo}`);
             const newStep = stepRepo.create({
                 accountNo: accountNo,
                 stepVerifyTarget: "1",
@@ -39,20 +39,20 @@ const createStepService = async (accountNo, stepData = { stepVerifyTarget: "1" }
                 createdBy: updatedBy
             });
             const savedResult = await stepRepo.save(newStep);
-            logger.info(`[Step Log] สร้าง record ใหม่สำเร็จ: ${JSON.stringify(savedResult)}`);
+            // logger.info(`[Step Log] สร้าง record ใหม่สำเร็จ: ${JSON.stringify(savedResult)}`);
             return {
                 success: true,
                 message: 'สร้าง record ใหม่ใน tbl_settings_step สำเร็จ',
                 data: savedResult
             };
         } else {
-            logger.info(`[Step Log] พบ record เดิมของ Account: ${accountNo} ทำการอัปเดต flag ใน tbl_settings_step`);
+            // logger.info(`[Step Log] พบ record เดิมของ Account: ${accountNo} ทำการอัปเดต flag ใน tbl_settings_step`);
             const updatePayload = {
                 ...stepData,
                 updateBy: updatedBy
             };
             const updateResult = await stepRepo.update({ accountNo: accountNo }, updatePayload);
-            logger.info(`[Step Log] อัปเดต step สำเร็จ: ${JSON.stringify(updatePayload)}`);
+            // logger.info(`[Step Log] อัปเดต step สำเร็จ: ${JSON.stringify(updatePayload)}`);
             return {
                 success: true,
                 message: 'อัปเดต record ใน tbl_settings_step สำเร็จ',
@@ -87,7 +87,7 @@ const updateStepService = async (accountNo, stepData = {}, updatedBy = 'system')
             return await createStepService(accountNo, stepData, updatedBy);
         }
 
-        logger.info(`[Step Log] อัปเดต step สำหรับ Account: ${accountNo} -> ${JSON.stringify(stepData)}`);
+        // logger.info(`[Step Log] อัปเดต step สำหรับ Account: ${accountNo} -> ${JSON.stringify(stepData)}`);
         const updatePayload = {
             ...stepData,
             updateBy: updatedBy

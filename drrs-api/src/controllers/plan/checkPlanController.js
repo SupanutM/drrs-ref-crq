@@ -21,7 +21,7 @@ const checkPlanController = async (req, res) => {
         }
 
         const result = await checkPlanService(planNo);
-        logger.info(`result plan: ${JSON.stringify(result)}`);
+        // logger.info(`result plan: ${JSON.stringify(result)}`);
 
         // คืนค่ากลับไปให้หน้าบ้าน (HTTP 200 OK)
         return res.status(200).json(result);

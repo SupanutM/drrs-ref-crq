@@ -46,7 +46,7 @@ const lookupCustomer = async (req, res) => {
             }
         };
 
-        logger.info(`Calling CUST API for cusTargetId: ${cusTargetId}`);
+        // logger.info(`Calling CUST API for cusTargetId: ${cusTargetId}`);
 
         const httpsAgent = new https.Agent({
             rejectUnauthorized: false

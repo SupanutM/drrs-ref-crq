@@ -20,12 +20,12 @@ const updateIncomeController = async (req, res) => {
             return sendError(res, 'กรุณาส่ง totalIncome และ totalCost', 400);
         }
 
-        logger.info(`[Update Income] cusTargetId: ${cusTargetId} | totalIncome: ${totalIncome} | otherIncome: ${otherIncome} | totalCost: ${totalCost} | netIncome: ${netIncome}`);
+        // logger.info(`[Update Income] ...`); // PII — ห้าม log รายได้ลูกค้า
         
         await updateCusTargetService.updateCusTargetService(cusTargetId, { totalIncome, otherIncome, totalCost, netIncome });
 
         await systemLogService({
-            step: 'update-income',
+            step: 'UPDATE_INCOME',
             controller: 'updateIncomeController',
             payload: { cusTargetId, totalIncome, otherIncome, totalCost, netIncome },
             responseStatus: 200,
@@ -39,7 +39,7 @@ const updateIncomeController = async (req, res) => {
         logger.error(`System Error in updateIncomeController: ${error.message}`);
         
         await systemLogService({
-            step: 'update-income',
+            step: 'UPDATE_INCOME',
             controller: 'updateIncomeController',
             payload: req.body,
             responseStatus: 500,

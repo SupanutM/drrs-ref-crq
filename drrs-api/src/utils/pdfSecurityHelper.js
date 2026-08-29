@@ -64,7 +64,7 @@ const applyPdfEncryption = (pdfDoc, rawPasswordString) => {
 
     // ไม่ log ค่ารหัสผ่าน เพราะรหัสคือวันเกิดลูกค้า (ข้อมูลส่วนบุคคล)
     // เดิมบรรทัดนี้พิมพ์ `userPassword set to: ${formattedPassword}` ลงไฟล์ log
-    logger.info('[PDF Security]: ใส่รหัสผ่านให้ไฟล์ PDF แล้ว');
+    // logger.info('[PDF Security]: ใส่รหัสผ่านให้ไฟล์ PDF แล้ว');
     return true;
 };
 

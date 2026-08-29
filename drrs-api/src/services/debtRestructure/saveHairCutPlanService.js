@@ -7,19 +7,13 @@ const { payloadFormat } = require('../../utils/payloadFormatUtils');
 
 const saveAccHairCutPlanService = async (targetPlan) => {
     try {
-        logger.info(`--------------------------- 0 --------------------------------`);
-
+        // debug log ที่ไม่จำเป็น + JSON record มีข้อมูลสินเชื่อ — ปิดไว้ (ลด Disk IO / กัน PII)
         const AccHairCutRepo = AppDataSource.getRepository(tblAccountHairCut);
-        logger.info(`--------------------------- 1 --------------------------------`);
-
         const payload = payloadFormat(targetPlan);
-        logger.info(`--------------------------- 2 --------------------------------`);
-
         const newRecord = AccHairCutRepo.create(payload);
-
-        logger.info(`newRecord tbl_account_hair_cut: ${JSON.stringify(newRecord)}`);
+        // logger.info(`newRecord tbl_account_hair_cut: ${JSON.stringify(newRecord)}`);
         const savedAcc = await AccHairCutRepo.save(newRecord);
-        logger.info(`บันทึก tbl_account_hair_cut สำเร็จเรียบร้อย`);
+        // logger.info(`บันทึก tbl_account_hair_cut สำเร็จเรียบร้อย`);
 
         return { success: true, data: savedAcc };
     } catch (error) {

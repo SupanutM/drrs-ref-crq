@@ -39,7 +39,7 @@ const cancelDebtRestructureController = async (req, res) => {
             );
 
             // Reset stepConfirmPlan to "0"
-            logger.info(`[Step Log] Reset stepConfirmPlan: "0" สำหรับ AccountNo: ${accountNo}`);
+            // logger.info(`[Step Log] Reset stepConfirmPlan: "0" สำหรับ AccountNo: ${accountNo}`);
             await createStepService.updateStepService(accountNo, { stepConfirmPlan: "0" }, 'cancel-plan');
         }
 

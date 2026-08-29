@@ -48,7 +48,7 @@ const generateContractController = async (req, res) => {
         //   download = ใส่รหัส (วันเกิดลูกค้า) สำหรับดาวน์โหลด/เก็บ/ส่งเมล
         const { preview: previewBuffer, download: downloadBuffer } =
             await contractPdfService.generateContractPdf(augmentedCustomerInfo, augmentedAccounts);
-        logger.info(`PDF generated successfully (preview ${previewBuffer.length} / download ${downloadBuffer.length} bytes)`);
+        // logger.info(`PDF generated successfully (preview ${previewBuffer.length} / download ${downloadBuffer.length} bytes)`);
 
         const currentTimestamp = format(new Date(), 'yyyyMMdd_HHmmss');
         const filePrefix = augmentedCustomerInfo.cifNo;
@@ -59,16 +59,16 @@ const generateContractController = async (req, res) => {
         // ==========================================
         if (selectedAccounts && selectedAccounts.length > 0) {
             await Promise.all(selectedAccounts.map(async (acc) => {
-                logger.info(`[Step Log] อัปเดต step stepSendToCbs: "1" สำหรับ AccountNo: ${acc.accountNo}`);
+                // logger.info(`[Step Log] อัปเดต step stepSendToCbs: "1" สำหรับ AccountNo: ${acc.accountNo}`);
                 await createStepService.updateStepService(acc.accountNo, { stepSendToCbs: "1" }, 'stepSendToCbs');
             }));
 
             await systemLogService({
-                step: 'stepSendToCbs',
+                step: 'SEND_TO_CBS',
                 controller: 'contractPdfController',
                 payload: { cusTargetId, selectedAccounts: selectedAccounts.map(a => a.accountNo) },
-                responseStatus: 'SUCCESS',
-                responseMessage: 'Updated stepSendToCbs (Accepted Contract)'
+                responseStatus: 200,
+                response: { message: 'ยอมรับสัญญา อัปเดต stepSendToCbs' }
             });
         }
 
@@ -87,19 +87,9 @@ const generateContractController = async (req, res) => {
             fileName: filename
         });
 
-        // ==========================================
-        // STEP 3.5: เก็บสำเนาลงดิสก์ (ใช้เวอร์ชันมีรหัส)
-        // ==========================================
-        // ทำ "หลัง" ตอบ response แล้ว ผู้ใช้จึงไม่ต้องรอเขียนดิสก์เสร็จ
-        // ระหว่าง Load Test: ข้ามการเซฟไฟล์ (ไฟล์ ~97KB ต่อสัญญา ทำ Disk IO ตันตอนโหลดสูง)
-        if (require('../../config/env').loadTestMode) {
-            // ยืนยันใน log ว่าโค้ดข้ามเซฟดิสก์ทำงานจริง (ถ้า Disk IO ยังไม่ลด ให้ดูว่ามีบรรทัดนี้ไหม)
-            logger.warn(`[LOAD_TEST_MODE] ข้ามการเซฟ PDF ลงดิสก์ (${filename})`);
-        } else {
-            contractPdfService.savePdfToDisk(downloadBuffer, filename).catch((error) => {
-                logger.error(`เก็บสำเนาสัญญาลงดิสก์ไม่สำเร็จ (${filename}): ${error.message}`);
-            });
-        }
+        // หมายเหตุ: ไม่เก็บไฟล์ PDF ลงดิสก์ที่ backend อีกต่อไป (เลิกเปลือง Disk IO)
+        // ไฟล์ถูกส่งกลับเป็น base64 ให้หน้าเว็บแล้ว (STEP 3) ถ้าต้องเก็บสำเนา
+        // ให้ระบบปลายทาง (เช่น document store / CBS) รับ base64 ไปเก็บเอง
 
         // ==========================================
         // STEP 4: ส่ง E-mail
@@ -120,22 +110,38 @@ const generateContractController = async (req, res) => {
             emailService.triggerSendContractEmail(emailData).then(async (resEmail) => {
                 if (resEmail.isSuccess && selectedAccounts && selectedAccounts.length > 0) {
                     await Promise.all(selectedAccounts.map(async (acc) => {
-                        logger.info(`[Step Log] อัปเดต step stepSendMail: "1" สำหรับ AccountNo: ${acc.accountNo}`);
+                        // logger.info(`[Step Log] อัปเดต step stepSendMail: "1" สำหรับ AccountNo: ${acc.accountNo}`);
                         await createStepService.updateStepService(acc.accountNo, { stepSendMail: "1" }, 'stepSendMail');
                     }));
 
                     await systemLogService({
-                        step: 'stepSendMail',
+                        step: 'SEND_MAIL',
                         controller: 'contractPdfController',
                         payload: { cusTargetId, selectedAccounts: selectedAccounts.map(a => a.accountNo) },
-                        responseStatus: 'SUCCESS',
-                        responseMessage: 'Sent email and updated stepSendMail'
+                        responseStatus: 200,
+                        response: { message: 'ส่งอีเมลสำเร็จ อัปเดต stepSendMail' }
                     });
                 } else if (!resEmail.isSuccess) {
                     logger.error(`Failed to send email: ${resEmail.message}`);
+                    // audit: เมลส่งไม่สำเร็จ — ตรวจย้อนหลังได้ว่าใครไม่ได้รับเมลสัญญา
+                    await systemLogService({
+                        step: 'SEND_MAIL_FAIL',
+                        controller: 'contractPdfController',
+                        payload: { cusTargetId, selectedAccounts: selectedAccounts?.map(a => a.accountNo) },
+                        responseStatus: 500,
+                        response: { message: 'ส่งอีเมลสัญญาไม่สำเร็จ', error: resEmail.message }
+                    }).catch(logErr => logger.error(`บันทึก audit SEND_MAIL_FAIL ไม่สำเร็จ: ${logErr.message}`));
                 }
-            }).catch(err => {
+            }).catch(async err => {
                 logger.error(`Unhandled error in email trigger: ${err.message}`);
+                // audit: error หลุด (นอกเหนือจาก resEmail.isSuccess) เช่น DNS/SMTP ล่ม
+                await systemLogService({
+                    step: 'SEND_MAIL_FAIL',
+                    controller: 'contractPdfController',
+                    payload: { cusTargetId, selectedAccounts: selectedAccounts?.map(a => a.accountNo) },
+                    responseStatus: 500,
+                    response: { message: 'ส่งอีเมลสัญญาไม่สำเร็จ (unhandled)', error: err.message }
+                }).catch(logErr => logger.error(`บันทึก audit SEND_MAIL_FAIL ไม่สำเร็จ: ${logErr.message}`));
             });
         }
     } catch (error) {
