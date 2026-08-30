@@ -1,9 +1,9 @@
 const axios = require('axios');
-const https = require('https');
 const crypto = require('crypto');
 const logger = require('../../utils/logger');
 const { AppDataSource } = require('../../config/database');
 const tblCusTarget = require('../../entities/tblCusTarget');
+const { getCustHttpsAgent } = require('../../utils/custHttpsAgent');
 
 const lookupCustomer = async (req, res) => {
     try {
@@ -46,11 +46,7 @@ const lookupCustomer = async (req, res) => {
             }
         };
 
-        // logger.info(`Calling CUST API for cusTargetId: ${cusTargetId}`);
-
-        const httpsAgent = new https.Agent({
-            rejectUnauthorized: false
-        });
+        const httpsAgent = getCustHttpsAgent();
 
         const response = await axios.post(url, payload, { headers, httpsAgent });
 

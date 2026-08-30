@@ -8,6 +8,14 @@
 # ===== ไฟล์บีบอัด / artifact ตอน deploy =====
 *.zip
 
+# ===== ใบรับรอง / กุญแจ (cert, key) ห้าม commit เด็ดขาด =====
+*.pem
+*.crt
+*.cer
+*.key
+*.p12
+*.pfx
+
 # ===== ผล/ไฟล์ชั่วคราวของ load test =====
 drrs-api/loadtest/*.txt
 drrs-api/loadtest/flow-payloads.json

@@ -77,6 +77,9 @@ module.exports = {
     // ห้ามเปิดบน Production เด็ดขาด
     loadTestMode: process.env.LOAD_TEST_MODE === 'true',
 
+    // CUST360 — path ไฟล์ CA cert (ยืนยัน server) optional; ไม่มี = ปิดตรวจชั่วคราว
+    custCaCertPath: process.env.CUST_CA_CERT_PATH,
+
     // PDF & Email
     contractSavePath: process.env.CONTRACT_SAVE_PATH,
     smtpHost: process.env.SMTP_HOST,

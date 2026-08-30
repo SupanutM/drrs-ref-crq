@@ -1,13 +1,15 @@
 const axios = require('axios');
-const https = require('https');
 const crypto = require('crypto');
 const { AppDataSource } = require('../../config/database');
 const tblMtProvince = require('../../entities/tblMtProvince');
 const tblMtDistrict = require('../../entities/tblMtDistrict');
 const tblMtSubDistrict = require('../../entities/tblMtSubDistrict');
 const baseLogger = require('../../utils/logger');
+const env = require('../../config/env');
 const { systemLogService } = require('../util/systemLog/systemLogService');
+const { getCustHttpsAgent } = require('../../utils/custHttpsAgent');
 const logger = baseLogger.child({ context: 'customerLookupService' });
+
 //  * ดึงข้อมูลที่อยู่ลูกค้าจาก API ภายนอก และประกอบเป็นที่อยู่บรรทัดเดียว
 //  * @param {string} customer_number - CIF No. ของลูกค้า
 //  * @param {string} citizen_id - รหัสบัตรประชาชน
@@ -23,7 +25,7 @@ const getCustomerFullAddress = async (customer_number, citizen_id) => {
     // วิธีเปิดใช้: ตั้ง LOAD_TEST_MODE=true ใน .env แล้ว restart server
     // ห้ามใช้ใน Production เด็ดขาด!
     // ============================================================
-    if (process.env.LOAD_TEST_MODE === 'true') {
+    if (env.loadTestMode) {
         logger.warn('[LOAD_TEST_MODE] ข้ามการเรียก CUST Profile API — คืนที่อยู่ว่าง');
         return "";
     }
@@ -47,7 +49,7 @@ const getCustomerFullAddress = async (customer_number, citizen_id) => {
                 }
             }
         };
-        const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+        const httpsAgent = getCustHttpsAgent();
         const response = await axios.post(url, payload, { headers, httpsAgent });
 
         if (response.data && response.data.rs_body) {
