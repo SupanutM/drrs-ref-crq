@@ -77,8 +77,11 @@ module.exports = {
     // ห้ามเปิดบน Production เด็ดขาด
     loadTestMode: process.env.LOAD_TEST_MODE === 'true',
 
-    // CUST360 — path ไฟล์ CA cert (ยืนยัน server) optional; ไม่มี = ปิดตรวจชั่วคราว
+    // CUST360 — path ไฟล์ cert (.pem/.cer/.crt หรือ .p12/.pfx) ต้องตั้งเสมอ (ไม่มี fallback)
     custCaCertPath: process.env.CUST_CA_CERT_PATH,
+    // รหัสผ่านไฟล์ .p12/.pfx (PKCS#12) — จำเป็นเฉพาะตอนไฟล์ cert เป็น .p12/.pfx
+    // ไฟล์ .pem/.cer/.crt ไม่ต้องใช้ค่านี้
+    custCertPassphrase: process.env.CUST_CERT_PASSPHRASE,
 
     // PDF & Email
     contractSavePath: process.env.CONTRACT_SAVE_PATH,

@@ -2,7 +2,7 @@
 import { verifyLaserId } from "api/verify";
 // import { findCustTargetByCitizenIdAndCifNo } from "api/master";
 // import { addRegister, checkDupEarthQuake, exportCidToDebtTracking } from "api/register";
-import { encryptGCM } from "api/crypto";
+import { encryptGCMBatch } from "api/crypto";
 import { setToken } from "utils/authToken";
 
 /**
@@ -34,38 +34,31 @@ export const verifyCitizenCard = async ({ digitNo, citizenId, name, surname, dat
     try {
         // Service จัดการเรื่องความปลอดภัย (เข้ารหัส) ทั้งหมด
         //
-        // ยิงพร้อมกันด้วย Promise.all — ก่อนหน้านี้เป็น await เรียงกัน 6 บรรทัด
-        // ทำให้ต้องวิ่งไป-กลับ server 6 รอบทีละรอบก่อนจะเริ่ม verify ได้
-        // ตอนระบบว่าง 1 รอบ ~30ms (รวม ~180ms) แต่ตอนระบบตันวัดได้ 1 วินาที/รอบ
-        // ซึ่งจะกลายเป็นรอ ~6 วินาที ตอนนี้เหลือรอรอบเดียว
-        const [
-            citizenIdEncrypted,
-            laserCardIdEncrypted,
-            nameEncrypted,
-            surnameEncrypted,
-            emailEncrypted,
-            telNoEncrypted,
-        ] = await Promise.all([
-            encryptGCM({ value: citizenId }),
-            encryptGCM({ value: laserCardId }),
-            encryptGCM({ value: name }),
-            encryptGCM({ value: surname }),
-            email ? encryptGCM({ value: email }) : Promise.resolve({ encrypted: "" }),
-            encryptGCM({ value: telNo }),
-        ]);
+        // เดิม await เรียงกัน 6 บรรทัด (6 รอบ วิ่งไป-กลับ server ทีละรอบ)
+        // ต่อมาแก้เป็น Promise.all (6 request พร้อมกัน แต่ยังนับเป็น 6 requests)
+        // ตอนนี้รวมเป็น 1 request เดียว (encryptGCMBatch) ให้ backend เข้ารหัส
+        // ทุก field พร้อมกันในคำขอเดียว ลดจำนวน HTTP request จาก 6 เหลือ 1
+        const encrypted = await encryptGCMBatch({
+            citizenId,
+            laserCardId,
+            name,
+            surname,
+            email: email || "",
+            telNo,
+        });
 
         // จัดฟอร์แมตวันเกิดให้อยู่ในรูป YYYYMMDD ตามที่ API ต้องการ
         const formattedDob = dateOfBirth.split("-").join("");
 
         const payload = {
-            citizenId: citizenIdEncrypted.encrypted,
-            name: nameEncrypted.encrypted,
-            surname: surnameEncrypted.encrypted,
+            citizenId: encrypted.citizenId,
+            name: encrypted.name,
+            surname: encrypted.surname,
             dateOfBirth: formattedDob,
-            laserCardId: laserCardIdEncrypted.encrypted,
+            laserCardId: encrypted.laserCardId,
             verifyCode: digitNo,
-            email: emailEncrypted.encrypted,
-            telNo: telNoEncrypted.encrypted,
+            email: encrypted.email,
+            telNo: encrypted.telNo,
             birthDateType: birthDateType || ""
         };
 
