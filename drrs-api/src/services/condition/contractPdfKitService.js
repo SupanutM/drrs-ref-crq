@@ -13,7 +13,7 @@ const FONT_REGULAR = path.join(FONT_DIR, 'THSarabun.ttf');
 const FONT_BOLD = path.join(FONT_DIR, 'THSarabun Bold.ttf');
 
 // ---- เอกสารแนบท้าย (ข้อตกลงและเงื่อนไข) ที่เป็นไฟล์นิ่ง ----
-const CONTRACT_PDF_PATH = path.join(__dirname, '../../../assets/contract.pdf');
+const CONTRACT_PDF_PATH = path.join(__dirname, '../../../assets/contract_download.pdf');
 
 // ---- ขนาดหน้า A4 (จุด) / ระยะขอบ ----
 const PAGE = { size: 'A4', margin: 40 };

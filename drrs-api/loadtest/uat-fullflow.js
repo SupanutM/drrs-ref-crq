@@ -52,8 +52,12 @@ const stepTag = (rate) => `r${String(rate).padStart(4, "0")}`;
 
 const scenarios = {};
 const perStepThresholds = {};
+const scenarioOffsets = {};   // แต่ละ scenario จะเริ่มดึง payload จาก index ที่ไม่ซ้ำกัน
+let cumulativeOffset = 0;
 RATES.forEach((rate, i) => {
   const tag = stepTag(rate);
+  scenarioOffsets[tag] = cumulativeOffset;
+  cumulativeOffset += rate * stepSeconds;   // จอง slot = rate × duration
   scenarios[tag] = {
     executor: "constant-arrival-rate",
     rate: rate,
@@ -84,7 +88,9 @@ const JSON_HEADERS = { "Content-Type": "application/json" };
 
 export function runFlow() {
   // เลือก payload แบบไม่ซ้ำทั่วทั้งเทสต์ (unique customer ต่อ 1 iteration)
-  const idx = exec.scenario.iterationInTest % payloads.length;
+  // ใช้ offset ของ scenario + iterationInTest เพื่อไม่ให้ซ้ำข้าม scenario
+  const offset = scenarioOffsets[exec.scenario.name] || 0;
+  const idx = (offset + exec.scenario.iterationInTest) % payloads.length;
   const p = payloads[idx];
 
   // ---- STEP 1: verify-register ----

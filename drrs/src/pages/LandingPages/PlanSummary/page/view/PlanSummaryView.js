@@ -178,7 +178,7 @@ function PlanSummaryView(props) {
                         <Document
                             // ถ้าสร้างสัญญาจริงแล้วโชว์ไบต์ชุดนั้น (ตรงกับไฟล์ที่ดาวน์โหลด)
                             // ถ้ายังไม่ได้กดยอมรับ โชว์เอกสารตัวอย่างเงื่อนไขไปก่อน
-                            file={contractPdfUrl || `${process.env.PUBLIC_URL}/contract_522_2569.pdf`}
+                            file={contractPdfUrl || `${process.env.PUBLIC_URL}/contract_preview.pdf`}
                             onLoadSuccess={onDocumentLoadSuccess}
                             loading={
                                 <MKTypography variant="body2" color="text">
