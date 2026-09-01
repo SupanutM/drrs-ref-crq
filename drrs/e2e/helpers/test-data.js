@@ -118,7 +118,6 @@ const mockRouterState = {
       { planNo: "PLAN01", planName: "แผนปรับโครงสร้างหนี้ A", loanType: "LT" },
       { planNo: "PLAN02", planName: "แผนตัดหนี้ B (Haircut)", loanType: "HC" },
     ],
-    masterPlanDetail: [],
     oldInstallments: [],
   },
 };

@@ -51,7 +51,7 @@ drrs-api/
     ├── controllers/       # รับ request -> เรียก service
     ├── services/          # business logic (รวมสร้าง PDF)
     ├── entities/ model/   # TypeORM entities / data models
-    ├── templates/         # HTML template สำหรับ render เป็น PDF (planSummary.html ฯลฯ)
+    ├── templates/         # HTML template สำหรับ render เป็น PDF (loan_condition.template.html ฯลฯ)
     └── utils/             # logger (winston), rateLimiter, crypto (AES-GCM), jwt (sign/verify) ฯลฯ
 ```
 

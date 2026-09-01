@@ -2,7 +2,6 @@ const { AppDataSource } = require('../../config/database');
 const baseLogger = require('../../utils/logger');
 const logger = baseLogger.child({ context: 'checkPlanService' });
 const tblMtMasterPlan = require('../../entities/tblMtMasterPlan');
-const tblMtMasterPlanDetail = require('../../entities/tblMtMasterPlanDetail');
 
 const checkPlanService = async (planNo) => {
     try {
@@ -12,8 +11,6 @@ const checkPlanService = async (planNo) => {
             .createQueryBuilder('tmmp')
             .select('tmmp.code', 'planCode')
             .addSelect('tmmp.desc', 'planName')
-            .addSelect('tmmpd.desc', 'planDetail')
-            .innerJoin(tblMtMasterPlanDetail, 'tmmpd', 'tmmp.code = tmmpd.plan_code AND tmmp.status = tmmpd.status')
             .where('tmmp.code LIKE :planNo', { planNo: planNo })
             .getRawMany();
 
@@ -31,4 +28,4 @@ const checkPlanService = async (planNo) => {
     }
 };
 
-module.exports = { checkPlanService };
+module.exports = { checkPlanService };

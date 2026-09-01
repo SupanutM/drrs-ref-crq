@@ -41,7 +41,6 @@ function LoanPlanController(props) {
     const viewState = {
         routerState: props.routerState,
         loanPlans, // 🌟 ส่ง masterPlan ที่แกะมาได้ โยนลงไปให้ View วาดหน้าจอเลย
-        masterPlanDetail: props.routerState?.targetInfo?.masterPlanDetail || [],
         isLoading
     };
 

@@ -129,7 +129,6 @@ async function mockVerifySuccess(page) {
               { planNo: "PLAN01", planName: "แผนปรับโครงสร้างหนี้ A", loanType: "LT" },
               { planNo: "PLAN02", planName: "แผนตัดหนี้ B (Haircut)", loanType: "HC" },
             ],
-            masterPlanDetail: [],
             totalIncome: 30000,
             otherIncome: 0,
             totalCost: 10000,

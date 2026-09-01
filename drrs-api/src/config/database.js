@@ -8,7 +8,6 @@ const tblAccountCusTarget = require("../../src/entities/tblAccountCusTarget");
 const tblAccountHairCut = require("../../src/entities/tblAccountHairCut");
 const tblAccountInstallment = require("../../src/entities/tblAccountInstallment");
 const tblMtMasterPlan = require("../../src/entities/tblMtMasterPlan");
-const tblMtMasterPlanDetail = require("../../src/entities/tblMtMasterPlanDetail");
 const tblMtProvince = require("../../src/entities/tblMtProvince");
 const tblMtDistrict = require("../../src/entities/tblMtDistrict");
 const tblMtSubDistrict = require("../../src/entities/tblMtSubDistrict");
@@ -56,7 +55,6 @@ const AppDataSource = new DataSource({
         tblAccountHairCut,
         tblAccountInstallment,
         tblMtMasterPlan,
-        tblMtMasterPlanDetail,
         tblMtProvince,
         tblMtDistrict,
         tblMtSubDistrict,

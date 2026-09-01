@@ -1,7 +1,7 @@
 const ejs = require('ejs');
 const path = require('path');
 
-const TEMPLATE_PATH = path.join(__dirname, '../../templates/planSummary.html');
+const TEMPLATE_PATH = path.join(__dirname, '../../templates/loan_condition.template.html');
 
 /**
  * render HTML สัญญาไว้แสดงบนหน้าเว็บ (ไม่ได้แปลงเป็น PDF)

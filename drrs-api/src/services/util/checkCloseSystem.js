@@ -1,6 +1,5 @@
 const { AppDataSource } = require('../../config/database');
 const tblCusTarget = require('../../entities/tblCusTarget');
-const masterPlan = require('../../services/plan/masterPlanService');
 const baseLogger = require('../../utils/logger');
 const crypto = require('../../utils/crypto');
 const logger = baseLogger.child({ context: 'verifyService' });

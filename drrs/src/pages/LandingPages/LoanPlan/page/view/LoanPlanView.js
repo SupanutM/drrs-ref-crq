@@ -13,7 +13,7 @@ import MKTypography from "components/MKTypography";
 
 function LoanPlanView(props) {
     const { state, handlers } = props;
-    const { loanPlans, masterPlanDetail, isLoading } = state;
+    const { loanPlans, isLoading } = state;
     const { handleSelectPlan } = handlers;
 
     // 🌟 1. ปรับให้คลีนขึ้น
@@ -66,7 +66,7 @@ function LoanPlanView(props) {
                                     </MKTypography>
 
                                     <MKTypography variant="body2" color="text" sx={{ whiteSpace: "pre-line" }}>
-                                        {plan.details?.[0]?.desc || masterPlanDetail?.find(d => d.planCode === plan.planNo)?.desc || plan.planDesc}
+                                        {plan.planDesc}
                                     </MKTypography>
                                 </Card>
                             </Grid>

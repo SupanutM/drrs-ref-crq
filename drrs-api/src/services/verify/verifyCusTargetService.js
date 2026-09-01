@@ -66,18 +66,6 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
                     const res = await masterPlan.masterPlanService(groupedAcc.planNos, groupedAcc.accountNo);
                     if (res && res.success) {
                         planData = res.data;
-                        // Map specific target values into master plan details
-                        if (planData.masterPlan && planData.masterPlan.length > 0) {
-                            planData.masterPlan.forEach(plan => {
-                                const targetPlan = groupedAcc.accPlans.find(p => p.planNo === plan.planNo);
-                                if (targetPlan && plan.details && plan.details.length > 0) {
-                                    plan.details[0].paymentAmount = targetPlan.paymentAmount;
-                                    plan.details[0].installmentTerms = targetPlan.installmentTerms;
-                                    plan.details[0].startDate = targetPlan.startDate;
-                                    plan.details[0].endDate = targetPlan.endDate;
-                                }
-                            });
-                        }
                     }
                 } catch (err) {
                     logger.warn(`Error fetching master plan for account ${groupedAcc.accountNo}: ${err.message}`);
@@ -100,8 +88,7 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
                     isRegistered: isRegistered,
                     minAmount: Number(groupedAcc.minAmount || 0),
                     maxAmount: Number(groupedAcc.maxAmount || 0),
-                    masterPlan: planData?.masterPlan || [],
-                    masterPlanDetail: planData?.masterPlanDetail || []
+                    masterPlan: planData?.masterPlan || []
                 };
             }));
         } else if (customer.accountNo) {
@@ -126,8 +113,7 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
                     accountsWithPlans.push({
                         accountNo: customer.accountNo,
                         isRegistered: isRegistered,
-                        masterPlan: res.data.masterPlan || [],
-                        masterPlanDetail: res.data.masterPlanDetail || []
+                        masterPlan: res.data.masterPlan || []
                     });
                 }
             } catch (err) {
@@ -177,8 +163,7 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
                 netIncome: customer.netIncome,
                 oldInstallments: oldInstallments,
                 // Keep these at root for backward compatibility if needed, but they are now in accounts
-                masterPlan: accountsWithPlans[0]?.masterPlan || [],
-                masterPlanDetail: accountsWithPlans[0]?.masterPlanDetail || []
+                masterPlan: accountsWithPlans[0]?.masterPlan || []
             },
         };
 

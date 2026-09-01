@@ -225,7 +225,7 @@ const drawInstallmentTable = (doc, acc) => {
 };
 
 /**
- * วาดหน้าสรุปแผนของลูกค้า ตาม layout เดียวกับ planSummary.html
+ * วาดหน้าสรุปแผนของลูกค้า ตาม layout เดียวกับ loan_condition.template.html
  */
 const drawSummary = (doc, customerInfo, accounts) => {
     const info = customerInfo || {};
@@ -295,7 +295,7 @@ const drawSummary = (doc, customerInfo, accounts) => {
  * วาดด้วย pdfkit ซึ่งเป็น JS ล้วน ไม่ต้องเปิด browser จึงไม่กิน RAM/CPU ค้าง
  * (เดิมใช้ puppeteer เปิด Chromium ครั้งแรก ~19 วินาที และค้างกินทรัพยากร)
  *
- * layout วาดตาม planSummary.html เดิม (หัวข้อ/สีชมพู/ตารางเดียวกัน)
+ * layout วาดตาม loan_condition.template.html เดิม (หัวข้อ/สีชมพู/ตารางเดียวกัน)
  *
  * คืน 2 เวอร์ชันจากเอกสารชุดเดียวกัน (เนื้อหาตรงกัน 100%):
  *   - preview: ไม่ใส่รหัส สำหรับโชว์บนจอ (ไม่ให้เบราว์เซอร์เด้งถามรหัส)
