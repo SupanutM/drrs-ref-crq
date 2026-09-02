@@ -11,11 +11,11 @@ const logger = baseLogger.child({ context: 'systemLogService' });
  * @param {Object|string} logData.payload - ข้อมูลที่ส่งเข้ามา (Request Body / Query / Param)
  * @param {string|number} logData.responseStatus - สถานะผลลัพธ์ (เช่น '200', '400', 'SUCCESS', 'FAILED')
  * @param {Object|string} logData.response - ข้อมูลที่ตอบกลับหรือข้อความ error
- * @param {string} [logData.createdBy='system'] - ผู้ทำรายการ
+ * @param {string} [logData.createdBy='DRRS'] - ผู้ทำรายการ
  */
 const systemLogService = async (logData = {}) => {
     try {
-        const { step = '', controller = '', payload = '', responseStatus = '', response = '', createdBy = 'system' } = logData;
+        const { step = '', controller = '', payload = '', responseStatus = '', response = '', createdBy = 'DRRS' } = logData;
 
         const logRepo = AppDataSource.getRepository(tblSystemLog);
 

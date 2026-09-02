@@ -15,11 +15,13 @@ import MKButton from "components/MKButton";
 import ModalComponent from "components/Dialog/DialogComponent";
 import LoadingComponent from "components/Loading/LoadingComponent";
 import IncomeModalComponent from "components/IncomeModal";
+import InstallmentSchedule from "components/InstallmentSchedule";
 
 function SelectPlanView(props) {
     const { state, handlers } = props;
     const {
         accounts,
+        scheduledDates,
         selectedPlans,
         isLoading,
         isSuccessModalOpen,
@@ -69,15 +71,8 @@ function SelectPlanView(props) {
                                         const detail = plan.details?.[0] || plan || {};
                                         const paymentAmount = detail.paymentAmount || detail.amount || detail.installmentAmount || 0;
                                         const installmentTerms = detail.installmentTerms || detail.installmentTerm || 0;
-
-                                        const formatThaiDate = (d) => {
-                                            if (!d) return "..............................";
-                                            const date = new Date(d);
-                                            if (isNaN(date.getTime())) return "..............................";
-                                            return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
-                                        };
-                                        const startDateDisplay = formatThaiDate(detail.startDate);
-                                        const endDateDisplay = formatThaiDate(detail.endDate);
+                                        // ScheduledNextDate จาก CBS Inquiry Account (ยิงตอนเข้าหน้านี้) — ใช้เป็นวันเริ่มต้นคำนวณกำหนดการ
+                                        const scheduledNextDate = scheduledDates?.[acc.accountNo];
 
                                         return (
                                             <Grid item xs={12} key={plan.planNo}>
@@ -117,21 +112,12 @@ function SelectPlanView(props) {
                                                                 {isHaircut ? `ปิดบัญชีเลขที่ ${acc.accountNo}` : "ผ่อนชำระ"}
                                                             </MKTypography>
                                                             <MKTypography variant="body2" color="text" mt={1}>
-                                                                {isHaircut ? (
-                                                                    <>
-                                                                        แสดงยอดหนี้ปิดบัญชี: <b>{Number(paymentAmount).toLocaleString()}</b> บาท<br />
-                                                                        ภายในวันที่ {endDateDisplay}
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        ผ่อนชำระงวดละ: <b>{Number(paymentAmount).toLocaleString()}</b> บาท<br />
-                                                                        จำนวน: <b>{installmentTerms}</b> งวด <br />
-                                                                        (อัตราดอกเบี้ย MRR ต่อปี)<br />
-                                                                        เริ่มชำระงวดแรก วันที่ {startDateDisplay}<br />
-                                                                        เสร็จสิ้นภายในวันที่ {endDateDisplay}<br />
-                                                                        โดยท่านตกลงชำระหนี้ให้ธนาคารทั้งหมดในงวดสุดท้าย
-                                                                    </>
-                                                                )}
+                                                                <InstallmentSchedule
+                                                                    isHaircut={isHaircut}
+                                                                    paymentAmount={paymentAmount}
+                                                                    installmentTerms={installmentTerms}
+                                                                    scheduledNextDate={scheduledNextDate}
+                                                                />
                                                             </MKTypography>
                                                         </MKBox>
                                                     </MKBox>

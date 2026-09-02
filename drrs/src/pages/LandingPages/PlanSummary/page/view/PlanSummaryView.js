@@ -28,6 +28,12 @@ function PlanSummaryView(props) {
     const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [downloadError, setDownloadError] = useState("");
+    // เก็บบัญชีที่ CBS ปฏิเสธ (Status: "REJECT") — ใช้แจ้งเตือนลูกค้าก่อนดำเนินการดาวน์โหลดต่อ
+    // (backend สร้าง PDF ให้เฉพาะบัญชีที่สำเร็จ ไม่ได้บล็อกทั้ง batch)
+    const [rejectedAccounts, setRejectedAccounts] = useState([]);
+    const [isPartialFailModalOpen, setIsPartialFailModalOpen] = useState(false);
+    // เก็บผลลัพธ์ที่ดาวน์โหลดสำเร็จไว้ชั่วคราว รอผู้ใช้กด "ดำเนินการต่อ" ใน modal แจ้งเตือนก่อน
+    const [pendingDownloadResult, setPendingDownloadResult] = useState(null);
     // URL ของสัญญาจริงที่ backend สร้างมา (base64 -> blob) ใช้ทั้งโชว์บนจอและดาวน์โหลด
     // เดิมจอโชว์ไฟล์ตัวอย่างคงที่ contract_522_2569.pdf ซึ่งไม่ใช่ของลูกค้า
     const [contractPdfUrl, setContractPdfUrl] = useState(null);
@@ -96,27 +102,70 @@ function PlanSummaryView(props) {
             //   base64Preview  = ไม่มีรหัส สำหรับโชว์บนจอ (เบราว์เซอร์ไม่เด้งถามรหัส)
             //   base64Download = มีรหัสวันเกิด สำหรับดาวน์โหลดเก็บเป็นหลักฐาน
             // (fallback ไป base64 ตัวเดียวเผื่อ backend เวอร์ชันเก่า)
+            // ถ้าบางบัญชีถูก CBS ปฏิเสธ (Status: "REJECT") backend จะยังส่ง success: true มา
+            // (สร้าง PDF ให้เฉพาะบัญชีที่สำเร็จ) แต่แนบ hasPartialFailure/rejectedAccounts มาด้วย
             const response = await generateContractPdf({
                 customerInfo: encryptedCustomer,
                 selectedAccounts: selectedAccounts
             });
 
-            const { success, base64, base64Preview, base64Download, fileName, message } = response || {};
+            const {
+                success, base64, base64Preview, base64Download, fileName, message,
+                hasPartialFailure, rejectedAccounts: rejectedFromApi
+            } = response || {};
             const previewB64 = base64Preview || base64;
             const downloadB64 = base64Download || base64;
-            if (!success || !downloadB64) {
+
+            // ทุกบัญชีถูก CBS ปฏิเสธ — ไม่มีไฟล์สัญญาให้ดาวน์โหลดเลย
+            if (!success && !downloadB64) {
+                throw new Error(message || "ไม่สามารถ ลงทะเบียนเข้าร่วมมาตรการได้กรุณาลองใหม่อีกครั้ง");
+            }
+            if (!downloadB64) {
                 throw new Error(message || "เซิร์ฟเวอร์ไม่ได้ส่งไฟล์สัญญากลับมา");
             }
-
-            // โชว์สัญญาจริงบนจอด้วยเวอร์ชันไม่มีรหัส (เนื้อหาตรงกับไฟล์ที่ดาวน์โหลด)
-            const previewBlob = await base64ToBlob(previewB64);
-            const previewUrl = window.URL.createObjectURL(previewBlob);
-            setContractPdfUrl(previewUrl);
 
             const now = new Date();
             const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
             const filePrefix = customer.cifNo || customer.citizenId || 'UNKNOWN';
             const filename = fileName || `${filePrefix}_${timestamp}.pdf`;
+
+            // เก็บผลลัพธ์ไว้ก่อน ยังไม่ดาวน์โหลด/โชว์ preview จนกว่าจะผ่าน modal แจ้งเตือน (ถ้ามีบัญชี reject)
+            setPendingDownloadResult({ previewB64, downloadB64, filename });
+
+            if (hasPartialFailure && rejectedFromApi?.length > 0) {
+                // มีบางบัญชีถูก CBS ปฏิเสธ — หยุดรอให้ผู้ใช้กดยืนยันดำเนินการต่อก่อน ไม่ auto-download ทันที
+                setRejectedAccounts(rejectedFromApi);
+                setIsDownloading(false);
+                setIsPartialFailModalOpen(true);
+                return;
+            }
+
+            // ทุกบัญชีสำเร็จ — ดำเนินการดาวน์โหลด/แจ้งสำเร็จตามปกติ
+            finalizeDownload({ previewB64, downloadB64, filename });
+        } catch (error) {
+            // เดิมโค้ดแค่ console.error แล้วเรียก handleSubmit() ต่อทุกกรณี
+            // (เพราะ handleSubmit อยู่นอก try/catch) ผลคือถ้าสร้างสัญญาไม่สำเร็จ
+            // ผู้ใช้จะไม่ได้ไฟล์ ไม่เห็นข้อความเตือนอะไรเลย แต่ระบบบันทึกว่าทำเสร็จแล้ว
+            // ผู้ใช้จะเข้าใจว่ายังไม่เสร็จแล้วกดซ้ำ
+            logger.error("สร้างไฟล์สัญญาไม่สำเร็จ", error);
+            setIsDownloading(false);
+            setDownloadError(
+                error.message || "ไม่สามารถสร้างไฟล์สัญญาได้ ระบบยังไม่บันทึกการยอมรับของท่าน กรุณากดยอมรับอีกครั้ง หากยังไม่สำเร็จ กรุณาติดต่อธนาคาร"
+            );
+        }
+    };
+
+    /**
+     * ดาวน์โหลดไฟล์สัญญา + โชว์ preview บนจอ + แจ้งสำเร็จ แล้วเด้งไปหน้าถัดไป
+     * เรียกตรงถ้าทุกบัญชีสำเร็จ หรือเรียกหลังผู้ใช้กด "ดำเนินการต่อ" ใน modal แจ้งเตือนบัญชีที่ reject
+     */
+    const finalizeDownload = async ({ previewB64, downloadB64, filename }) => {
+        setIsDownloading(true);
+        try {
+            // โชว์สัญญาจริงบนจอด้วยเวอร์ชันไม่มีรหัส (เนื้อหาตรงกับไฟล์ที่ดาวน์โหลด)
+            const previewBlob = await base64ToBlob(previewB64);
+            const previewUrl = window.URL.createObjectURL(previewBlob);
+            setContractPdfUrl(previewUrl);
 
             // ดาวน์โหลดด้วยเวอร์ชันมีรหัส
             const downloadBlob = await base64ToBlob(downloadB64);
@@ -137,11 +186,7 @@ function PlanSummaryView(props) {
 
             setIsDownloaded(true);
         } catch (error) {
-            // เดิมโค้ดแค่ console.error แล้วเรียก handleSubmit() ต่อทุกกรณี
-            // (เพราะ handleSubmit อยู่นอก try/catch) ผลคือถ้าสร้างสัญญาไม่สำเร็จ
-            // ผู้ใช้จะไม่ได้ไฟล์ ไม่เห็นข้อความเตือนอะไรเลย แต่ระบบบันทึกว่าทำเสร็จแล้ว
-            // ผู้ใช้จะเข้าใจว่ายังไม่เสร็จแล้วกดซ้ำ
-            logger.error("สร้างไฟล์สัญญาไม่สำเร็จ", error);
+            logger.error("ดาวน์โหลดไฟล์สัญญาไม่สำเร็จ", error);
             setIsDownloading(false);
             setDownloadError(
                 "ไม่สามารถสร้างไฟล์สัญญาได้ ระบบยังไม่บันทึกการยอมรับของท่าน กรุณากดยอมรับอีกครั้ง หากยังไม่สำเร็จ กรุณาติดต่อธนาคาร"
@@ -320,6 +365,37 @@ function PlanSummaryView(props) {
                 title="สร้างไฟล์สัญญาไม่สำเร็จ"
                 content={downloadError}
                 confirmText="ปิด"
+                hideCancel={true}
+            />
+
+            {/* บางบัญชีถูก CBS ปฏิเสธ (Status: "REJECT") — แจ้งเตือนก่อนดำเนินการต่อดาวน์โหลด
+                สัญญาของบัญชีที่สำเร็จ (backend สร้าง PDF ให้เฉพาะบัญชีที่ CBS รับแล้วเท่านั้น) */}
+            <ModalComponent
+                isOpen={isPartialFailModalOpen}
+                onClose={() => setIsPartialFailModalOpen(false)}
+                onConfirm={() => {
+                    setIsPartialFailModalOpen(false);
+                    if (pendingDownloadResult) finalizeDownload(pendingDownloadResult);
+                }}
+                variant="warning"
+                title="บางบัญชีไม่สามารถลงทะเบียนกับ CBS ได้"
+                content={
+                    <>
+                        บัญชีดังต่อไปนี้ไม่สามารถลงทะเบียนแผนปรับโครงสร้างหนี้กับระบบ CBS ได้ กรุณาติดต่อธนาคาร:
+                        <MKBox component="ul" mt={1} mb={0} sx={{ textAlign: "left", pl: 3 }}>
+                            {rejectedAccounts.map((r) => (
+                                <li key={r.accountNo}>
+                                    <MKTypography component="span" variant="body2" color="text">
+                                        {r.accountNo}{r.message ? ` — ${r.message}` : ""}
+                                    </MKTypography>
+                                </li>
+                            ))}
+                        </MKBox>
+                        <br />
+                        ท่านสามารถดำเนินการต่อเพื่อดาวน์โหลดสัญญาสำหรับบัญชีที่สำเร็จได้
+                    </>
+                }
+                confirmText="ดำเนินการต่อ"
                 hideCancel={true}
             />
 

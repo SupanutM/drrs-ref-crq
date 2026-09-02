@@ -73,7 +73,7 @@ const tblAccountCusTarget = new EntitySchema({
             name: "created_by",
             type: "varchar",
             length: 20,
-            default: "system"
+            default: "DRRS"
         },
         updateDate: {
             name: "update_date",

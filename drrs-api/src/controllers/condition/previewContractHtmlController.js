@@ -1,7 +1,7 @@
 const contractPdfService = require('../../services/condition/previewContractHtmlService');
 const baseLogger = require('../../utils/logger');
 const logger = baseLogger.child({ context: 'previewContractHtmlController' });
-const { augmentAccountsWithDbData, augmentCustomerInfoWithDbData } = require('../../utils/contractHelper');
+const { augmentAccountsWithDbData, augmentCustomerInfoWithDbData, augmentAccountsWithCbsData } = require('../../utils/contractHelper');
 const { ownsAccount } = require('../../middleware/authMiddleware');
 
 const previewContractHtmlController = async (req, res) => {
@@ -21,6 +21,13 @@ const previewContractHtmlController = async (req, res) => {
         }
 
         const augmentedAccounts = await augmentAccountsWithDbData(selectedAccounts || []);
+
+        // เติมข้อมูลจาก CBS Inquiry (วงเงินกู้/ภาระหนี้คงเหลือ/เงินต้น/ดอกเบี้ย + วันทำสัญญา)
+        // เดิมหน้า preview ไม่มีข้อมูลนี้เพราะไม่เคยเรียก augmentAccountsWithCbsData มาก่อน
+        // (มีแค่ตอนสร้าง PDF จริงใน downloadAndEmailContractPdfController) — เพิ่มให้ตรงกันที่นี่
+        // source: "preview" — ยังไม่ได้กดยอมรับ ไม่ต้องบันทึกประวัติ inquiry ลง DB
+        // (ไม่ใส่ตรงนี้ทำให้ทุกครั้งที่ลูกค้าเปิดหน้า plan-summary จะ insert ซ้ำ)
+        await augmentAccountsWithCbsData(augmentedAccounts, 'preview');
 
         // Fetch customer data from DB directly instead of trusting frontend payload
         const augmentedCustomerInfo = await augmentCustomerInfoWithDbData(cusTargetId, selectedAccounts?.[0]?.accountNo);

@@ -17,7 +17,16 @@ const requiredVariables = [
     'LOG_DIR',
     'SMTP_HOST',
     'SMTP_PORT',
-    'SMTP_FROM'
+    'SMTP_FROM',
+    'GET_ACCESS_TOKEN_URL',
+    'GET_ACCESS_TOKEN_CLIENT_ID',
+    'GET_ACCESS_TOKEN_CLIENT_SECRET',
+    'CBS_INQUIRY_ACCOUNT_URL',
+    'CBS_INQUIRY_ACCOUNT_APP_ID',
+    'CBS_INQUIRY_ACCOUNT_APP_KEY',
+    'CBS_REGIS_DIGITALLOAN_URL',
+    'CBS_REGIS_DIGITALLOAN_APP_ID',
+    'CBS_REGIS_DIGITALLOAN_APP_KEY'
 ];
 
 requiredVariables.forEach((variable) => {
@@ -87,5 +96,26 @@ module.exports = {
     contractSavePath: process.env.CONTRACT_SAVE_PATH,
     smtpHost: process.env.SMTP_HOST,
     smtpPort: process.env.SMTP_PORT,
-    smtpFrom: process.env.SMTP_FROM
+    smtpFrom: process.env.SMTP_FROM,
+
+    // SSO Get Access Token — ใช้ขอ Bearer token ก่อนเรียก CBS API ตัวใดๆ (client_credentials)
+    getAccessTokenUrl: process.env.GET_ACCESS_TOKEN_URL,
+    getAccessTokenClientId: process.env.GET_ACCESS_TOKEN_CLIENT_ID,
+    getAccessTokenClientSecret: process.env.GET_ACCESS_TOKEN_CLIENT_SECRET,
+
+    // CBS Inquiry Account — ต้องมี Bearer token จาก SSO ก่อนเรียก (ดู getAccessTokenService)
+    cbsInquiryAccountUrl: process.env.CBS_INQUIRY_ACCOUNT_URL,
+    cbsInquiryAccountAppId: process.env.CBS_INQUIRY_ACCOUNT_APP_ID,
+    cbsInquiryAccountAppKey: process.env.CBS_INQUIRY_ACCOUNT_APP_KEY,
+    // ค่า ServiceName ที่ต้องส่งใน body (ตาม spec ของทีม CBS) — ไม่บังคับใน requiredVariables
+    // เพราะยังไม่ทราบชื่อค่าที่ถูกต้อง ต้องเติมใน .env ก่อนขึ้นจริง
+    cbsInquiryAccountServiceName: process.env.CBS_INQUIRY_ACCOUNT_SERVICE_NAME || '',
+
+    // CBS Register Digitalloan — ยิงตอน "ยอมรับสัญญา" เพื่อลงทะเบียนแผนปรับโครงสร้างหนี้กับ CBS จริง
+    // ต้องมี Bearer token จาก SSO ก่อนเรียกเหมือน Inquiry Account (ดู getAccessTokenService)
+    cbsRegisDigitalLoanUrl: process.env.CBS_REGIS_DIGITALLOAN_URL,
+    cbsRegisDigitalLoanAppId: process.env.CBS_REGIS_DIGITALLOAN_APP_ID,
+    cbsRegisDigitalLoanAppKey: process.env.CBS_REGIS_DIGITALLOAN_APP_KEY,
+    // ServiceName ตาม spec (sub service ภายใต้ 8002) — ระบุเป็น "REGDTLN69"
+    cbsRegisDigitalLoanServiceName: process.env.CBS_REGIS_DIGITALLOAN_SERVICE_NAME || 'REGDTLN69'
 };

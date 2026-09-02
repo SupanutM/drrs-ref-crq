@@ -1,8 +1,10 @@
 import PropTypes from "prop-types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { saveDebtRestructure } from "api/register";
+import { inquiryAccount } from "api/cbsRegister";
+import { logger } from "utils/logger";
 import SelectPlanView from "../view/SelectPlanView";
 
 import Box from "@mui/material/Box";
@@ -57,6 +59,29 @@ function SelectPlanController(props) {
     };
 
     const [isIncompleteModalOpen, setIsIncompleteModalOpen] = useState(false);
+
+    // เก็บ ScheduledNextDate ต่อบัญชี (จาก CBS Inquiry Account) เพื่อคำนวณกำหนดการชำระหนี้
+    // Format: { "accountNo1": "20260902", ... }
+    const [scheduledDates, setScheduledDates] = useState({});
+
+    // ตอนเข้าหน้าเลือกแผน — ยิง inquiry account ไปที่ CBS ทุกบัญชีของลูกค้า
+    // (ไม่ throw ต่อ ไม่บล็อกหน้าถ้า CBS ล้มเหลว — เป็นแค่การอัปเดตข้อมูลล่วงหน้า)
+    useEffect(() => {
+        accounts.forEach((acc) => {
+            if (!acc?.accountNo) return;
+            inquiryAccount({ accountNo: acc.accountNo, source: "select-plan" })
+                .then((res) => {
+                    const scheduledNextDate = res?.data?.ScheduledNextDate;
+                    if (scheduledNextDate) {
+                        setScheduledDates((prev) => ({ ...prev, [acc.accountNo]: scheduledNextDate }));
+                    }
+                })
+                .catch((error) => {
+                    logger.error(`Inquiry account ล้มเหลวสำหรับบัญชี ${acc.accountNo}`, error);
+                });
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleAccept = () => {
         const selectedAccountNos = Object.keys(selectedPlans);
@@ -247,7 +272,10 @@ function SelectPlanController(props) {
 
                 return {
                     accountNo: acc.accountNo,
-                    loanType: acc.loanType || detail.desc || (isHaircut ? "HC" : "LT"),
+                    planNo: planNo,
+                    // ชื่อประเภทสินเชื่อ (เช่น "สินเชื่อผ่อนชำระ") มาจาก tbl_mt_master_plan.desc
+                    // ผ่าน masterPlanService.js -> activePlan.planDesc (ไม่ใช่ detail.desc ซึ่งเป็นแค่ยอดเงิน/งวด)
+                    loanType: acc.loanType || activePlan?.planDesc || (isHaircut ? "HC" : "LT"),
                     contractDate: acc.contractDate || "",
                     loanAmount: acc.loanAmount || acc.outstanding || "",
                     principal: detail.principal || acc.principal || "",
@@ -305,6 +333,7 @@ function SelectPlanController(props) {
     const viewState = {
         routerState,
         accounts,
+        scheduledDates,
         selectedPlans,
         isLoading,
         isSuccessModalOpen,

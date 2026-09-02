@@ -3,6 +3,8 @@ const tblAccountHairCut = require('../entities/tblAccountHairCut');
 const tblAccountInstallment = require('../entities/tblAccountInstallment');
 const tblCusTarget = require('../entities/tblCusTarget');
 const tblAccountCusTarget = require('../entities/tblAccountCusTarget');
+const { inquiryAccountService } = require('../services/register/inquiryAccountService');
+const { formatThaiFullDate } = require('./calculateInstallmentSchedule');
 const baseLogger = require('./logger');
 const logger = baseLogger.child({ context: 'contractHelper' });
 
@@ -80,7 +82,51 @@ const augmentCustomerInfoWithDbData = async (cusTargetId, accountNo) => {
     };
 };
 
+/**
+ * เติมข้อมูลบัญชีด้วยผลลัพธ์ Inquiry จาก CBS (ตอนยอมรับสัญญา ก่อนสร้าง PDF)
+ * Map field จาก CBS (PascalCase) -> field ที่ template/PDF ใช้อยู่แล้ว:
+ *   CreditLimit      -> loanAmount         (วงเงินกู้)
+ *   TotalAmount      -> outstandingBalance (ภาระหนี้คงเหลือ)
+ *   Balance          -> principal          (เงินต้น)
+ *   AccrueInterest   -> interest           (ดอกเบี้ย)
+ * นอกจากนี้ contractDate (วันทำสัญญา) ใช้วันที่ปัจจุบัน (now) เสมอ — ไม่ใช่ค่าจาก CBS
+ * ไม่ throw ถ้า CBS ล้มเหลว — ปล่อยให้ flow สร้างสัญญาไปต่อด้วยข้อมูลที่มีอยู่แล้ว (จาก DB/frontend)
+ *
+ * @param {Array} accounts
+ * @param {string} [source] - แหล่งที่มาของการเรียก เช่น "preview" — ถ้ามาจาก preview (ยังไม่กดยอมรับ)
+ *   จะไม่บันทึกผลลัพธ์ลง tbl_cbs_inquiry_account (ส่งต่อให้ inquiryAccountService เหมือนกับ
+ *   source: "select-plan" ที่ใช้ตอนหน้า select-plan) — กันบันทึกซ้ำเวลาลูกค้าดู preview ก่อนกดยอมรับ
+ */
+const augmentAccountsWithCbsData = async (accounts, source) => {
+    const contractDate = formatThaiFullDate(new Date());
+
+    for (const acc of accounts) {
+        // วันทำสัญญา = วันที่กดยอมรับ (now) เสมอ ไม่ว่า CBS จะสำเร็จหรือไม่
+        acc.contractDate = contractDate;
+
+        try {
+            const result = await inquiryAccountService({ accountNo: acc.accountNo, source, planNo: acc.planNo });
+
+            if (result.success && result.data) {
+                const cbs = result.data;
+                if (cbs.CreditLimit != null) acc.loanAmount = cbs.CreditLimit;
+                if (cbs.TotalAmount != null) acc.outstandingBalance = cbs.TotalAmount;
+                if (cbs.Balance != null) acc.principal = cbs.Balance;
+                if (cbs.AccrueInterest != null) acc.interest = cbs.AccrueInterest;
+                // ScheduledNextDate (YYYYMMDD) — ใช้เป็นวันเริ่มต้นคำนวณกำหนดการชำระหนี้ในสัญญา PDF
+                if (cbs.ScheduledNextDate != null) acc.scheduledNextDate = cbs.ScheduledNextDate;
+            } else {
+                logger.warn(`[CBS Inquiry] ไม่สามารถดึงข้อมูลบัญชี ${acc.accountNo} จาก CBS ได้: ${result.message}`);
+            }
+        } catch (error) {
+            logger.warn(`[CBS Inquiry] เกิดข้อผิดพลาดขณะ inquiry บัญชี ${acc.accountNo}: ${error.message}`);
+        }
+    }
+    return accounts;
+};
+
 module.exports = {
     augmentAccountsWithDbData,
-    augmentCustomerInfoWithDbData
+    augmentCustomerInfoWithDbData,
+    augmentAccountsWithCbsData
 };

@@ -19,7 +19,7 @@ const systemLogMiddleware = (step, controller) => {
 
         // Intercept res.json เพื่อเก็บผลลัพธ์และส่งบันทึก System Log
         res.json = function (body) {
-            const createdBy = 'system';
+            const createdBy = 'DRRS';
             const currentStep = res.locals.step || step;
 
             if (!res.locals.skipSystemLog) {

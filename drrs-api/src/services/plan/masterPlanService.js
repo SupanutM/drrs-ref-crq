@@ -6,7 +6,7 @@ const crypto = require('../../utils/crypto');
 const createStepService = require('../util/systemLog/createStepService');
 const logger = baseLogger.child({ context: 'verifyService' });
 
-const masterPlanService = async (planNos = [], accountNo = null) => {
+const masterPlanService = async (planNos = [], accountNo = null, accPlans = []) => {
     try {
         const tblMtMasterPlanRepo = AppDataSource.getRepository(tblMtMasterPlan);
         
@@ -21,16 +21,31 @@ const masterPlanService = async (planNos = [], accountNo = null) => {
             });
         }
 
+        // เตรียม lookup ยอดเงิน/งวด รายแผน จาก tbl_account_cus_target (ผูกกับบัญชีนี้จริง)
+        const accPlanByPlanNo = {};
+        (accPlans || []).forEach((accPlan) => {
+            if (accPlan?.planNo) accPlanByPlanNo[accPlan.planNo] = accPlan;
+        });
+
         // Map to the format the frontend expects (previously matched tblCusTargetPlan)
-        const masterPlan = rawMasterPlans.map(plan => ({
-            planNo: plan.code,
-            planName: plan.desc,
-            planDesc: plan.desc,
-            status: plan.status,
-            isCheckIncome: plan.isCheckIncome,
-            loanType: plan.loanType,
-            accountNo: accountNo // Keep for reference if needed
-        }));
+        const masterPlan = rawMasterPlans.map(plan => {
+            const accPlan = accPlanByPlanNo[plan.code];
+            return {
+                planNo: plan.code,
+                planName: plan.desc,
+                planDesc: plan.desc,
+                status: plan.status,
+                isCheckIncome: plan.isCheckIncome,
+                loanType: plan.loanType,
+                accountNo: accountNo, // Keep for reference if needed
+                details: accPlan ? [{
+                    paymentAmount: Number(accPlan.paymentAmount || 0),
+                    installmentTerms: Number(accPlan.installmentTerms || 0),
+                    startDate: accPlan.startDate,
+                    endDate: accPlan.endDate
+                }] : []
+            };
+        });
 
         if (accountNo) {
             // อัปเดต flag stepViewPlan ราย account (ต่อบัญชี — ถูกต้อง)
@@ -53,4 +68,4 @@ const masterPlanService = async (planNos = [], accountNo = null) => {
     }
 };
 
-module.exports = { masterPlanService };
+module.exports = { masterPlanService };

@@ -4,6 +4,7 @@ const PDFDocument = require('pdfkit');
 const { PDFDocument: PdfLibDocument } = require('pdf-lib-plus-encrypt');
 const baseLogger = require('../../utils/logger');
 const { applyPdfEncryption } = require('../../utils/pdfSecurityHelper');
+const { calculateInstallmentSchedule } = require('../../utils/calculateInstallmentSchedule');
 
 const logger = baseLogger.child({ context: 'contractPdfKit' });
 
@@ -174,8 +175,9 @@ const drawKeyValueTable = (doc, rows) => {
 
 /**
  * วาดตารางผ่อนชำระ: (งวด) / ตั้งแต่งวดเดือน / ถึงงวดเดือน / ยอดผ่อนชำระ (บาท)
+ * @param {object} schedule - { startDateDisplay, endDateDisplay } จาก calculateInstallmentSchedule
  */
-const drawInstallmentTable = (doc, acc) => {
+const drawInstallmentTable = (doc, acc, schedule) => {
     const cols = [
         { title: '', width: CONTENT_WIDTH * 0.1, align: 'center' },
         { title: 'ตั้งแต่งวดเดือน', width: CONTENT_WIDTH * 0.3, align: 'center' },
@@ -211,7 +213,12 @@ const drawInstallmentTable = (doc, acc) => {
 
     const installments = Array.isArray(acc.installments) && acc.installments.length > 0
         ? acc.installments
-        : [{ period: 1, startMonth: acc.startMonth, endMonth: acc.endMonth, amount: acc.paymentAmount }];
+        : [{
+            period: 1,
+            startMonth: acc.startMonth || schedule?.startDateDisplay,
+            endMonth: acc.endMonth || schedule?.endDateDisplay,
+            amount: acc.paymentAmount
+        }];
 
     installments.forEach((inst, i) => {
         drawTableRow([
@@ -249,6 +256,10 @@ const drawSummary = (doc, customerInfo, accounts) => {
     list.forEach((acc) => {
         const isHaircut = !!acc.isHaircut;
 
+        // คำนวณกำหนดการชำระหนี้จาก ScheduledNextDate (CBS, ยิงตอนสร้างสัญญา — ดู augmentAccountsWithCbsData)
+        // + installmentTerms (เดือน, มาจาก tbl_account_cus_target.installment_terms ผ่าน augmentAccountsWithDbData)
+        const schedule = calculateInstallmentSchedule(acc.scheduledNextDate, acc.installmentTerms);
+
         doc.moveDown(0.2);
         drawSectionTitle(doc, isHaircut ? 'แผนปิดบัญชี' : 'แผนผ่อนชำระ', 'center');
 
@@ -267,22 +278,22 @@ const drawSummary = (doc, customerInfo, accounts) => {
                 ['ค่างวด', num(acc.paymentAmount)],
                 ['อัตราดอกเบี้ย *', safe(acc.interestRate) || 'MRR ต่อปี'],
                 ['จำนวนงวด', acc.installmentTerms ? String(parseInt(acc.installmentTerms, 10)) : ''],
-                ['เริ่มชำระ', safe(acc.startPaymentDate || acc.startMonth)],
+                ['เริ่มชำระ', safe(acc.startPaymentDate || acc.startMonth || schedule.startDateDisplay)],
             ]);
             doc.font('regular').fontSize(12).fillColor(COLOR.text)
                 .text('*MRR ตามประกาศของธนาคาร', CONTENT_LEFT, doc.y, { width: CONTENT_WIDTH });
             doc.moveDown(0.3);
 
-            drawInstallmentTable(doc, acc);
+            drawInstallmentTable(doc, acc, schedule);
 
             doc.font('regular').fontSize(12).fillColor(COLOR.text)
                 .text('ท่านตกลงชำระหนี้ให้ธนาคารทั้งหมดในงวดสุดท้าย', CONTENT_LEFT, doc.y, { width: CONTENT_WIDTH });
             doc.moveDown(0.4);
         } else {
-            // แผนปิดบัญชี (Haircut)
+            // แผนปิดบัญชี (Haircut) — "ชำระภายในวันที่" ใช้ ScheduledNextDate ตรงๆ (ไม่บวกงวด)
             drawKeyValueTable(doc, [
                 ['ยอดปิดบัญชี', num(acc.paymentAmount)],
-                ['ชำระภายในวันที่', safe(acc.endDate)],
+                ['ชำระภายในวันที่', safe(acc.endDate || schedule.startDateDisplay)],
             ]);
             doc.moveDown(0.4);
         }

@@ -11,9 +11,10 @@ const tblMtMasterPlan = require("../../src/entities/tblMtMasterPlan");
 const tblMtProvince = require("../../src/entities/tblMtProvince");
 const tblMtDistrict = require("../../src/entities/tblMtDistrict");
 const tblMtSubDistrict = require("../../src/entities/tblMtSubDistrict");
-const tblTemplateCondition = require("../../src/entities/tblTemplateCondition");
 const tblSystemLog = require("../../src/entities/tblSystemLog");
 const tblSettingsStep = require("../../src/entities/tblSettingsStep");
+const tblContractFile = require("../../src/entities/tblContractFile");
+const tblContractFileAccount = require("../../src/entities/tblContractFileAccount");
 
 const AppDataSource = new DataSource({
     type: env.dbType,
@@ -58,9 +59,10 @@ const AppDataSource = new DataSource({
         tblMtProvince,
         tblMtDistrict,
         tblMtSubDistrict,
-        tblTemplateCondition,
         tblSystemLog,
-        tblSettingsStep
+        tblSettingsStep,
+        tblContractFile,
+        tblContractFileAccount
     ],
 });
 

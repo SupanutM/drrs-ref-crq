@@ -53,7 +53,7 @@ const tblSettingsStep = new EntitySchema({
         createdBy: {
             name: "created_by",
             type: "varchar",
-            default: "system"
+            default: "DRRS"
         }
         ,
         updateDate: {

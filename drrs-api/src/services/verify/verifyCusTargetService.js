@@ -63,7 +63,7 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
             accountsWithPlans = await Promise.all(Object.values(groupedAccounts).map(async (groupedAcc) => {
                 let planData = null;
                 try {
-                    const res = await masterPlan.masterPlanService(groupedAcc.planNos, groupedAcc.accountNo);
+                    const res = await masterPlan.masterPlanService(groupedAcc.planNos, groupedAcc.accountNo, groupedAcc.accPlans);
                     if (res && res.success) {
                         planData = res.data;
                     }
