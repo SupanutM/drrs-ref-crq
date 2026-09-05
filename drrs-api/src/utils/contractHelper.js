@@ -109,16 +109,29 @@ const augmentAccountsWithCbsData = async (accounts, source) => {
 
             if (result.success && result.data) {
                 const cbs = result.data;
-                if (cbs.CreditLimit != null) acc.loanAmount = cbs.CreditLimit;
-                if (cbs.TotalAmount != null) acc.outstandingBalance = cbs.TotalAmount;
-                if (cbs.Balance != null) acc.principal = cbs.Balance;
-                if (cbs.AccrueInterest != null) acc.interest = cbs.AccrueInterest;
+                // CBS บางครั้งตอบ "" (empty string) แทน null จริงๆ เมื่อไม่มีข้อมูลให้บัญชีนั้น
+                // (เช่น หาบัญชีไม่เจอฝั่ง CBS) — เช็ค != null เพียวๆ ไม่พอ (เพราะ "" != null เป็น true)
+                // ต้องกัน "" ไว้ตั้งแต่ต้นทาง ไม่ให้หลุดเข้า acc แล้วไปพังตอน insert ลง column numeric
+                // hasData ใช้เช็คว่า inquiry เจอข้อมูลบัญชีนี้จริงไหม — ถ้าทุก field ว่างหมด (CBS หาบัญชี
+                // ไม่เจอ) ให้ตั้ง cbsInquiryFailed = true เพื่อให้ผู้เรียก (controller) กันบัญชีนี้ออกจาก
+                // การลงทะเบียน CBS ตั้งแต่ก่อนยิง Register (ไม่ต้องรอไป error ตอน insert DB)
+                let hasData = false;
+                if (cbs.CreditLimit != null && cbs.CreditLimit !== '') { acc.loanAmount = cbs.CreditLimit; hasData = true; }
+                if (cbs.TotalAmount != null && cbs.TotalAmount !== '') { acc.outstandingBalance = cbs.TotalAmount; hasData = true; }
+                if (cbs.Balance != null && cbs.Balance !== '') { acc.principal = cbs.Balance; hasData = true; }
+                if (cbs.AccrueInterest != null && cbs.AccrueInterest !== '') { acc.interest = cbs.AccrueInterest; hasData = true; }
                 // ScheduledNextDate (YYYYMMDD) — ใช้เป็นวันเริ่มต้นคำนวณกำหนดการชำระหนี้ในสัญญา PDF
-                if (cbs.ScheduledNextDate != null) acc.scheduledNextDate = cbs.ScheduledNextDate;
+                if (cbs.ScheduledNextDate != null && cbs.ScheduledNextDate !== '') { acc.scheduledNextDate = cbs.ScheduledNextDate; hasData = true; }
+                acc.cbsInquiryFailed = !hasData;
+                if (!hasData) {
+                    logger.warn(`[CBS Inquiry] ไม่พบข้อมูลบัญชี ${acc.accountNo} จาก CBS (ทุก field ว่าง)`);
+                }
             } else {
+                acc.cbsInquiryFailed = true;
                 logger.warn(`[CBS Inquiry] ไม่สามารถดึงข้อมูลบัญชี ${acc.accountNo} จาก CBS ได้: ${result.message}`);
             }
         } catch (error) {
+            acc.cbsInquiryFailed = true;
             logger.warn(`[CBS Inquiry] เกิดข้อผิดพลาดขณะ inquiry บัญชี ${acc.accountNo}: ${error.message}`);
         }
     }

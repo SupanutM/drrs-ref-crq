@@ -40,7 +40,9 @@ const tblCusTarget = new EntitySchema({
             name: "tel_no",
             type: "varchar",
             length: 10,
-            nullable: false
+            // เดิม nullable:false — ไฟล์ import ข้อมูลลูกค้ารูปแบบใหม่ (.csv pipe-delimited) ไม่มี
+            // คอลัมน์นี้ส่งมาแล้ว (ลูกค้ากรอกเบอร์เองทีหลังตอนหน้า FormRegister ผ่าน updateCusTargetService)
+            nullable: true
         },
         verifyCode: {
             name: "verify_code",
@@ -50,7 +52,9 @@ const tblCusTarget = new EntitySchema({
         birthday: {
             name: "birthday",
             type: "varchar",
-            length: 8
+            length: 8,
+            // ไฟล์ import ใหม่ไม่มีคอลัมน์นี้ — ค่าจะถูกกรอกทีหลังในขั้นตอนอื่นของ flow
+            nullable: true
         },
         email: {
             name: "email",
@@ -62,25 +66,34 @@ const tblCusTarget = new EntitySchema({
             type: "character", //bpchar
             default: 1
         },
+        // ประเภทลูกค้า (ตามไฟล์ import ใหม่ คอลัมน์ที่ 6) — ยังไม่มี business rule ตายตัว
+        // เก็บค่าดิบจากไฟล์ไว้ก่อน
+        type: {
+            name: "type",
+            type: "varchar",
+            length: 10,
+            nullable: true
+        },
         totalIncome: {
             name: "total_income",
             type: "numeric",
-            nullable: false
+            // ไฟล์ import ใหม่ไม่มีคอลัมน์นี้ — ปล่อย nullable แทนบังคับกรอก
+            nullable: true
         },
         totalCost: {
             name: "total_cost",
             type: "numeric",
-            nullable: false
+            nullable: true
         },
         netIncome: {
             name: "net_income",
             type: "numeric",
-            nullable: false
+            nullable: true
         },
         otherIncome: {
             name: "other_income",
             type: "numeric",
-            nullable: false
+            nullable: true
         },
         createdDate: {
             name: "created_date",

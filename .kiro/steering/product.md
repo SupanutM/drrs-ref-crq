@@ -28,3 +28,10 @@ DRRS (Debt Restructure Registration System) เป็น Web Application สำ�
 - หลังยืนยันตัวตน (verify) สำเร็จ backend ออก **session token (JWT)** ผูกกับตัวลูกค้า —
   ทุก endpoint ที่แตะข้อมูลลูกค้าต้องมี token และดึงตัวตน (cusTargetId) จาก token เท่านั้น
   ห้ามเชื่อ id ที่ client ส่งมา (กันการดึงข้อมูลของคนอื่น / IDOR)
+
+## ผู้ใช้งานฝั่ง Admin (เจ้าหน้าที่ธนาคาร)
+
+- ยืนยันตัวตนผ่าน Active Directory (AD) ขององค์กร ไม่มี password เก็บในระบบ
+- สิทธิ์ 3 ระดับ: ผู้ใช้ทั่วไป (reprint สัญญาอย่างเดียว), ADMIN (นำเข้าข้อมูล master/target ได้เพิ่ม),
+  SUPERADMIN (จัดการสิทธิ์ผู้ใช้ admin คนอื่นได้เพิ่ม) — กำหนดผ่าน SQL ครั้งแรกหรือหน้าจัดการสิทธิ์
+- Flow: `login` (AD) → หน้า reprint สัญญาเสมอ → กดเมนูไปหน้านำเข้าข้อมูล/จัดการสิทธิ์ตามสิทธิ์ที่มี

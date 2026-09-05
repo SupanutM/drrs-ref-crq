@@ -40,8 +40,9 @@ const tblAccountCusTarget = new EntitySchema({
         maxAmount: {
             name: "max_amount",
             type: "numeric",
-            nullable: false,
-            default: 0
+            // ไฟล์ import ข้อมูลบัญชีรูปแบบใหม่ไม่มีคอลัมน์นี้ — ปล่อย null ถ้าไม่มีค่า
+            // (เดิม nullable:false default:0 แต่ 0 ทำให้แยกไม่ออกว่า "ไม่มีค่า" กับ "ค่าเป็น 0" จริง)
+            nullable: true
         },
         paymentAmount: {
             name: "payment_amount",

@@ -10,7 +10,7 @@ const checkPlanService = async (planNo) => {
         const result = await AppDataSource.getRepository(tblMtMasterPlan)
             .createQueryBuilder('tmmp')
             .select('tmmp.code', 'planCode')
-            .addSelect('tmmp.desc', 'planName')
+            .addSelect('tmmp.descEn', 'planName')
             .where('tmmp.code LIKE :planNo', { planNo: planNo })
             .getRawMany();
 
@@ -28,4 +28,4 @@ const checkPlanService = async (planNo) => {
     }
 };
 
-module.exports = { checkPlanService };
+module.exports = { checkPlanService };

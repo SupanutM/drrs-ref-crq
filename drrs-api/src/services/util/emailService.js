@@ -40,8 +40,8 @@ async function triggerSendContractEmail(data) {
         }
 
         const PLAN_NAME_MAP = {
-            "01": "มาตรการผ่อนบ้านดี GSB ลดให้",
-            "02": "มาตรการบ้านของคุณให้ออมสินดูแลต่อ",
+            "1": "HAIRCUT",
+            "2": "LONGTERM(INSTALLMENT)",
         };
 
         const plan_name = PLAN_NAME_MAP[loanTypeCode];

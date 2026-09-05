@@ -40,7 +40,7 @@ const checkIncomeService = async (cusTargetId, accounts) => {
             const row = await AppDataSource.getRepository(tblCusTarget)
                 .createQueryBuilder('ct')
                 .select('ct.net_income', 'netIncome')
-                .addSelect('act.min_amount', 'minAmount')
+                .addSelect('act.payment_amount', 'minAmount')
                 .addSelect(`COALESCE(mmp.is_check_income, '1')`, 'isCheckIncome')
                 .innerJoin(tblAccountCusTarget, 'act', 'act.cus_target_id = ct.id AND act.account_no = :accountNo AND act.plan_no = :planNo AND act.status = \'1\'')
                 .leftJoin(tblMtMasterPlan, 'mmp', 'mmp.code = act.plan_no AND mmp.status = \'1\'')

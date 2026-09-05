@@ -15,8 +15,8 @@ const logger = baseLogger.child({ context: 'registerDigitalLoanService' });
  *   UUID              Uniq UUID key
  *   AccountNumber     เลขที่บัญชีสินเชื่อ
  *   TargetPlan        แผนที่ลงทะเบียน -> "1" = ปิดบัญชี (Haircut), "2" = ผ่อนชำระ (Installment)
- *                     (ในระบบ DRRS เก็บรหัสแผน 2 หลัก "01"/"02" ตรงกับ tbl_mt_master_plan.code
- *                      แต่ CBS ต้องการแค่ 1 หลัก "1"/"2" — ต้องแปลงก่อนส่ง)
+ *                     (ตรงกับ tbl_mt_master_plan.code ที่ใช้ "1"/"2" อยู่แล้ว — ไม่ต้องแปลงรูปแบบ
+ *                      แต่ใช้ isHaircut (boolean) แปลงเป็น TargetPlan ตรงๆ ไม่ได้พึ่ง string ของ planNo)
  *   Plan1Balance      ยอดชี้เป้าของแผน 1 (ปิดบัญชี) — ถ้าเป็นแผน 2 ระบุเป็นค่าว่าง
  *   Plan1ExpireDate   วันที่กำหนดให้ระบบเปลี่ยนค่าลำดับการตัดกลับคืน รูปแบบ YYYYMMDD
  *                     — ถ้าเป็นแผน 2 ระบุเป็นค่าว่าง
@@ -92,7 +92,7 @@ const registerDigitalLoanService = async ({ accountNo, isHaircut, paymentAmount,
         };
     } catch (error) {
         if (error.response) {
-            logger.error(`[CBS Register Digitalloan] API ตอบ error: status=${error.response.status} body=${JSON.stringify(error.response.data)}`);
+            logger.error(`[CBS Register Digitalloan] API ตอบ error (account_no: ${accountNo}): status=${error.response.status} body=${JSON.stringify(error.response.data)}`);
             return {
                 success: false,
                 message: 'ไม่สามารถลงทะเบียนแผนปรับโครงสร้างหนี้กับ CBS ได้',
@@ -100,7 +100,7 @@ const registerDigitalLoanService = async ({ accountNo, isHaircut, paymentAmount,
                 error: error.response.data,
             };
         }
-        logger.error(`[CBS Register Digitalloan] เรียก API ไม่สำเร็จ: ${error.message}`);
+        logger.error(`[CBS Register Digitalloan] เรียก API ไม่สำเร็จ (account_no: ${accountNo}): ${error.message}`);
         return {
             success: false,
             message: 'ไม่สามารถเชื่อมต่อระบบลงทะเบียนแผน CBS ได้',

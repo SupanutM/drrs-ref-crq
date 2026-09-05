@@ -44,10 +44,36 @@ const generateContractController = async (req, res) => {
         // ต้องทำ "ก่อน" สร้าง PDF เพราะ PDF ต้องมีแค่บัญชีที่ CBS รับจริง (Status: SUCCESS)
         // บัญชีที่ CBS ปฏิเสธ (REJECT) จะไม่ถูกใส่ในสัญญา และไม่ตั้ง stepSendToCbs — ลูกค้ากลับมาทำใหม่ได้
         const successAccounts = [];
-        const rejectedAccounts = [];
+        const rejectedAccounts = [];      // สำหรับตอบกลับ frontend: { accountNo, message }
+        const rejectedAccountsForDb = []; // สำหรับบันทึกลง tbl_contract_file_account (acc เต็มๆ พร้อมผลลัพธ์ CBS)
 
         if (augmentedAccounts && augmentedAccounts.length > 0) {
             await Promise.all(augmentedAccounts.map(async (acc) => {
+                // ดักตั้งแต่ตอน Inquiry (augmentAccountsWithCbsData) — ถ้า CBS หาบัญชีนี้ไม่เจอ/inquiry
+                // ล้มเหลว ไม่ต้องยิง Register ต่อเลย กันบัญชีนี้ออกจากรอบนี้เหมือนกรณี CBS register reject
+                // (ใช้ mechanism partial-fail เดียวกัน — บัญชีอื่นที่ inquiry เจอปกติไม่ถูกกระทบ)
+                if (acc.cbsInquiryFailed) {
+                    const msg = `เกิดข้อผิดพลาด ไม่พบข้อมูลบัญชี ${acc.accountNo} กรุณาติดต่อสาขา หรือ MyMo Call Center 1143`;
+                    logger.warn(`[CBS Inquiry] ตัดบัญชี ${acc.accountNo} ออกจากรอบนี้ (inquiry ไม่เจอข้อมูล) ก่อนยิง Register`);
+                    // cbs_status เป็น varchar(10) — ใช้ค่าสั้นๆ เหมือน internal code อื่น (ERROR)
+                    // ไม่ใช่ข้อความยาว (เดิม 'INQUIRY_NOT_FOUND' 17 ตัวอักษร เกิน column พัง)
+                    acc.cbsRegisterStatus = 'NOT_FOUND';
+                    // แนบ prefix บอกว่า error มาจากเส้นไหน (CBS Inquiry Account) — เพื่อไล่ debug ย้อนหลังได้
+                    // ว่าจุดที่ล้มเหลวคือ inquiry ไม่ใช่ register (msg ที่โชว์ให้ลูกค้าเห็นไม่มี prefix นี้)
+                    acc.cbsRegisterDesc = `[CBS Inquiry Account] ${msg}`;
+                    acc.cbsRegisterTimestamp = null;
+                    rejectedAccountsForDb.push(acc);
+                    rejectedAccounts.push({ accountNo: acc.accountNo, message: msg });
+                    await systemLogService({
+                        step: 'SEND_TO_CBS_FAIL',
+                        controller: 'contractPdfController',
+                        payload: { cusTargetId, accountNo: acc.accountNo },
+                        responseStatus: 200,
+                        response: { message: msg }
+                    }).catch((err) => logger.error(`บันทึก audit SEND_TO_CBS_FAIL ไม่สำเร็จ: ${err.message}`));
+                    return;
+                }
+
                 try {
                     const regResult = await registerDigitalLoanService({
                         accountNo: acc.accountNo,
@@ -58,6 +84,12 @@ const generateContractController = async (req, res) => {
                     });
 
                     if (regResult.success) {
+                        // แนบผลลัพธ์ดิบจาก CBS Register Digitalloan ไว้ที่ acc เอง เพื่อให้
+                        // saveContractFileService บันทึกลง tbl_contract_file_account ได้ (reprint ย้อนหลัง)
+                        // แนบ prefix บอกแหล่งที่มา (CBS Register Digitalloan) ไว้ใน cbs_desc ด้วย
+                        acc.cbsRegisterStatus = regResult.data?.Status ?? null;
+                        acc.cbsRegisterDesc = regResult.data?.Desc ? `[CBS Register Digitalloan] ${regResult.data.Desc}` : null;
+                        acc.cbsRegisterTimestamp = regResult.data?.TimeStamp ?? null;
                         successAccounts.push(acc);
                         // ตั้ง stepSendToCbs = "1" เฉพาะบัญชีที่ CBS ยืนยัน SUCCESS จริงเท่านั้น
                         await createStepService.updateStepService(acc.accountNo, { stepSendToCbs: "1" }, 'stepSendToCbs');
@@ -76,6 +108,14 @@ const generateContractController = async (req, res) => {
                     // ครอบทั้งเคส HTTP error (regResult.error) และเคส CBS ตอบ 200 แต่ Status: "REJECT"
                     // (regResult.data มี TimeStamp/Status/Desc ตามที่ CBS ตอบมาให้ตรวจสอบย้อนหลังได้)
                     logger.warn(`[CBS Register] ลงทะเบียนแผนไม่สำเร็จสำหรับ ${acc.accountNo}: ${regResult.message}`);
+                    // แนบผลลัพธ์ CBS ไว้ที่ acc เช่นเดียวกับเคสสำเร็จ — เผื่อ tbl_contract_file ถูกสร้างขึ้น
+                    // จริง (มีบัญชีอื่นสำเร็จ) จะได้บันทึกบัญชีที่ reject นี้ลง tbl_contract_file_account ด้วย
+                    acc.cbsRegisterStatus = regResult.data?.Status ?? 'REJECT';
+                    // แนบ prefix บอกแหล่งที่มา (CBS Register Digitalloan) ไว้ใน cbs_desc — ครอบทั้งเคส
+                    // CBS ตอบ Status: "REJECT" (มี Desc) และเคส HTTP error (ไม่มี Desc, ใช้ regResult.message)
+                    acc.cbsRegisterDesc = `[CBS Register Digitalloan] ${regResult.data?.Desc || regResult.message || 'ไม่มีคำอธิบาย'}`;
+                    acc.cbsRegisterTimestamp = regResult.data?.TimeStamp ?? null;
+                    rejectedAccountsForDb.push(acc);
                     rejectedAccounts.push({ accountNo: acc.accountNo, message: regResult.message });
                     await systemLogService({
                         step: 'SEND_TO_CBS_FAIL',
@@ -86,6 +126,12 @@ const generateContractController = async (req, res) => {
                     }).catch((err) => logger.error(`บันทึก audit SEND_TO_CBS_FAIL ไม่สำเร็จ: ${err.message}`));
                 } catch (error) {
                     logger.warn(`[CBS Register] เกิดข้อผิดพลาดขณะลงทะเบียนแผนสำหรับ ${acc.accountNo}: ${error.message}`);
+                    acc.cbsRegisterStatus = 'ERROR';
+                    // catch block นี้ครอบ error จากการเรียก registerDigitalLoanService (เช่น network/timeout
+                    // ที่ไม่มี error.response) — ระบุแหล่งที่มาไว้ใน cbs_desc เหมือนกรณีอื่น
+                    acc.cbsRegisterDesc = '[CBS Register Digitalloan] เกิดข้อผิดพลาดในระบบขณะติดต่อ CBS';
+                    acc.cbsRegisterTimestamp = null;
+                    rejectedAccountsForDb.push(acc);
                     rejectedAccounts.push({ accountNo: acc.accountNo, message: 'เกิดข้อผิดพลาดในระบบขณะติดต่อ CBS' });
                 }
             }));
@@ -131,11 +177,14 @@ const generateContractController = async (req, res) => {
         // ==========================================
         // เลิกเขียนไฟล์ลงดิสก์แล้ว เก็บสำเนาไว้ใน table เฉพาะ (ไม่ใช่ tbl_system_log แล้ว)
         // หมายเหตุ: เก็บ "ตัวไม่มีรหัส" (preview) เพื่อให้ admin เปิดดูได้โดยไม่ต้องรู้วันเกิดลูกค้า
+        // รวมบัญชีที่ reject เข้าไปด้วย (ถ้ามี) — สัญญาฉบับนี้มีอยู่จริงแล้ว (สร้าง PDF ได้จาก successAccounts)
+        // จึงบันทึกบัญชีที่ CBS ปฏิเสธไว้ที่ tbl_contract_file_account คู่กันด้วย เพื่อให้ reprint/ตรวจสอบ
+        // ย้อนหลังเห็นครบทุกบัญชีที่ยื่นมาในรอบนี้ (ไม่ใช่แค่บัญชีที่สำเร็จ)
         await saveContractFileService({
             cusTargetId,
             fileName: filename,
             base64Content: previewBuffer.toString('base64'),
-            accounts: successAccounts
+            accounts: [...successAccounts, ...rejectedAccountsForDb]
         }).catch((err) => logger.error(`บันทึกไฟล์สัญญาลง tbl_contract_file ไม่สำเร็จ (${filename}): ${err.message}`));
 
         // ==========================================
@@ -174,7 +223,7 @@ const generateContractController = async (req, res) => {
                 pdfFilename: filename,
                 customerName: `${augmentedCustomerInfo.firstName || ''} ${augmentedCustomerInfo.lastName || ''}`.trim(),
                 acceptTermCondDate: format(new Date(), 'yyyyMMdd'),
-                loanTypeCode: successAccounts?.[0]?.planNo || '01',
+                loanTypeCode: successAccounts?.[0]?.planNo || '1',
             };
 
             // ปล่อยให้ทำงานเป็น Asynchronous พื้นหลัง

@@ -76,6 +76,26 @@ const tblContractFileAccount = new EntitySchema({
             length: 8,
             nullable: true
         },
+        // ---- ข้อมูลจาก CBS Register Digitalloan (ผลลัพธ์การลงทะเบียนแผน ณ ตอนเซ็นสัญญา) ----
+        // ชื่อ column ตรงกับ field ที่ CBS ตอบกลับมา (Status, Desc, TimeStamp)
+        cbsStatus: {
+            name: "cbs_status",
+            type: "varchar",
+            length: 10,
+            nullable: true
+        },
+        cbsDesc: {
+            name: "cbs_desc",
+            type: "varchar",
+            length: 200,
+            nullable: true
+        },
+        cbsTimestamp: {
+            name: "cbs_timestamp",
+            type: "varchar",
+            length: 30,
+            nullable: true
+        },
         createdDate: {
             name: "created_date",
             type: "timestamp with time zone",

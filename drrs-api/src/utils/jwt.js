@@ -18,7 +18,27 @@ function verifySession(token) {
     return jwt.verify(token, env.jwtSecret);
 }
 
+/**
+ * ออก session token (JWT) สำหรับ admin หลัง login ผ่าน AD สำเร็จ
+ * ใช้ secret แยกจาก customer (jwtAdminSecret) กัน token ฝั่งหนึ่งเอาไปใช้อีกฝั่งได้
+ * payload ควรมีอย่างน้อย { adminUserId, username, role }
+ */
+function signAdminSession(payload) {
+    return jwt.sign(payload, env.jwtAdminSecret, {
+        expiresIn: env.jwtAdminExpiresIn,
+    });
+}
+
+/**
+ * ตรวจสอบ admin session token — คืน payload ถ้าถูกต้อง, โยน error ถ้าไม่ผ่าน/หมดอายุ
+ */
+function verifyAdminSession(token) {
+    return jwt.verify(token, env.jwtAdminSecret);
+}
+
 module.exports = {
     signSession,
     verifySession,
+    signAdminSession,
+    verifyAdminSession,
 };

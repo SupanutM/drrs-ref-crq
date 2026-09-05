@@ -9,10 +9,18 @@ const tblMtMasterPlan = new EntitySchema({
             type: "varchar",
             generated: false
         },
-        desc: {
-            name: "desc",
+        // คำอธิบายแผนภาษาอังกฤษ (เดิมชื่อ column/field ว่า "desc" — เปลี่ยนเป็น desc_en
+        // ให้ตรงคู่กับ desc_th อย่างชัดเจน ไม่กำกวมว่า desc เดิมเป็นภาษาไหน)
+        descEn: {
+            name: "desc_en",
             type: "varchar",
             nullable: false
+        },
+        // คำอธิบายแผนภาษาไทย — เพิ่มตามไฟล์ import รูปแบบใหม่
+        descTh: {
+            name: "desc_th",
+            type: "varchar",
+            nullable: true
         },
         status: {
             name: "status",

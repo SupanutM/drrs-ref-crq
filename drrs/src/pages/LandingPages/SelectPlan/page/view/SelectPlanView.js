@@ -22,6 +22,7 @@ function SelectPlanView(props) {
     const {
         accounts,
         scheduledDates,
+        inquiryFailedAccounts,
         selectedPlans,
         isLoading,
         isSuccessModalOpen,
@@ -49,7 +50,12 @@ function SelectPlanView(props) {
             <MKBox sx={{ flexGrow: 1, overflowY: "auto", px: { xs: 2.5, md: 5, lg: 6 }, py: 4, backgroundColor: "#f8f9fa" }}>
                 <Container maxWidth="md" sx={{ minHeight: "380px" }}>
 
-                    {accounts.map((acc, index) => (
+                    {accounts.map((acc, index) => {
+                        // CBS Inquiry ตอบ Status ไม่ใช่ "SUCCESS" (เช่น "Account not Found.") — ทำการ์ดสีเทา
+                        // เลือกไม่ได้ทั้งบัญชี พร้อมข้อความแดงแจ้งลูกค้าให้ติดต่อสาขา/Call Center
+                        const isInquiryFailed = !!inquiryFailedAccounts?.[acc.accountNo];
+
+                        return (
                         <MKBox key={acc.accountNo} mb={5}>
                             <MKTypography variant="h5" color="dark" mb={2} sx={{ fontSize: { xs: "0.95rem", md: "1.25rem" } }}>
                                 {index + 1}. บัญชีเลขที่ {acc.accountNo}
@@ -60,12 +66,18 @@ function SelectPlanView(props) {
                                 )}
                             </MKTypography>
 
+                            {isInquiryFailed && (
+                                <MKTypography variant="body2" color="error" fontWeight="bold" mb={2}>
+                                    ไม่พบข้อมูลบัญชี กรุณาติดต่อสาขา หรือ MyMo Call Center 1143
+                                </MKTypography>
+                            )}
+
                             <Grid container spacing={2}>
                                 {(acc.masterPlan && acc.masterPlan.length > 0) ? (
                                     acc.masterPlan.map((plan) => {
                                         const isSelected = selectedPlans[acc.accountNo] === plan.planNo;
                                         const isHaircut = plan.loanType === "HC";
-                                        const isRegistered = acc.isRegistered;
+                                        const isRegistered = acc.isRegistered || isInquiryFailed;
 
                                         // Fallback and Generic Property Support
                                         const detail = plan.details?.[0] || plan || {};
@@ -136,7 +148,8 @@ function SelectPlanView(props) {
                                 )}
                             </Grid>
                         </MKBox>
-                    ))}
+                        );
+                    })}
 
                 </Container>
             </MKBox>

@@ -17,7 +17,12 @@
 
 - **Node.js + Express 5**, **TypeORM + PostgreSQL** (`pg`)
 - Auth: **jsonwebtoken** (session token), `express-rate-limit`, logger = **winston**
-- สร้าง PDF: `puppeteer` (render HTML template) + `pdf-lib`/`pdfkit`, ส่งเมลด้วย `nodemailer`
+- สร้าง PDF: **pdfkit** (วาด PDF ตรงๆ ไม่เปิด Chromium) + `pdf-lib` (รวมหน้า/ใส่รหัส)
+  `puppeteer` เลิกใช้แล้ว — หน้า preview-contract-html ใช้ `ejs` render HTML ธรรมดา (ไม่แปลงเป็น PDF)
+  ส่งเมลด้วย `nodemailer`
+- เรียก CBS (ธนาคาร): `services/register/` — inquiry account + register digitalloan
+- ฝั่ง admin: **ldapjs** (bind/search AD login), **multer** (รับไฟล์ upload), **exceljs**
+  (parse .xlsx ของ master data), **iconv-lite** (แปลง encoding Windows-874/UTF-8 ของไฟล์ .csv)
 - รัน `npm run dev` (nodemon) ในโฟลเดอร์ `drrs-api/` พอร์ต 5000
 
 ## คำสั่งที่ใช้บ่อย (รันในโฟลเดอร์ `drrs/`)

@@ -32,8 +32,8 @@ const masterPlanService = async (planNos = [], accountNo = null, accPlans = []) 
             const accPlan = accPlanByPlanNo[plan.code];
             return {
                 planNo: plan.code,
-                planName: plan.desc,
-                planDesc: plan.desc,
+                planName: plan.descEn,
+                planDesc: plan.descEn,
                 status: plan.status,
                 isCheckIncome: plan.isCheckIncome,
                 loanType: plan.loanType,

@@ -117,8 +117,14 @@ function PlanSummaryView(props) {
             const downloadB64 = base64Download || base64;
 
             // ทุกบัญชีถูก CBS ปฏิเสธ — ไม่มีไฟล์สัญญาให้ดาวน์โหลดเลย
+            // ใช้ข้อความรูปแบบเดียวกับ modal partial-fail (ต่อบัญชี) แทนข้อความรวมจาก backend
             if (!success && !downloadB64) {
-                throw new Error(message || "ไม่สามารถ ลงทะเบียนเข้าร่วมมาตรการได้กรุณาลองใหม่อีกครั้ง");
+                const accountNos = (rejectedFromApi || []).map((r) => r.accountNo).filter(Boolean);
+                const perAccountMessages = accountNos.map(
+                    (accountNo) => `เกิดข้อผิดพลาด ไม่พบข้อมูลบัญชี ${accountNo} กรุณาติดต่อสาขา หรือ MyMo Call Center 1143`
+                );
+                // join ด้วย "; " (ไม่ใช่ \n) เพราะ modal error โชว์เป็น plain string ไม่มี CSS ตัดบรรทัด
+                throw new Error(perAccountMessages.length > 0 ? perAccountMessages.join('; ') : (message || "ไม่สามารถ ลงทะเบียนเข้าร่วมมาตรการได้กรุณาลองใหม่อีกครั้ง"));
             }
             if (!downloadB64) {
                 throw new Error(message || "เซิร์ฟเวอร์ไม่ได้ส่งไฟล์สัญญากลับมา");
@@ -378,20 +384,16 @@ function PlanSummaryView(props) {
                     if (pendingDownloadResult) finalizeDownload(pendingDownloadResult);
                 }}
                 variant="warning"
-                title="บางบัญชีไม่สามารถลงทะเบียนกับ CBS ได้"
+                title="บางบัญชีไม่สามารถลงทะเบียนได้"
                 content={
                     <>
-                        บัญชีดังต่อไปนี้ไม่สามารถลงทะเบียนแผนปรับโครงสร้างหนี้กับระบบ CBS ได้ กรุณาติดต่อธนาคาร:
-                        <MKBox component="ul" mt={1} mb={0} sx={{ textAlign: "left", pl: 3 }}>
-                            {rejectedAccounts.map((r) => (
-                                <li key={r.accountNo}>
-                                    <MKTypography component="span" variant="body2" color="text">
-                                        {r.accountNo}{r.message ? ` — ${r.message}` : ""}
-                                    </MKTypography>
-                                </li>
-                            ))}
-                        </MKBox>
-                        <br />
+                        {rejectedAccounts.map((r, index) => (
+                            <React.Fragment key={r.accountNo}>
+                                {`เกิดข้อผิดพลาด ไม่พบข้อมูลบัญชี ${r.accountNo} กรุณาติดต่อสาขา หรือ MyMo Call Center 1143`}
+                                {index < rejectedAccounts.length - 1 && <br />}
+                            </React.Fragment>
+                        ))}
+                        <br /><br />
                         ท่านสามารถดำเนินการต่อเพื่อดาวน์โหลดสัญญาสำหรับบัญชีที่สำเร็จได้
                     </>
                 }

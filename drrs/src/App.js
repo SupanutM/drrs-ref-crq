@@ -33,12 +33,32 @@ import GenContractPage from "layouts/pages/landing-pages/gen-contract"
 import PlanPreviewPage from "layouts/pages/landing-pages/plan-preview";
 import SelectPlanPage from "layouts/pages/landing-pages/select-plan";
 import PlanSummaryPage from "layouts/pages/landing-pages/plan-summary";
+import AdminLoginPage from "layouts/pages/landing-pages/admin-login";
+import AdminMasterImportPage from "layouts/pages/landing-pages/admin-master-import";
+import AdminTargetImportPage from "layouts/pages/landing-pages/admin-target-import";
+import AdminContractReprintPage from "layouts/pages/landing-pages/admin-contract-reprint";
+import AdminUserManagePage from "layouts/pages/landing-pages/admin-user-manage";
 
 // Session Guard
 import SessionGuard from "components/SessionGuard/SessionGuardComponent";
+import AdminGuard from "components/AdminGuard/AdminGuardComponent";
+import { getAdminToken } from "utils/adminAuthToken";
 
 // Material Kit 2 React routes
 import routes from "routes";
+
+// Deeplink ทางเข้าเฉพาะฝั่ง admin (/drrs/admin) — แยกจากทางเข้าลูกค้า (/drrs/consent)
+// ถ้ามี admin token อยู่แล้ว (login ค้างไว้) พาไปหน้าแรกของ admin ตรงๆ ไม่ต้อง login ซ้ำ
+// ถ้ายังไม่มี token พาไปหน้า login ก่อน
+// หน้าแรกของ admin คือหน้า reprint สัญญาเสมอ ไม่ว่า role จะเป็นอะไรก็ตาม (ADMIN/SUPERADMIN ที่ต้อง
+// เข้าหน้านำเข้าข้อมูลให้ไปกดเมนู "นำเข้าข้อมูล" บน AdminNavbar เอง ไม่ auto-redirect ให้แล้ว)
+function AdminEntry() {
+  const hasToken = !!getAdminToken();
+  if (!hasToken) {
+    return <Navigate to="/drrs/admin/login" replace />;
+  }
+  return <Navigate to="/drrs/admin/contract-reprint" replace />;
+}
 
 export default function App() {
   const { pathname } = useLocation();
@@ -76,6 +96,16 @@ export default function App() {
         <Route path="/drrs/select-plan" element={<SessionGuard><SelectPlanPage /></SessionGuard>} />
         <Route path="/drrs/plan-summary" element={<SessionGuard><PlanSummaryPage /></SessionGuard>} />
         <Route path="/drrs/contract" element={<SessionGuard><GenContractPage /></SessionGuard>} />
+
+        {/* Admin (ผู้ดูแลระบบ) — ยืนยันตัวตนผ่าน AD แยกจาก session ลูกค้าเด็ดขาด */}
+        {/* Deeplink ทางเข้าเฉพาะ admin — เข้าตรงนี้แล้วเด้งไป login หรือหน้าแรก admin ตาม token */}
+        <Route path="/drrs/admin" element={<AdminEntry />} />
+        <Route path="/drrs/admin/login" element={<AdminLoginPage />} />
+        <Route path="/drrs/admin/master-import" element={<AdminGuard requireAdmin><AdminMasterImportPage /></AdminGuard>} />
+        <Route path="/drrs/admin/target-import" element={<AdminGuard requireAdmin><AdminTargetImportPage /></AdminGuard>} />
+        <Route path="/drrs/admin/contract-reprint" element={<AdminGuard><AdminContractReprintPage /></AdminGuard>} />
+        <Route path="/drrs/admin/user-management" element={<AdminGuard requireSuperAdmin><AdminUserManagePage /></AdminGuard>} />
+
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </ThemeProvider>

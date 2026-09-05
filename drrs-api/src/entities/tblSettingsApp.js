@@ -14,6 +14,25 @@ const tblSettingsApp = new EntitySchema({
             type: "bool",
             nullable: false
         },
+        // ---- ตั้งเวลาเปิด/ปิดระบบอัตโนมัติ ----
+        // scheduleFlag = true  -> ใช้ startTime/endTime คำนวณสถานะเปิด/ปิดอัตโนมัติ (ไม่สนใจ statusFlag)
+        // scheduleFlag = false -> กลับไปใช้ statusFlag แบบเดิม (เปิด/ปิดด้วยมือ)
+        scheduleFlag: {
+            name: "schedule_flag",
+            type: "bool",
+            nullable: false,
+            default: false
+        },
+        startTime: {
+            name: "start_time",
+            type: "timestamp",
+            nullable: true
+        },
+        endTime: {
+            name: "end_time",
+            type: "timestamp",
+            nullable: true
+        },
         channel: {
             name: "channel",
             type: "varchar",

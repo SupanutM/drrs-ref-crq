@@ -63,6 +63,10 @@ function SelectPlanController(props) {
     // เก็บ ScheduledNextDate ต่อบัญชี (จาก CBS Inquiry Account) เพื่อคำนวณกำหนดการชำระหนี้
     // Format: { "accountNo1": "20260902", ... }
     const [scheduledDates, setScheduledDates] = useState({});
+    // เก็บบัญชีที่ CBS Inquiry ตอบ Status: "REJECT" (เช่น "Account not Found.") — ใช้ทำการ์ดสีเทา
+    // (เลือกไม่ได้) พร้อมข้อความแดงแจ้งลูกค้า กันเลือกแผนของบัญชีที่ CBS หาไม่เจอไปก่อนเลย
+    // Format: { "accountNo1": true, ... }
+    const [inquiryFailedAccounts, setInquiryFailedAccounts] = useState({});
 
     // ตอนเข้าหน้าเลือกแผน — ยิง inquiry account ไปที่ CBS ทุกบัญชีของลูกค้า
     // (ไม่ throw ต่อ ไม่บล็อกหน้าถ้า CBS ล้มเหลว — เป็นแค่การอัปเดตข้อมูลล่วงหน้า)
@@ -74,6 +78,11 @@ function SelectPlanController(props) {
                     const scheduledNextDate = res?.data?.ScheduledNextDate;
                     if (scheduledNextDate) {
                         setScheduledDates((prev) => ({ ...prev, [acc.accountNo]: scheduledNextDate }));
+                    }
+                    // CBS ตอบ HTTP 200 มาได้แม้ Status เป็น "REJECT" (เช่น "Account not Found.")
+                    // ต้องเช็ค Status ในตัว body เสมอ ไม่ใช่แค่เช็คว่า request สำเร็จ
+                    if (res?.data?.Status && res.data.Status !== 'SUCCESS') {
+                        setInquiryFailedAccounts((prev) => ({ ...prev, [acc.accountNo]: true }));
                     }
                 })
                 .catch((error) => {
@@ -127,8 +136,18 @@ function SelectPlanController(props) {
         // ตรวจสอบว่าเป็นการเลือกแผนครั้งแรกหรือไม่ (ไม่มีบัญชีที่เคยลงทะเบียน)
         const isFirstTime = accounts.every(acc => !acc.isRegistered);
 
-        // คำนวณยอด min_amount รวมเฉพาะบัญชีที่ต้องเช็ครายได้
-        let totalMinAmount = accountsNeedCheck.reduce((sum, acc) => sum + (Number(acc.minAmount) || 0), 0);
+        // ดึงยอดขั้นต่ำของบัญชี = ยอดผ่อนชำระ (paymentAmount) ของแผนที่เลือกจริง
+        // (ไม่ใช้ acc.minAmount เดิม เพราะเป็นค่าระดับบัญชี ไม่แยกตามแผน — HC มี min_amount เป็น NULL
+        // แต่ LT มีค่าจริง ทำให้ค่าไม่ตรงกับแผนที่ลูกค้าเลือกจริง)
+        const getSelectedPlanAmount = (acc) => {
+            const selectedPlanNo = selectedPlans[acc.accountNo];
+            if (!selectedPlanNo) return 0;
+            const activePlan = acc.masterPlan?.find(p => p.planNo === selectedPlanNo);
+            return Number(activePlan?.details?.[0]?.paymentAmount || 0);
+        };
+
+        // คำนวณยอดขั้นต่ำรวมเฉพาะบัญชีที่ต้องเช็ครายได้
+        let totalMinAmount = accountsNeedCheck.reduce((sum, acc) => sum + getSelectedPlanAmount(acc), 0);
 
         // ตรวจสอบว่ามีการเลือกแผนผ่อนชำระ (LT) หรือไม่ (แผนที่ loanType ไม่ใช่ "HC" คือ LT)
         const hasInstallmentPlan = accountsNeedCheck.some(acc => {
@@ -150,7 +169,7 @@ function SelectPlanController(props) {
         // ตรวจสอบรายได้สุทธิ: เช็คเฉพาะเมื่อมีบัญชีที่ต้องการตรวจสอบ (isCheckIncome != 0)
         if (accountsNeedCheck.length > 0 && currentNetIncome < totalMinAmount) {
             // ถ้ายอดรวมถูกบวกเพิ่มจากบัญชีเก่า ให้แจ้งให้ผู้ใช้ทราบด้วย
-            const currentPlanMinAmount = accountsNeedCheck.reduce((sum, acc) => sum + (Number(acc.minAmount) || 0), 0);
+            const currentPlanMinAmount = accountsNeedCheck.reduce((sum, acc) => sum + getSelectedPlanAmount(acc), 0);
             const showOldInstallmentWarning = hasInstallmentPlan && totalMinAmount > currentPlanMinAmount && !isFirstTime;
 
             const warnMsg = (
@@ -334,6 +353,7 @@ function SelectPlanController(props) {
         routerState,
         accounts,
         scheduledDates,
+        inquiryFailedAccounts,
         selectedPlans,
         isLoading,
         isSuccessModalOpen,

@@ -15,6 +15,8 @@ const tblSystemLog = require("../../src/entities/tblSystemLog");
 const tblSettingsStep = require("../../src/entities/tblSettingsStep");
 const tblContractFile = require("../../src/entities/tblContractFile");
 const tblContractFileAccount = require("../../src/entities/tblContractFileAccount");
+const tblAdminUser = require("../../src/entities/tblAdminUser");
+const tblAdminSystemLog = require("../../src/entities/tblAdminSystemLog");
 
 const AppDataSource = new DataSource({
     type: env.dbType,
@@ -62,7 +64,9 @@ const AppDataSource = new DataSource({
         tblSystemLog,
         tblSettingsStep,
         tblContractFile,
-        tblContractFileAccount
+        tblContractFileAccount,
+        tblAdminUser,
+        tblAdminSystemLog
     ],
 });
 

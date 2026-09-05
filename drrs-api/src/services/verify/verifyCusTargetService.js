@@ -44,7 +44,6 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
                 if (!groupedAccounts[acc.accountNo]) {
                     groupedAccounts[acc.accountNo] = {
                         accountNo: acc.accountNo,
-                        minAmount: acc.minAmount,
                         maxAmount: acc.maxAmount,
                         planNos: [],
                         accPlans: []
@@ -86,7 +85,6 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
                 return {
                     accountNo: groupedAcc.accountNo,
                     isRegistered: isRegistered,
-                    minAmount: Number(groupedAcc.minAmount || 0),
                     maxAmount: Number(groupedAcc.maxAmount || 0),
                     masterPlan: planData?.masterPlan || []
                 };

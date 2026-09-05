@@ -54,7 +54,7 @@ export const saveDebtRestructure = async (payload) => {
 - prefix `/api/...` = business (ผ่าน rate limiter), `/utils/...` = utility (ผ่าน rate limiter)
 - ต้อง login (มี `authMiddleware`): `/api/debt-restructure`, `/api/cancel-plan`, `/api/check-plan`,
   `/api/update-income`, `/api/generate-pdf`, `/api/generate-contract`, `/api/preview-contract-html`,
-  `/api/customer/lookup`, `/api/customer/address`
+  `/api/customer/lookup`, `/api/customer/address`, `/api/cbsregister/inquiry-account`
 - สาธารณะ: `/api/verify-register`, `/api/verify-cus-target`, `/api/verify-laser-id`, `/api/master/*`,
   `/utils/encryption`, `/utils/checkCloseSystem`
 - `/utils/decryption` ถูก **ปิดไปแล้ว** (เคยเป็น decryption oracle เปิดสาธารณะ) — การถอดรหัสทำภายใน server เท่านั้น
@@ -70,15 +70,51 @@ export const saveDebtRestructure = async (payload) => {
 
 การสร้าง PDF จริง **ทำที่ backend** ไม่ใช่ frontend:
 
-- backend ใช้ `puppeteer` render HTML template (`drrs-api/src/templates/*.html`) เป็น PDF
-  และมี `pdf-lib` / `pdfkit` ช่วยจัดการ/ใส่รหัสไฟล์
+- backend สร้าง PDF ด้วย **pdfkit** (`services/condition/contractPdfKitService.js`) — วาดเอง
+  เป็น JS ล้วน ไม่เปิด Chromium (เดิมใช้ `puppeteer` render HTML เป็น PDF แต่เลิกใช้แล้ว
+  เพราะกิน RAM/CPU ค้าง — ไม่มี `puppeteer` เหลือในโค้ดแล้ว) ยังมี `pdf-lib` ช่วยรวมหน้า/
+  ใส่รหัสไฟล์ (`pdfSecurityHelper.js`)
+- คืน 2 เวอร์ชันจากเอกสารชุดเดียวกัน: `preview` (ไม่ใส่รหัส สำหรับโชว์บนจอ) และ
+  `download` (ใส่รหัสวันเกิดลูกค้า สำหรับดาวน์โหลด/ส่งเมล)
+- หน้า preview (`preview-contract-html`) ใช้ `ejs` render `templates/loan_condition.template.html`
+  เป็น HTML ธรรมดา (ไม่แปลงเป็น PDF, ไม่เปิด Chromium) แต่หน้าสัญญาจริงที่ดาวน์โหลด/ส่งเมล
+  มาจาก `contractPdfKitService.js` — ต้องคำนวณวันที่/ยอดเงินให้ตรงกันทั้งสองที่
+  (ดู `utils/calculateInstallmentSchedule.js` ที่ใช้ร่วมกัน)
 - frontend มีสองเส้นทางหลัก:
   - **base64**: `api/register.js` `generatePdfBase64()` → `/api/generate-pdf` (ใช้ใน GenContract)
-  - **blob**: `generateContractPdf()` → `/api/generate-contract` ตั้ง `responseType: "blob"`
+  - **base64 (JSON)**: `generateContractPdf()` → `/api/generate-contract` ตอบ
+    `{ success, base64Preview, base64Download, fileName, hasPartialFailure, rejectedAccounts }`
+    (ไม่ใช่ blob แล้ว)
 - แสดงผล PDF บนหน้าเว็บด้วย `react-pdf` (`Document`, `Page`) — ต้องตั้ง worker:
   `pdfjs.GlobalWorkerOptions.workerSrc = ...pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
 - lib ฝั่ง frontend อย่าง `jspdf`/`html2canvas`/`pdfmake` มีติดตั้งไว้ แต่เส้นทางหลักคือให้ backend
   สร้างให้ เพื่อความสม่ำเสมอของสัญญา — ก่อนสร้าง PDF ฝั่ง client ให้เช็คก่อนว่ามี endpoint รองรับแล้วหรือยัง
+- สัญญาที่สร้างสำเร็จจะถูกเก็บ (preview base64) ลง `tbl_contract_file` +
+  `tbl_contract_file_account` (normalize แล้ว 1 แถวต่อ 1 บัญชี พร้อม snapshot
+  ยอดเงิน/ข้อมูล CBS Inquiry ณ ตอนเซ็นสัญญา **และ** ผลลัพธ์จาก CBS Register Digitalloan
+  — `cbs_status`/`cbs_desc`/`cbs_timestamp` ตรงกับ `Status`/`Desc`/`TimeStamp` ที่ CBS ตอบมา)
+  ไว้สำหรับ reprint ย้อนหลัง — ดูหัวข้อ CBS ด้านล่าง
+
+## การลงทะเบียนกับ CBS (สำคัญ — ยิงตอน "ยอมรับสัญญา")
+
+มี CBS API 2 เส้นที่ทำงานคนละหน้าที่ อยู่ใน `services/register/`:
+
+- **Inquiry Account** (`inquiryAccountService.js`) — เช็คยอดบัญชีล่าสุด (วงเงิน/ยอดคงเหลือ/
+  ดอกเบี้ย/ScheduledNextDate) ยิงได้หลายจุด (select-plan prefetch, preview, ยอมรับสัญญา)
+  แต่บันทึกประวัติลง `tbl_system_log` (step `CBS_INQUIRY_ACCOUNT`) เฉพาะตอนยอมรับสัญญาจริง
+  เท่านั้น (ไม่บันทึกถ้า `source` เป็น `select-plan`/`preview` — กันบันทึกซ้ำ)
+- **Register Digitalloan** (`registerDigitalLoanService.js`) — ลงทะเบียนแผนที่ลูกค้าเลือกกับ
+  CBS จริง ยิง **ครั้งเดียวตอนกดยอมรับสัญญา** ก่อนสร้าง PDF เสมอ
+  (`downloadAndEmailContractPdfController.js` STEP 1 ก่อน STEP 2 สร้าง PDF)
+  - CBS อาจตอบ HTTP 200 แต่ `Status: "REJECT"` ในตัว body — **ต้องเช็ค `Status` เสมอ**
+    ไม่ใช่แค่เช็คว่า request สำเร็จ
+  - ถ้าบางบัญชีถูก reject: PDF จะสร้างเฉพาะบัญชีที่ CBS ตอบ `SUCCESS` (`successAccounts`)
+    ไม่ตั้ง `stepSendToCbs` ให้บัญชีที่ reject (กลับมาเลือกแผนใหม่ได้) และตอบ
+    `hasPartialFailure: true` + `rejectedAccounts` ให้ frontend เตือนก่อนดาวน์โหลด
+  - ถ้า**ทุกบัญชี**ถูก reject: ไม่สร้าง PDF/ไม่ส่งเมลเลย ตอบ `success: false`
+- endpoint ฝั่ง frontend เรียกผ่าน `api/cbsRegister.js` (`inquiryAccount()`)
+  → `POST /api/cbsregister/inquiry-account`
+- ทั้งสอง service ขอ Bearer token จาก SSO ก่อนทุกครั้ง (`getAccessTokenService.js`)
 
 ## แนวทาง Log (สำคัญ)
 
@@ -96,17 +132,3 @@ Log มี 2 ส่วน: debug log (ไฟล์ `drrs-api/logs/`) กับ a
 - `[Income Guard] cusTargetId: 42 | netIncome: 49000 >= totalMinAmount: 6000`
 - `[checkIncomeService] ผลสรุป | cusTargetId: 42 | isValid: true`
 - `[Registration] ยืนยันตัวตนสำเร็จ | cusTargetId: 42 | accounts: 0001, 0002`
-
-## การสร้างและแสดง PDF
-
-การสร้าง PDF จริง **ทำที่ backend** ไม่ใช่ frontend:
-
-- backend ใช้ `puppeteer` render HTML template (`drrs-api/src/templates/*.html`) เป็น PDF
-  และมี `pdf-lib` / `pdfkit` ช่วยจัดการ/ใส่รหัสไฟล์
-- frontend มีสองเส้นทางหลัก:
-  - **base64**: `api/register.js` `generatePdfBase64()` → `/api/generate-pdf` (ใช้ใน GenContract)
-  - **blob**: `generateContractPdf()` → `/api/generate-contract` ตั้ง `responseType: "blob"`
-- แสดงผล PDF บนหน้าเว็บด้วย `react-pdf` (`Document`, `Page`) — ต้องตั้ง worker:
-  `pdfjs.GlobalWorkerOptions.workerSrc = ...pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
-- lib ฝั่ง frontend อย่าง `jspdf`/`html2canvas`/`pdfmake` มีติดตั้งไว้ แต่เส้นทางหลักคือให้ backend
-  สร้างให้ เพื่อความสม่ำเสมอของสัญญา — ก่อนสร้าง PDF ฝั่ง client ให้เช็คก่อนว่ามี endpoint รองรับแล้วหรือยัง
