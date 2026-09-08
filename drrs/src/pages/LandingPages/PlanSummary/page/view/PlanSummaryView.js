@@ -28,6 +28,10 @@ function PlanSummaryView(props) {
     const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [downloadError, setDownloadError] = useState("");
+    // true เฉพาะกรณี "ทุกบัญชีถูก CBS ปฏิเสธ" (ไม่มีสัญญาให้ดาวน์โหลดเลย ไม่มีอะไรถูกบันทึกจริงที่ backend)
+    // ใช้แยกจาก error อื่น (เช่น network fail ตอนแปลง blob หลัง backend บันทึกสำเร็จแล้ว) ที่ไม่ควร
+    // ยกเลิกแผนซ้ำ — กรณีนี้เท่านั้นที่กดปิด modal แล้วต้องออกไปหน้า consent เลย (แผนไม่สมบูรณ์)
+    const [isCbsFullReject, setIsCbsFullReject] = useState(false);
     // เก็บบัญชีที่ CBS ปฏิเสธ (Status: "REJECT") — ใช้แจ้งเตือนลูกค้าก่อนดำเนินการดาวน์โหลดต่อ
     // (backend สร้าง PDF ให้เฉพาะบัญชีที่สำเร็จ ไม่ได้บล็อกทั้ง batch)
     const [rejectedAccounts, setRejectedAccounts] = useState([]);
@@ -119,10 +123,15 @@ function PlanSummaryView(props) {
             // ทุกบัญชีถูก CBS ปฏิเสธ — ไม่มีไฟล์สัญญาให้ดาวน์โหลดเลย
             // ใช้ข้อความรูปแบบเดียวกับ modal partial-fail (ต่อบัญชี) แทนข้อความรวมจาก backend
             if (!success && !downloadB64) {
-                const accountNos = (rejectedFromApi || []).map((r) => r.accountNo).filter(Boolean);
-                const perAccountMessages = accountNos.map(
-                    (accountNo) => `เกิดข้อผิดพลาด ไม่พบข้อมูลบัญชี ${accountNo} กรุณาติดต่อสาขา หรือ MyMo Call Center 1143`
-                );
+                // ใช้ message จาก backend ตรงตามบัญชี (สะท้อนสาเหตุจริงจาก CBS เช่น
+                // "Account ready in plan..." ถ้าเคยลงทะเบียนสำเร็จไปแล้ว) — เดิม hardcode
+                // ข้อความ "ไม่พบข้อมูลบัญชี" ทับทุกกรณี ทำให้ error ที่แสดงไม่ตรงกับสาเหตุจริง
+                const perAccountMessages = (rejectedFromApi || [])
+                    .filter((r) => r.accountNo)
+                    .map((r) => `เกิดข้อผิดพลาด บัญชี ${r.accountNo}: ${r.message || "ไม่สามารถลงทะเบียนได้"}`);
+                // ทุกบัญชีถูก CBS ปฏิเสธ — แผนที่บันทึกไว้ไม่มีทางไปต่อ (ไม่มีสัญญาเลย) ต้องพากลับ
+                // ไปเริ่มใหม่ที่ consent ตอนผู้ใช้ปิด modal นี้ ไม่ใช่ปล่อยให้ค้างอยู่หน้านี้
+                setIsCbsFullReject(true);
                 // join ด้วย "; " (ไม่ใช่ \n) เพราะ modal error โชว์เป็น plain string ไม่มี CSS ตัดบรรทัด
                 throw new Error(perAccountMessages.length > 0 ? perAccountMessages.join('; ') : (message || "ไม่สามารถ ลงทะเบียนเข้าร่วมมาตรการได้กรุณาลองใหม่อีกครั้ง"));
             }
@@ -365,8 +374,16 @@ function PlanSummaryView(props) {
 
             <ModalComponent
                 isOpen={downloadError !== ""}
-                onClose={() => setDownloadError("")}
-                onConfirm={() => setDownloadError("")}
+                onClose={() => {
+                    setDownloadError("");
+                    // ทุกบัญชีถูก CBS ปฏิเสธ — ไม่มีสัญญาให้ทำต่อ พากลับไปเริ่มใหม่ที่ consent
+                    // (handleCancel ยกเลิกแผนที่บันทึกไว้ในระบบเราด้วย ไม่ปล่อยให้ค้าง)
+                    if (isCbsFullReject) handleCancel();
+                }}
+                onConfirm={() => {
+                    setDownloadError("");
+                    if (isCbsFullReject) handleCancel();
+                }}
                 variant="error"
                 title="สร้างไฟล์สัญญาไม่สำเร็จ"
                 content={downloadError}
@@ -389,7 +406,7 @@ function PlanSummaryView(props) {
                     <>
                         {rejectedAccounts.map((r, index) => (
                             <React.Fragment key={r.accountNo}>
-                                {`เกิดข้อผิดพลาด ไม่พบข้อมูลบัญชี ${r.accountNo} กรุณาติดต่อสาขา หรือ MyMo Call Center 1143`}
+                                {`เกิดข้อผิดพลาด บัญชี ${r.accountNo}: ${r.message || "ไม่สามารถลงทะเบียนได้"}`}
                                 {index < rejectedAccounts.length - 1 && <br />}
                             </React.Fragment>
                         ))}

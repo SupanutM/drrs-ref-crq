@@ -97,8 +97,6 @@ export default function App() {
         <Route path="/drrs/plan-summary" element={<SessionGuard><PlanSummaryPage /></SessionGuard>} />
         <Route path="/drrs/contract" element={<SessionGuard><GenContractPage /></SessionGuard>} />
 
-        {/* Admin (ผู้ดูแลระบบ) — ยืนยันตัวตนผ่าน AD แยกจาก session ลูกค้าเด็ดขาด */}
-        {/* Deeplink ทางเข้าเฉพาะ admin — เข้าตรงนี้แล้วเด้งไป login หรือหน้าแรก admin ตาม token */}
         <Route path="/drrs/admin" element={<AdminEntry />} />
         <Route path="/drrs/admin/login" element={<AdminLoginPage />} />
         <Route path="/drrs/admin/master-import" element={<AdminGuard requireAdmin><AdminMasterImportPage /></AdminGuard>} />
