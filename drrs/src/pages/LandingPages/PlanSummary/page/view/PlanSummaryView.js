@@ -32,6 +32,11 @@ function PlanSummaryView(props) {
     // ใช้แยกจาก error อื่น (เช่น network fail ตอนแปลง blob หลัง backend บันทึกสำเร็จแล้ว) ที่ไม่ควร
     // ยกเลิกแผนซ้ำ — กรณีนี้เท่านั้นที่กดปิด modal แล้วต้องออกไปหน้า consent เลย (แผนไม่สมบูรณ์)
     const [isCbsFullReject, setIsCbsFullReject] = useState(false);
+    // true เฉพาะกรณี backend ตอบว่าระบบปิดให้บริการ (checkSystemOpenMiddleware, HTTP 503)
+    // ไม่ใช่ error ที่แก้แล้วลองซ้ำในหน้านี้ได้ ปิด modal แล้วต้องพากลับไปหน้า consent เหมือนกัน
+    // กับกรณี isCbsFullReject (ใช้ handleCancel เส้นเดียวกัน — เรียก cancel API แล้ว navigate
+    // ไปหน้า consent ใน finally เสมอ ต่อให้ cancel API จะ 503 ซ้ำก็ไม่กระทบ เพราะ catch เงียบไว้)
+    const [isSystemClosedError, setIsSystemClosedError] = useState(false);
     // เก็บบัญชีที่ CBS ปฏิเสธ (Status: "REJECT") — ใช้แจ้งเตือนลูกค้าก่อนดำเนินการดาวน์โหลดต่อ
     // (backend สร้าง PDF ให้เฉพาะบัญชีที่สำเร็จ ไม่ได้บล็อกทั้ง batch)
     const [rejectedAccounts, setRejectedAccounts] = useState([]);
@@ -86,12 +91,13 @@ function PlanSummaryView(props) {
         isLoading,
         isLoadingHtml,
         htmlContent,
+        htmlLoadError,
         targetInfo,
         customerInfo,
         selectedAccounts
     } = state;
 
-    const { handleSubmit, handleCancel } = handlers;
+    const { handleSubmit, handleCancel, handleCloseHtmlLoadError } = handlers;
 
     const handleDownloadAndSubmit = async () => {
         setIsDownloading(true);
@@ -164,9 +170,17 @@ function PlanSummaryView(props) {
             // ผู้ใช้จะเข้าใจว่ายังไม่เสร็จแล้วกดซ้ำ
             logger.error("สร้างไฟล์สัญญาไม่สำเร็จ", error);
             setIsDownloading(false);
+            // backend (เช่น checkSystemOpenMiddleware ตอนปิดระบบ) ตอบ error กลับมาที่ key
+            // "status_message" ไม่ใช่ "message" — ถ้าอ่านผิด key จะเหลือ error.message ของ axios
+            // เอง (เช่น "Request failed with status code 503") ซึ่งไม่ใช่ข้อความจริงจาก backend
+            // (error ที่ throw ขึ้นเองในบล็อกด้านบน ใช้ error.message ตรงได้ปกติ เพราะสร้างจาก
+            // response.message ของ backend อยู่แล้ว ไม่ใช่ error จาก axios โดยตรง)
             setDownloadError(
-                error.message || "ไม่สามารถสร้างไฟล์สัญญาได้ ระบบยังไม่บันทึกการยอมรับของท่าน กรุณากดยอมรับอีกครั้ง หากยังไม่สำเร็จ กรุณาติดต่อธนาคาร"
+                error.response?.data?.status_message || error.response?.data?.message || error.message || "ไม่สามารถสร้างไฟล์สัญญาได้ ระบบยังไม่บันทึกการยอมรับของท่าน กรุณากดยอมรับอีกครั้ง หากยังไม่สำเร็จ กรุณาติดต่อธนาคาร"
             );
+            // ระบบปิดให้บริการ — ไม่ใช่ error ที่แก้แล้วลองซ้ำในหน้านี้ได้ ปิด modal แล้วต้องพา
+            // กลับไปหน้า consent เหมือนกรณี isCbsFullReject
+            setIsSystemClosedError(error.response?.status === 503);
         }
     };
 
@@ -351,6 +365,20 @@ function PlanSummaryView(props) {
             </MKBox>
 
             <LoadingComponent isOpen={isLoading || isDownloading} />
+
+            {/* โหลดข้อมูลสัญญา (HTML) ไม่สำเร็จ เช่น ระบบปิดให้บริการชั่วคราว — ไม่มีสัญญาให้ดูต่อ
+                กดปิดแล้วพากลับไปหน้า consent เสมอ (หน้า consent เช็คสถานะระบบใหม่เอง) */}
+            <ModalComponent
+                isOpen={htmlLoadError !== ""}
+                onClose={handleCloseHtmlLoadError}
+                onConfirm={handleCloseHtmlLoadError}
+                variant="error"
+                title="ไม่สามารถโหลดข้อมูลสัญญาได้"
+                content={htmlLoadError}
+                confirmText="ปิด"
+                hideCancel={true}
+            />
+
             <ModalComponent
                 isOpen={isDownloadModalOpen}
                 onClose={() => setIsDownloadModalOpen(false)}
@@ -376,13 +404,13 @@ function PlanSummaryView(props) {
                 isOpen={downloadError !== ""}
                 onClose={() => {
                     setDownloadError("");
-                    // ทุกบัญชีถูก CBS ปฏิเสธ — ไม่มีสัญญาให้ทำต่อ พากลับไปเริ่มใหม่ที่ consent
-                    // (handleCancel ยกเลิกแผนที่บันทึกไว้ในระบบเราด้วย ไม่ปล่อยให้ค้าง)
-                    if (isCbsFullReject) handleCancel();
+                    // ทุกบัญชีถูก CBS ปฏิเสธ หรือระบบปิดให้บริการ — ไม่มีสัญญาให้ทำต่อ พากลับไปเริ่มใหม่
+                    // ที่ consent (handleCancel ยกเลิกแผนที่บันทึกไว้ในระบบเราด้วย ไม่ปล่อยให้ค้าง)
+                    if (isCbsFullReject || isSystemClosedError) handleCancel();
                 }}
                 onConfirm={() => {
                     setDownloadError("");
-                    if (isCbsFullReject) handleCancel();
+                    if (isCbsFullReject || isSystemClosedError) handleCancel();
                 }}
                 variant="error"
                 title="สร้างไฟล์สัญญาไม่สำเร็จ"

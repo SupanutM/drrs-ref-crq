@@ -1,9 +1,11 @@
 import PropTypes from "prop-types";
 
+import Alert from "@mui/material/Alert";
 import Card from "@mui/material/Card";
 import Container from "@mui/material/Container";
 import Grid from "@mui/material/Grid";
 import Icon from "@mui/material/Icon";
+import Snackbar from "@mui/material/Snackbar";
 import LoadingComponent from "components/Loading/LoadingComponent";
 
 import MKBox from "components/MKBox";
@@ -13,8 +15,8 @@ import MKTypography from "components/MKTypography";
 
 function LoanPlanView(props) {
     const { state, handlers } = props;
-    const { loanPlans, isLoading } = state;
-    const { handleSelectPlan } = handlers;
+    const { loanPlans, isLoading, isAlert, alertMsg, alertType } = state;
+    const { handleSelectPlan, handleCloseAlert } = handlers;
 
     // 🌟 1. ปรับให้คลีนขึ้น
     const loadingCircular = Boolean(isLoading);
@@ -22,6 +24,42 @@ function LoanPlanView(props) {
     return (
         <MKBox component="section" py={{ xs: 2, sm: 4 }}>
             <Container>
+                {/* เส้นนับถอยหลัง (progress-bar) ใต้ข้อความแจ้งเตือน — ให้ตรงกับ pattern เดียวกัน
+                    ทุกหน้าที่แสดง error (form-register, income-modal) */}
+                <Snackbar open={isAlert} autoHideDuration={5000} onClose={handleCloseAlert} anchorOrigin={{ vertical: "top", horizontal: "right" }}>
+                    <Alert
+                        onClose={handleCloseAlert}
+                        severity={alertType || "success"}
+                        variant="filled"
+                        sx={{
+                            width: "100%",
+                            color: "#fff",
+                            position: "relative",
+                            overflow: "hidden"
+                        }}
+                    >
+                        {alertMsg}
+                        {
+                            isAlert && (
+                                <MKBox
+                                    sx={{
+                                        position: "absolute",
+                                        bottom: 0,
+                                        left: 0,
+                                        height: "4px",
+                                        backgroundColor: "rgba(255, 255, 255, 0.7)",
+                                        animation: "progress-bar 5s linear forwards",
+                                        "@keyframes progress-bar": {
+                                            "0%": { width: "100%" },
+                                            "100%": { width: "0%" },
+                                        },
+                                    }}
+                                />
+                            )
+                        }
+                    </Alert>
+                </Snackbar>
+
                 <Grid container spacing={3} justifyContent="center">
                     {loanPlans?.map((plan) => {
                         return (

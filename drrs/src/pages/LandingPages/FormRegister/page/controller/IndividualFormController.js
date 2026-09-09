@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
+import { useNavigate } from "react-router-dom";
 
 import * as FormService from "../service/FormInfomationService";
 import IndividualFormView from "../view/IndividualFormView";
@@ -13,6 +14,8 @@ import checkValidEmail from "utils/valid-email";
 
 
 function IndividualController(props) {
+    const navigate = useNavigate();
+
     // ==========================================
     // STATE พื้นฐาน (UI & Loading)
     // ==========================================
@@ -20,6 +23,10 @@ function IndividualController(props) {
     const [alertMsg, setAlertMsg] = useState("");
     const [alertType, setAlertType] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    // true เฉพาะกรณี backend ตอบว่าระบบปิดให้บริการ (checkSystemOpenMiddleware, HTTP 503)
+    // ใช้ตัดสินใจตอนปิด alert ว่าต้องพากลับไปหน้า consent เลยหรือไม่ (ไม่ใช่ error ที่แก้แล้ว
+    // ลองกรอกซ้ำในหน้านี้ได้ เพราะระบบปิดอยู่ กรอกใหม่ก็เจอ error เดิม)
+    const [isSystemClosedError, setIsSystemClosedError] = useState(false);
 
     // ==========================================
     // STATE ข้อมูลบุคคลธรรมดา
@@ -326,9 +333,13 @@ function IndividualController(props) {
         } catch (error) {
             setIsLoading(false);
             setIsAlert(true);
-            const errMsg = error.response?.data?.message || error.message || "เกิดข้อผิดพลาดกรุณาติดต่อผู้ดูแลระบบ";
+            // backend (เช่น checkSystemOpenMiddleware ตอนปิดระบบ) ตอบ error กลับมาที่ key
+            // "status_message" ไม่ใช่ "message" — ถ้าอ่านผิด key จะเหลือ error.message ของ axios
+            // เอง (เช่น "Request failed with status code 503") ซึ่งไม่ใช่ข้อความจริงจาก backend
+            const errMsg = error.response?.data?.status_message || error.response?.data?.message || error.message || "เกิดข้อผิดพลาดกรุณาติดต่อผู้ดูแลระบบ";
             setAlertMsg(errMsg);
             setAlertType("error");
+            setIsSystemClosedError(error.response?.status === 503);
         } finally {
             setIsLoading(false);
         }
@@ -339,6 +350,11 @@ function IndividualController(props) {
             return;
         }
         setIsAlert(false); // สั่งปิด Alert
+        // ระบบปิดให้บริการ — ไม่ใช่ error ที่แก้แล้วลองซ้ำในหน้านี้ได้ พากลับไปหน้า consent
+        // เลย (หน้า consent เช็คสถานะระบบใหม่เอง แล้วโชว์แบนเนอร์ปิดปรับปรุงให้ถูกต้อง)
+        if (isSystemClosedError) {
+            navigate("/drrs/consent", { replace: true });
+        }
     };
 
     // ==========================================

@@ -29,7 +29,8 @@ function SelectPlanView(props) {
         isSuccessModalOpen,
         successMessage,
         isWarnModalOpen,
-        warnMessage
+        warnMessage,
+        isIncomeInsufficientError
     } = state;
 
     const {
@@ -37,7 +38,7 @@ function SelectPlanView(props) {
         handleAccept,
         handleSuccessConfirm,
         handleCloseWarnModal,
-        handleOpenIncomeModal,
+        handleConfirmWarnModal,
         handleCloseIncomeModal,
         handleIncomeSuccess
     } = handlers;
@@ -233,14 +234,11 @@ function SelectPlanView(props) {
             <ModalComponent
                 isOpen={isWarnModalOpen}
                 onClose={handleCloseWarnModal}
-                onConfirm={() => {
-                    handleCloseWarnModal();
-                    handleOpenIncomeModal();
-                }}
+                onConfirm={handleConfirmWarnModal}
                 variant="warning"
                 title={warnMessage || "เกิดข้อผิดพลาดในการบันทึกข้อมูล"}
                 content=""
-                confirmText="ระบุรายได้อื่นๆ คลิก !"
+                confirmText={isIncomeInsufficientError ? "ระบุรายได้อื่นๆ คลิก !" : "ตกลง"}
             />
 
             <ModalComponent

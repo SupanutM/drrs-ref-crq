@@ -7,8 +7,10 @@ import Snackbar from "@mui/material/Snackbar";
 import Stack from "@mui/material/Stack";
 import PropTypes from "prop-types";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import LoadingComponent from "components/Loading/LoadingComponent";
+import MKBox from "components/MKBox";
 import MKButton from "components/MKButton";
 import MKInput from "components/MKInput";
 import MKTypography from "components/MKTypography";
@@ -23,7 +25,8 @@ const formatNumber = (val) => {
     return Number(numStr).toLocaleString("en-US");
 };
 
-function IncomeModalComponent({ isOpen, onSuccess, cusTargetId, initialData }) {
+function IncomeModalComponent({ isOpen, onClose = () => {}, onSuccess, cusTargetId, initialData }) {
+    const navigate = useNavigate();
     const [totalIncome, setTotalIncome] = useState("");
     const [validTotalIncome, setValidTotalIncome] = useState(false);
 
@@ -39,6 +42,10 @@ function IncomeModalComponent({ isOpen, onSuccess, cusTargetId, initialData }) {
     const [alertMsg, setAlertMsg] = useState("");
     const [alertType, setAlertType] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    // true เฉพาะกรณี backend ตอบว่าระบบปิดให้บริการ (checkSystemOpenMiddleware, HTTP 503)
+    // Dialog นี้ตั้งใจปิดด้วย ESC/backdrop ไม่ได้ (กันปิดโดยไม่ตั้งใจตอนกรอกข้อมูล) แต่ถ้าระบบปิด
+    // ไปแล้วจะไม่มีทางปิด modal นี้เลย (ค้างถาวร) ต้องปิดให้อัตโนมัติกรณีนี้เท่านั้น
+    const [isSystemClosedError, setIsSystemClosedError] = useState(false);
 
     // รีเซ็ตค่าเมื่อเปิด/ปิด Modal
     useEffect(() => {
@@ -184,27 +191,67 @@ function IncomeModalComponent({ isOpen, onSuccess, cusTargetId, initialData }) {
             } else {
                 setIsLoading(false);
                 setIsAlert(true);
-                setAlertMsg(response.message || "ไม่สามารถบันทึกข้อมูลรายได้ โปรดลองอีกครั้ง");
+                setAlertMsg(response.status_message || response.message || "ไม่สามารถบันทึกข้อมูลรายได้ โปรดลองอีกครั้ง");
                 setAlertType("warning");
             }
         } catch (error) {
             setIsLoading(false);
             setIsAlert(true);
-            setAlertMsg(error.response?.data?.message || error.message || "เกิดข้อผิดพลาดในการเชื่อมต่อ");
+            // backend (เช่น checkSystemOpenMiddleware ตอนปิดระบบ) ตอบ error กลับมาที่ key
+            // "status_message" ไม่ใช่ "message" — ถ้าอ่านผิด key จะเหลือ error.message ของ axios
+            // เอง (เช่น "Request failed with status code 503") ซึ่งไม่ใช่ข้อความจริงจาก backend
+            setAlertMsg(error.response?.data?.status_message || error.response?.data?.message || error.message || "เกิดข้อผิดพลาดในการเชื่อมต่อ");
             setAlertType("error");
+            setIsSystemClosedError(error.response?.status === 503);
         }
     };
 
     const handleCloseAlert = (event, reason) => {
         if (reason === "clickaway") return;
         setIsAlert(false);
+        // ระบบปิดให้บริการ — modal นี้ปิดด้วย ESC/backdrop ไม่ได้ ถ้าไม่ปิดให้ตรงนี้จะค้างถาวร
+        // ไม่ใช่ error ที่แก้แล้วลองซ้ำในหน้านี้ได้ พากลับไปหน้า consent เลย เหมือนทุกจุดอื่น
+        // ที่เจอ 503 (หน้า consent เช็คสถานะระบบใหม่เอง แล้วโชว์แบนเนอร์ปิดปรับปรุงให้ถูกต้อง)
+        if (isSystemClosedError) {
+            setIsSystemClosedError(false);
+            onClose();
+            navigate("/drrs/consent", { replace: true });
+        }
     };
 
     return (
         <Dialog open={isOpen} maxWidth="sm" fullWidth disableEscapeKeyDown onClose={(event, reason) => { if (reason === "backdropClick") return; }}>
             <Snackbar open={isAlert} autoHideDuration={5000} onClose={handleCloseAlert} anchorOrigin={{ vertical: "top", horizontal: "right" }}>
-                <Alert onClose={handleCloseAlert} severity={alertType || "success"} variant="filled" sx={{ width: "100%", color: "#fff" }}>
+                <Alert
+                    onClose={handleCloseAlert}
+                    severity={alertType || "success"}
+                    variant="filled"
+                    sx={{
+                        width: "100%",
+                        color: "#fff",
+                        position: "relative", // ต้องใส่ relative เพื่อให้เส้นวิ่งเกาะอยู่ด้านล่างของ Alert นี้
+                        overflow: "hidden"    // กันไม่ให้เส้นวิ่งล้นขอบมุมโค้งของ Alert
+                    }}
+                >
                     {alertMsg}
+                    {
+                        isAlert && (
+                            <MKBox
+                                sx={{
+                                    position: "absolute",
+                                    bottom: 0,
+                                    left: 0,
+                                    height: "4px", // ความหนาของเส้นวิ่ง
+                                    backgroundColor: "rgba(255, 255, 255, 0.7)", // สีของเส้นวิ่ง (สีขาวโปร่งแสง)
+                                    animation: "progress-bar 5s linear forwards", // ต้องตั้งให้ตรงกับ autoHideDuration ด้านบน
+                                    "@keyframes progress-bar": {
+                                        "0%": { width: "100%" },
+                                        "100%": { width: "0%" },
+                                    },
+                                }}
+                            />
+                        )
+                    }
                 </Alert>
             </Snackbar>
 
@@ -282,7 +329,7 @@ function IncomeModalComponent({ isOpen, onSuccess, cusTargetId, initialData }) {
 
 IncomeModalComponent.propTypes = {
     isOpen: PropTypes.bool.isRequired,
-    onClose: PropTypes.func.isRequired,
+    onClose: PropTypes.func,
     onSuccess: PropTypes.func.isRequired,
     cusTargetId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     initialData: PropTypes.shape({

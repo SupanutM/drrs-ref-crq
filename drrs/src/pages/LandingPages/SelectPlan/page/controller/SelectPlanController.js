@@ -42,6 +42,13 @@ function SelectPlanController(props) {
     const [contractTemplate, setContractTemplate] = useState(null);
     const [isWarnModalOpen, setIsWarnModalOpen] = useState(false);
     const [warnMessage, setWarnMessage] = useState("");
+    // แยกกรณี "รายได้ไม่พอ" (ต้องเปิด IncomeModal ให้กรอกรายได้เพิ่ม) ออกจาก error ทั่วไปอื่นๆ
+    // (เช่น "ระบบปิดให้บริการชั่วคราว") ที่กดปุ่มแล้วแค่ปิด modal เฉยๆ ไม่ควรพาไปกรอกรายได้
+    const [isIncomeInsufficientError, setIsIncomeInsufficientError] = useState(false);
+    // true เฉพาะกรณี backend ตอบว่าระบบปิดให้บริการ (checkSystemOpenMiddleware, HTTP 503)
+    // ต้องโชว์ข้อความให้ user อ่านก่อน (ผ่าน modal เดียวกับ warnMessage) แล้วค่อย navigate ไป
+    // หน้า consent ตอนกดปิด — ไม่ navigate ทันทีแบบไม่มี delay ให้อ่านข้อความเลย
+    const [isSystemClosedError, setIsSystemClosedError] = useState(false);
     const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
 
     const handlePlanSelect = (accountNo, planNo) => {
@@ -188,6 +195,7 @@ function SelectPlanController(props) {
             );
 
             setWarnMessage(warnMsg);
+            setIsIncomeInsufficientError(true);
             setIsWarnModalOpen(true);
             return;
         }
@@ -234,15 +242,26 @@ function SelectPlanController(props) {
                 setIsSuccessModalOpen(true);
             } else {
                 const errorMsg = apiResponse?.message || "ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง";
+                setIsIncomeInsufficientError(errorMsg.includes("รายได้สุทธิไม่เพียงพอชำระหนี้"));
                 setWarnMessage(errorMsg);
                 setIsWarnModalOpen(true);
             }
         } catch (error) {
             console.error("Submit Plan Error:", error);
-            const errorMessage = error.response?.data?.message || error.message || "ระบบขัดข้อง ไม่สามารถบันทึกข้อมูลได้ในขณะนี้";
+            // backend (เช่น checkSystemOpenMiddleware ตอนปิดระบบ) ตอบ error กลับมาที่ key
+            // "status_message" ไม่ใช่ "message" — ถ้าอ่านผิด key จะเหลือ error.message ของ axios
+            // เอง (เช่น "Request failed with status code 503") ซึ่งไม่ใช่ข้อความจริงจาก backend
+            const errorMessage = error.response?.data?.status_message || error.response?.data?.message || error.message || "ระบบขัดข้อง ไม่สามารถบันทึกข้อมูลได้ในขณะนี้";
+
+            // ระบบปิดให้บริการ — โชว์ข้อความจริงจาก backend ใน modal ก่อน (เหมือนทุกจุดอื่น
+            // ที่เจอ 503) แล้วค่อย navigate ไปหน้า consent ตอนกดปิด ไม่ navigate ทันที
+            setIsSystemClosedError(error.response?.status === 503);
 
             // Fallback: ดักจับ Error จาก Backend API แล้วนำมาจัด Format สวยงามบน Frontend
-            if (errorMessage.includes("รายได้สุทธิไม่เพียงพอชำระหนี้")) {
+            const isIncomeError = errorMessage.includes("รายได้สุทธิไม่เพียงพอชำระหนี้");
+            setIsIncomeInsufficientError(isIncomeError);
+
+            if (isIncomeError) {
                 // สกัดค่าตัวเลขจาก Error Message ของ Backend แทนการดึงผ่าน Object (เพราะ data อาจจะหายตอน Build)
                 const matchNetIncome = errorMessage.match(/รายได้สุทธิปัจจุบัน:\s*([\d,]+)/);
                 const matchMinAmount = errorMessage.match(/ต้องมียอดขั้นต่ำรวม:\s*([\d,]+)/);
@@ -328,6 +347,22 @@ function SelectPlanController(props) {
     const handleCloseWarnModal = () => {
         setIsWarnModalOpen(false);
         setWarnMessage("");
+        setIsIncomeInsufficientError(false);
+        // ระบบปิดให้บริการ — ไม่ใช่ error ที่แก้แล้วลองซ้ำในหน้านี้ได้ พากลับไปหน้า consent เลย
+        // (หน้า consent เช็คสถานะระบบใหม่เอง แล้วโชว์แบนเนอร์ปิดปรับปรุงให้ถูกต้อง)
+        if (isSystemClosedError) {
+            setIsSystemClosedError(false);
+            navigate("/drrs/consent", { replace: true });
+        }
+    };
+
+    // ปุ่มยืนยันของ warn modal: เปิด IncomeModal เฉพาะกรณี "รายได้ไม่พอ" เท่านั้น
+    // error อื่นๆ (เช่น ระบบปิดให้บริการ) กดแล้วปิด modal เฉยๆ ไม่ควรพาไปกรอกรายได้
+    const handleConfirmWarnModal = () => {
+        handleCloseWarnModal();
+        if (isIncomeInsufficientError) {
+            handleOpenIncomeModal();
+        }
     };
 
     const handleOpenIncomeModal = () => setIsIncomeModalOpen(true);
@@ -362,6 +397,7 @@ function SelectPlanController(props) {
         successMessage,
         isWarnModalOpen,
         warnMessage,
+        isIncomeInsufficientError,
         isIncomeModalOpen,
         netIncome,
         incomeData,
@@ -373,6 +409,7 @@ function SelectPlanController(props) {
         handleAccept,
         handleSuccessConfirm,
         handleCloseWarnModal,
+        handleConfirmWarnModal,
         handleOpenIncomeModal,
         handleCloseIncomeModal,
         handleIncomeSuccess,

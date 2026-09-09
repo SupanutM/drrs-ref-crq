@@ -1,6 +1,6 @@
 import PropTypes from "prop-types";
 import { useState } from "react";
-// import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 // นำเข้า Service กลาง
 import * as FormService from "../service/FormInfomationService";
@@ -14,7 +14,7 @@ import validLength from "utils/valid-lenght";
 import validMobileNo from "utils/valid-mobileno";
 
 function JuristicController(props) {
-    // const navigate = useNavigate();
+    const navigate = useNavigate();
 
     // ==========================================
     // STATE พื้นฐาน (UI & Loading)
@@ -23,6 +23,9 @@ function JuristicController(props) {
     const [alertMsg, setAlertMsg] = useState("");
     const [alertType, setAlertType] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    // true เฉพาะกรณี backend ตอบว่าระบบปิดให้บริการ (checkSystemOpenMiddleware, HTTP 503)
+    // ใช้ตัดสินใจตอนปิด alert ว่าต้องพากลับไปหน้า consent เลยหรือไม่
+    const [isSystemClosedError, setIsSystemClosedError] = useState(false);
 
     // ==========================================
     // STATE ข้อมูลนิติบุคคล (สั้นลงมากเพราะตัดของบุคคลธรรมดาทิ้ง)
@@ -117,8 +120,13 @@ function JuristicController(props) {
         } catch (error) {
             setIsLoading(false);
             setIsAlert(true);
-            setAlertMsg("เกิดข้อผิดพลาดจากระบบหลังบ้าน");
+            // backend (เช่น checkSystemOpenMiddleware ตอนปิดระบบ) ตอบ error กลับมาที่ key
+            // "status_message" ไม่ใช่ "message" — ถ้าอ่านผิด key จะเหลือ error.message ของ axios
+            // เอง (เช่น "Request failed with status code 503") ซึ่งไม่ใช่ข้อความจริงจาก backend
+            const errMsg = error.response?.data?.status_message || error.response?.data?.message || error.message || "เกิดข้อผิดพลาดจากระบบหลังบ้าน";
+            setAlertMsg(errMsg);
             setAlertType("error");
+            setIsSystemClosedError(error.response?.status === 503);
         } finally {
             setIsLoading(false); // ปิด Progress Bar
         }
@@ -130,6 +138,10 @@ function JuristicController(props) {
             return; // ป้องกันไม่ให้เผลอคลิกพื้นที่ว่างแล้ว Popup หาย
         }
         setIsAlert(false); // สั่งปิด Alert
+        // ระบบปิดให้บริการ — ไม่ใช่ error ที่แก้แล้วลองซ้ำในหน้านี้ได้ พากลับไปหน้า consent เลย
+        if (isSystemClosedError) {
+            navigate("/drrs/consent", { replace: true });
+        }
     };
 
     const state = {
