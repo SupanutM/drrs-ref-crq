@@ -1,8 +1,11 @@
 import axios from "axios";
 import { logger } from "utils/logger";
 import { getToken } from "utils/authToken";
+import { getAppConfig } from "utils/appConfig";
 
-const baseURL = `${process.env.REACT_APP_BACKEND_URL}`;
+// อ่านจาก public/config.js (window.APP_CONFIG.BACKEND_URL) ก่อน เพราะแก้บน server ได้
+// โดยไม่ต้อง build ใหม่ — fallback เป็น REACT_APP_BACKEND_URL (ฝังตอน build) เผื่อ config.js โหลดไม่ได้
+const baseURL = getAppConfig().backendUrl;
 
 const createAxiosInstance = (baseUrl) => {
   const instance = axios.create({

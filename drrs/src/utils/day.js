@@ -53,8 +53,23 @@ export const calculateInstallmentSchedule = (scheduledNextDate, installmentTerms
     return { startDate, endDate };
 };
 
+/**
+ * เช็คว่าวันที่ที่ให้มา "ผ่านไปแล้ว" (ก่อนวันนี้) หรือไม่ — เทียบแค่ระดับวัน (ไม่รวมเวลา)
+ * ใช้เช็คว่าแผน Haircut เลยกำหนด expireDate แล้วหรือยัง (เลือกแผนไม่ได้ถ้าเลยแล้ว)
+ * ถือว่า "ภายในวันที่" รวมวันนั้นด้วย (ยังเลือกได้ถ้าวันนี้ตรงกับ expireDate เป๊ะ)
+ * @param {string|Date|import('dayjs').Dayjs} value
+ * @returns {boolean} - false ถ้า value ไม่ถูกต้อง/ไม่มีค่า (ไม่ถือว่าหมดอายุ)
+ */
+export const isPastDate = (value) => {
+    if (!value) return false;
+    const date = dayjs.isDayjs(value) ? value : dayjs(value);
+    if (!date.isValid()) return false;
+    return dayjs().startOf("day").isAfter(date.startOf("day"));
+};
+
 export default {
     parseCbsDate,
     formatThaiDate,
     calculateInstallmentSchedule,
+    isPastDate,
 };

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 
@@ -29,7 +29,7 @@ function ConsentController({ onVersionLoad }) {
         }
     };
 
-    const getCheckCloseSystem = async () => {
+    const getCheckCloseSystem = useCallback(async () => {
         const parms = {
             channel: "DRRS",
         };
@@ -50,13 +50,13 @@ function ConsentController({ onVersionLoad }) {
             // ป้องกันไม่ให้ผู้ใช้เข้าฟอร์มลงทะเบียนได้ในสถานะที่ไม่แน่ใจ
             setIsClose("OFF");
         }
-    };
+    }, [onVersionLoad]);
 
     useEffect(() => {
         // เริ่มต้นใหม่ทุกครั้งที่มาหน้า consent — ล้าง session token เก่าทิ้ง
         clearToken();
         getCheckCloseSystem();
-    }, []);
+    }, [getCheckCloseSystem]);
 
     const state = {
         checked,

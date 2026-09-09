@@ -42,7 +42,7 @@ const masterPlanService = async (planNos = [], accountNo = null, accPlans = []) 
                     paymentAmount: Number(accPlan.paymentAmount || 0),
                     installmentTerms: Number(accPlan.installmentTerms || 0),
                     startDate: accPlan.startDate,
-                    endDate: accPlan.endDate
+                    expireDate: accPlan.expireDate
                 }] : []
             };
         });

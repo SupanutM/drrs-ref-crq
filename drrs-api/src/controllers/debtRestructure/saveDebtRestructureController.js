@@ -9,7 +9,9 @@ const logger = baseLogger.child({ context: 'saveDebtRestructureController' });
 const tblSettingsStep = require('../../entities/tblSettingsStep');
 const tblAccountInstallment = require('../../entities/tblAccountInstallment');
 const tblAccountHairCut = require('../../entities/tblAccountHairCut');
+const tblAccountCusTarget = require('../../entities/tblAccountCusTarget');
 const { formatThaiMonthYear } = require('../../utils/formatThaiMonthYear');
+const { parseDbDate, isPastDate } = require('../../utils/calculateInstallmentSchedule');
 const { AppDataSource } = require('../../config/database');
 const { ownsAccount } = require('../../middleware/authMiddleware');
 
@@ -133,6 +135,40 @@ const saveDebtRestructureController = async (req, res) => {
             if (loantype === "HC") {
                 if (amount === 0) {
                     return sendError(res, 'กรุณาระบุยอดเงินสำหรับปิดบัญชี', 400);
+                }
+
+                // =========================================================
+                // 🛡️ EXPIRE DATE GUARD (Haircut เท่านั้น) — เช็ค expire_date จาก DB โดยตรงด้วย
+                // server clock (ไม่เชื่อเวลาที่ client ส่งมา/คำนวณเอง) กัน race condition ตอนกดใกล้
+                // เวลาเที่ยงคืน (client เช็คว่ายัง valid แต่ request มาถึง server หลังข้ามวันไปแล้ว)
+                // =========================================================
+                {
+                    const accountTarget = await AppDataSource.getRepository(tblAccountCusTarget).find({
+                        select: { expireDate: true },
+                        where: { accountNo, planNo, status: '1' },
+                        order: { createdDate: "DESC" },
+                        take: 1
+                    });
+                    const expireDateParsed = (accountTarget && accountTarget.length > 0)
+                        ? parseDbDate(accountTarget[0].expireDate)
+                        : null;
+
+                    if (expireDateParsed && isPastDate(expireDateParsed)) {
+                        logger.warn(`[Expire Date Guard] บัญชี ${accountNo} planNo ${planNo} เลยกำหนด expire_date แล้ว (${expireDateParsed.toISOString().slice(0, 10)})`);
+                        await systemLogService({
+                            step: 'HAIRCUT_PLAN_EXPIRED',
+                            controller: 'saveDebtRestructureController',
+                            payload: { cusTargetId, accountNo, planNo },
+                            responseStatus: 400,
+                            response: {
+                                message: 'เลยกำหนดวันที่ปิดบัญชีแล้ว',
+                                expireDate: expireDateParsed.toISOString().slice(0, 10)
+                            },
+                            createdBy: 'system'
+                        }).catch((err) => logger.error(`บันทึก audit HAIRCUT_PLAN_EXPIRED ไม่สำเร็จ: ${err.message}`));
+
+                        return sendError(res, 'เลยกำหนดวันที่ปิดบัญชีแล้ว กรุณาติดต่อสาขา หรือ MyMo Call Center 1143', 400);
+                    }
                 }
 
                 const hairCutPlanPayload = {

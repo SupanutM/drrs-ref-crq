@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import PropTypes from "prop-types";
 
@@ -22,7 +22,7 @@ function InstallmentPlanController(props) {
         setIsModalOpen(false);
     };
 
-    const handleAccept = async () => {
+    const handleAccept = useCallback(async () => {
         try {
             setIsLoading(true);
 
@@ -69,7 +69,7 @@ function InstallmentPlanController(props) {
             setWarnMessage(errorMessage);
             setIsWarnModalOpen(true);
         }
-    };
+    }, [routerState]);
 
     const handleSuccessConfirm = () => {
         setIsLoading(true);
@@ -112,7 +112,7 @@ function InstallmentPlanController(props) {
         if (onAcceptReady) {
             onAcceptReady({ handleAccept, isLoading });
         }
-    }, [isLoading]);
+    }, [isLoading, handleAccept, onAcceptReady]);
 
     return <InstallmentPlanView state={viewState} handlers={handlers} />;
 }

@@ -16,6 +16,7 @@ import ModalComponent from "components/Dialog/DialogComponent";
 import LoadingComponent from "components/Loading/LoadingComponent";
 import IncomeModalComponent from "components/IncomeModal";
 import InstallmentSchedule from "components/InstallmentSchedule";
+import { isPastDate } from "utils/day";
 
 function SelectPlanView(props) {
     const { state, handlers } = props;
@@ -77,14 +78,18 @@ function SelectPlanView(props) {
                                     acc.masterPlan.map((plan) => {
                                         const isSelected = selectedPlans[acc.accountNo] === plan.planNo;
                                         const isHaircut = plan.loanType === "HC";
-                                        const isRegistered = acc.isRegistered || isInquiryFailed;
 
                                         // Fallback and Generic Property Support
                                         const detail = plan.details?.[0] || plan || {};
                                         const paymentAmount = detail.paymentAmount || detail.amount || detail.installmentAmount || 0;
                                         const installmentTerms = detail.installmentTerms || detail.installmentTerm || 0;
-                                        // ScheduledNextDate จาก CBS Inquiry Account (ยิงตอนเข้าหน้านี้) — ใช้เป็นวันเริ่มต้นคำนวณกำหนดการ
+                                        // ScheduledNextDate จาก CBS Inquiry Account (ยิงตอนเข้าหน้านี้) — ใช้เป็นวันเริ่มต้นคำนวณกำหนดการ (แผนผ่อนชำระเท่านั้น)
                                         const scheduledNextDate = scheduledDates?.[acc.accountNo];
+                                        // วันหมดอายุจาก tbl_account_cus_target.expire_date — ใช้กับแผน Haircut เท่านั้น (ไม่ใช้ ScheduledNextDate)
+                                        const expireDate = detail.expireDate;
+                                        // แผน Haircut ที่เลยกำหนด expireDate แล้ว — เลือกไม่ได้ (การ์ดสีเทาเหมือน isRegistered)
+                                        const isExpired = isHaircut && isPastDate(expireDate);
+                                        const isRegistered = acc.isRegistered || isInquiryFailed || isExpired;
 
                                         return (
                                             <Grid item xs={12} key={plan.planNo}>
@@ -129,8 +134,14 @@ function SelectPlanView(props) {
                                                                     paymentAmount={paymentAmount}
                                                                     installmentTerms={installmentTerms}
                                                                     scheduledNextDate={scheduledNextDate}
+                                                                    expireDate={expireDate}
                                                                 />
                                                             </MKTypography>
+                                                            {isExpired && (
+                                                                <MKTypography variant="caption" color="error" fontWeight="bold" display="block" mt={0.5}>
+                                                                    เลยกำหนดวันที่ปิดบัญชีแล้ว กรุณาติดต่อสาขา หรือ MyMo Call Center 1143
+                                                                </MKTypography>
+                                                            )}
                                                         </MKBox>
                                                     </MKBox>
                                                 </Card>

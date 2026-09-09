@@ -11,15 +11,14 @@ const TEMPLATE_PATH = path.join(__dirname, '../../templates/loan_condition.templ
  */
 const augmentAccountsWithSchedule = (accounts) => {
     accounts.forEach((acc) => {
-        const schedule = calculateInstallmentSchedule(acc.scheduledNextDate, acc.installmentTerms);
-
         if (acc.isHaircut) {
-            // "ชำระภายในวันที่" ใช้ ScheduledNextDate ตรงๆ (ไม่บวกงวด)
-            if (!acc.endDate) acc.endDate = schedule.startDateDisplay;
-        } else {
-            if (!acc.startMonth) acc.startMonth = schedule.startDateDisplay;
-            if (!acc.endMonth) acc.endMonth = schedule.endDateDisplay;
+            // "ชำระภายในวันที่" ใช้ expireDate (tbl_account_cus_target.expire_date) ตรงๆ เท่านั้น
+            // (ดู augmentAccountsWithDbData) — ไม่ใช้ ScheduledNextDate จาก CBS แล้ว
+            return;
         }
+        const schedule = calculateInstallmentSchedule(acc.scheduledNextDate, acc.installmentTerms);
+        if (!acc.startMonth) acc.startMonth = schedule.startDateDisplay;
+        if (!acc.endMonth) acc.endMonth = schedule.endDateDisplay;
     });
     return accounts;
 };

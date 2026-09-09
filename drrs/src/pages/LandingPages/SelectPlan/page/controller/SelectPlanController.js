@@ -301,7 +301,9 @@ function SelectPlanController(props) {
                     interest: detail.interest || acc.interest || "",
                     isHaircut: isHaircut,
                     paymentAmount: detail.paymentAmount || detail.amount || detail.installmentAmount || "",
-                    endDate: detail.endDate || "",
+                    // ช่อง "ชำระภายในวันที่" ของแผน Haircut ใช้ expireDate (tbl_account_cus_target.expire_date)
+                    // ตรงๆ เท่านั้น — ไม่ใช้ ScheduledNextDate จาก CBS แล้ว
+                    expireDate: detail.expireDate || "",
                     startMonth: detail.startDate || "",
                     endMonth: detail.endDate || "",
                     installments: detail.installments || [],

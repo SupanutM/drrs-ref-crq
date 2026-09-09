@@ -59,8 +59,8 @@ const tblAccountCusTarget = new EntitySchema({
             type: "date",
             nullable: true
         },
-        endDate: {
-            name: "end_date",
+        expireDate: {
+            name: "expire_date",
             type: "date",
             nullable: true
         },

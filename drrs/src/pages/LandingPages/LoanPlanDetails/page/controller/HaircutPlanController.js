@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 
@@ -30,7 +30,7 @@ function HaircutPlanController(props) {
         setPaymentMethod(event.target.value);
     };
 
-    const handleAccept = async () => {
+    const handleAccept = useCallback(async () => {
         try {
             setIsLoading(true);
 
@@ -73,7 +73,7 @@ function HaircutPlanController(props) {
             setWarnMessage(errorMessage);
             setIsWarnModalOpen(true);
         }
-    };
+    }, [routerState]);
 
     const handleSuccessConfirm = () => {
         setIsLoading(true);
@@ -111,7 +111,7 @@ function HaircutPlanController(props) {
         if (onAcceptReady) {
             onAcceptReady({ handleAccept, isLoading });
         }
-    }, [isLoading]);
+    }, [isLoading, handleAccept, onAcceptReady]);
 
     return <HaircutPlanView state={viewState} handlers={handlers} />;
 }

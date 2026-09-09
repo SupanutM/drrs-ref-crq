@@ -290,10 +290,11 @@ const drawSummary = (doc, customerInfo, accounts) => {
                 .text('ท่านตกลงชำระหนี้ให้ธนาคารทั้งหมดในงวดสุดท้าย', CONTENT_LEFT, doc.y, { width: CONTENT_WIDTH });
             doc.moveDown(0.4);
         } else {
-            // แผนปิดบัญชี (Haircut) — "ชำระภายในวันที่" ใช้ ScheduledNextDate ตรงๆ (ไม่บวกงวด)
+            // แผนปิดบัญชี (Haircut) — "ชำระภายในวันที่" ใช้ expireDate (tbl_account_cus_target.expire_date)
+            // ตรงๆ เท่านั้น (ดู augmentAccountsWithDbData) — ไม่ใช้ ScheduledNextDate จาก CBS แล้ว
             drawKeyValueTable(doc, [
                 ['ยอดปิดบัญชี', num(acc.paymentAmount)],
-                ['ชำระภายในวันที่', safe(acc.endDate || schedule.startDateDisplay)],
+                ['ชำระภายในวันที่', safe(acc.expireDate)],
             ]);
             doc.moveDown(0.4);
         }

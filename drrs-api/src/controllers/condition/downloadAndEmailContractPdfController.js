@@ -80,7 +80,9 @@ const generateContractController = async (req, res) => {
                         isHaircut: !!acc.isHaircut,
                         paymentAmount: acc.paymentAmount,
                         installmentTerms: acc.installmentTerms,
-                        scheduledNextDate: acc.scheduledNextDate,
+                        // แผน Haircut: Plan1ExpireDate ใช้ expire_date จาก tbl_account_cus_target
+                        // (acc.expireDateRaw, YYYYMMDD — ดู augmentAccountsWithDbData) ไม่ใช่ ScheduledNextDate จาก CBS แล้ว
+                        expireDate: acc.expireDateRaw,
                     });
 
                     if (regResult.success) {

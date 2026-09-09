@@ -3,6 +3,7 @@ const { AppDataSource } = require('../../config/database');
 const tblCusTarget = require('../../entities/tblCusTarget');
 const tblAccountCusTarget = require('../../entities/tblAccountCusTarget');
 const tblMtMasterPlan = require('../../entities/tblMtMasterPlan');
+const { parseCbsDate } = require('../../utils/calculateInstallmentSchedule');
 const baseLogger = require('../../utils/logger');
 const logger = baseLogger.child({ context: 'targetDataImportService' });
 
@@ -56,6 +57,12 @@ const toIntOrNull = (value) => {
     if (value === '' || value == null) return null;
     const num = parseInt(value, 10);
     return Number.isFinite(num) ? num : null;
+};
+
+// วันที่หมดอายุจากไฟล์ import รูปแบบ YYYYMMDD (เช่น "20260908") — ใช้ parser เดียวกับ CBS
+const toDateOrNull = (value) => {
+    if (value === '' || value == null) return null;
+    return parseCbsDate(value);
 };
 
 /**
@@ -134,8 +141,10 @@ const importCustomer = async (buffer, adminUsername) => {
 
 /**
  * Import "ข้อมูลบัญชี" (ไฟล์ที่ 2) เข้า tbl_account_cus_target
- * ตำแหน่งคอลัมน์ (ไม่มี header): [ACCOUNT_NO, CIF_NO, PLAN_NO, PAYMENT_AMOUNT, INSTALLMENT_TERMS]
+ * ตำแหน่งคอลัมน์ (ไม่มี header): [ACCOUNT_NO, CIF_NO, PLAN_NO, PAYMENT_AMOUNT, INSTALLMENT_TERMS, EXPIRE_DATE]
  * ตัวอย่าง: 800000074545|5004|1|30000.00| , 800000074545|5004|2|600.00|12
+ * ตัวอย่างพร้อมวันหมดอายุ (ไฟล์ U_DRRS_ACCOUNT_TARGET_YYYYMMDD.csv): 800002836745|1234|1|1500|12|20260908
+ * EXPIRE_DATE เป็น optional (คอลัมน์ที่ 6) รูปแบบ YYYYMMDD — ไม่มีคอลัมน์นี้ก็ import ได้ตามปกติ (เป็น null)
  *
  * เชื่อมกับลูกค้าด้วย CIF_NO (ไม่ใช่ CITIZEN_ID แบบเดิม) — ต้อง import ไฟล์ข้อมูลลูกค้าก่อนเสมอ
  * นโยบาย: soft-delete แถวเดิมทั้งหมดแล้ว insert แถวจากไฟล์เป็นแถวใหม่ทั้งหมด (เหมือนไฟล์ลูกค้า)
@@ -151,7 +160,7 @@ const importAccount = async (buffer, adminUsername) => {
     const mappedRows = [];
 
     rows.forEach(({ rowNumber, columns }) => {
-        const [accountNo, cifNo, planNo, paymentAmount, installmentTerms] = columns;
+        const [accountNo, cifNo, planNo, paymentAmount, installmentTerms, expireDate] = columns;
         if (!accountNo || !cifNo || !planNo) {
             errors.push(`แถวที่ ${rowNumber}: ข้อมูลไม่ครบ (ต้องมี 3 คอลัมน์แรก: ACCOUNT_NO, CIF_NO, PLAN_NO)`);
             return;
@@ -163,6 +172,7 @@ const importAccount = async (buffer, adminUsername) => {
             planNo,
             paymentAmount: toNumericOrNull(paymentAmount),
             installmentTerms: toIntOrNull(installmentTerms),
+            expireDate: toDateOrNull(expireDate),
         });
     });
 
@@ -185,7 +195,7 @@ const importAccount = async (buffer, adminUsername) => {
         const customerByCifNo = new Map(activeCustomers.map((c) => [c.cifNo, c]));
 
         const newRows = [];
-        mappedRows.forEach(({ rowNumber, accountNo, cifNo, planNo, paymentAmount, installmentTerms }) => {
+        mappedRows.forEach(({ rowNumber, accountNo, cifNo, planNo, paymentAmount, installmentTerms, expireDate }) => {
             const customer = customerByCifNo.get(cifNo);
             if (!customer) {
                 errors.push(`แถวที่ ${rowNumber}: ไม่พบลูกค้า CIF_NO=${cifNo} (ต้อง import ไฟล์ข้อมูลลูกค้าก่อน)`);
@@ -197,6 +207,7 @@ const importAccount = async (buffer, adminUsername) => {
                 planNo,
                 paymentAmount,
                 installmentTerms,
+                expireDate,
                 maxAmount: null, // ไฟล์ import ไม่มีคอลัมน์นี้ — ไม่มีค่า ให้เป็น null ไม่ใช่ 0
                 status: '1',
                 createdBy: adminUsername,

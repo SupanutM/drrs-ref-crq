@@ -4,7 +4,7 @@ const tblAccountInstallment = require('../entities/tblAccountInstallment');
 const tblCusTarget = require('../entities/tblCusTarget');
 const tblAccountCusTarget = require('../entities/tblAccountCusTarget');
 const { inquiryAccountService } = require('../services/register/inquiryAccountService');
-const { formatThaiFullDate } = require('./calculateInstallmentSchedule');
+const { formatThaiFullDate, formatYYYYMMDD, parseDbDate } = require('./calculateInstallmentSchedule');
 const baseLogger = require('./logger');
 const logger = baseLogger.child({ context: 'contractHelper' });
 
@@ -20,6 +20,22 @@ const augmentAccountsWithDbData = async (accounts) => {
             if (resDb && resDb.length > 0) {
                 acc.paymentAmount = resDb[0].amount;
             }
+
+            // "ชำระภายในวันที่" ของแผน Haircut ใช้ expire_date จาก tbl_account_cus_target ตรงๆ เท่านั้น
+            // (ไม่ใช้ ScheduledNextDate จาก CBS อีกต่อไป) — ดึงจาก DB เอง ไม่เชื่อค่าที่ frontend ส่งมา
+            // เก็บทั้งข้อความไทย (แสดงบน PDF/หน้าเว็บ) และ YYYYMMDD ดิบ (ยิงไป CBS Register Digitalloan
+            // เป็น Plan1ExpireDate — ดู registerDigitalLoanService)
+            const planWhere = { accountNo: acc.accountNo, status: '1' };
+            if (acc.planNo) planWhere.planNo = acc.planNo;
+            const accountTarget = await AppDataSource.getRepository(tblAccountCusTarget).find({
+                select: { expireDate: true },
+                where: planWhere,
+                order: { createdDate: "DESC" },
+                take: 1
+            });
+            const expireDateParsed = (accountTarget && accountTarget.length > 0) ? parseDbDate(accountTarget[0].expireDate) : null;
+            acc.expireDate = formatThaiFullDate(expireDateParsed);
+            acc.expireDateRaw = formatYYYYMMDD(expireDateParsed);
         } else {
             const resDb = await AppDataSource.getRepository(tblAccountInstallment).find({
                 select: { installmentAmount: true, installmentTerm: true },

@@ -49,7 +49,7 @@ function AdminTargetImportView({ state, handlers }) {
         />
         <AdminFileUploadRow
           label="ข้อมูลบัญชี"
-          hint="ลำดับคอลัมน์: ACCOUNT_NO | CIF_NO | PLAN_NO | PAYMENT_AMOUNT | INSTALLMENT_TERMS"
+          hint="ลำดับคอลัมน์: ACCOUNT_NO | CIF_NO | PLAN_NO | PAYMENT_AMOUNT | INSTALLMENT_TERMS | EXPIRE_DATE (YYYYMMDD, ไม่บังคับ)"
           file={files.account}
           onFileChange={(f) => handleFileChange("account", f)}
           result={results.account}

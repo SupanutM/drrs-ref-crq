@@ -39,9 +39,10 @@ const logger = baseLogger.child({ context: 'registerDigitalLoanService' });
  * @param {boolean} params.isHaircut - true = แผนปิดบัญชี (TargetPlan "1"), false = แผนผ่อนชำระ (TargetPlan "2")
  * @param {number|string} [params.paymentAmount] - แผน 1: ยอดปิดบัญชี (Plan1Balance) / แผน 2: ยอดผ่อนต่องวด (Plan2PaymentAmt)
  * @param {number|string} [params.installmentTerms] - แผน 2: จำนวนงวด (เดือน) -> Plan2Month
- * @param {string} [params.scheduledNextDate] - แผน 1: วันที่ครบกำหนด (YYYYMMDD จาก CBS ScheduledNextDate) -> Plan1ExpireDate
+ * @param {string} [params.expireDate] - แผน 1: วันที่ครบกำหนด (YYYYMMDD จาก tbl_account_cus_target.expire_date) -> Plan1ExpireDate
+ *   (ไม่ใช้ ScheduledNextDate จาก CBS Inquiry แล้ว — ตัดสินใจ 2026-09-08)
  */
-const registerDigitalLoanService = async ({ accountNo, isHaircut, paymentAmount, installmentTerms, scheduledNextDate }) => {
+const registerDigitalLoanService = async ({ accountNo, isHaircut, paymentAmount, installmentTerms, expireDate }) => {
     try {
         const accessToken = await getAccessToken();
 
@@ -60,7 +61,7 @@ const registerDigitalLoanService = async ({ accountNo, isHaircut, paymentAmount,
             // CBS ต้องการ TargetPlan แค่ 1 หลัก ("1"/"2") แม้ในระบบ DRRS จะเก็บเป็น "01"/"02"
             TargetPlan: isHaircut ? '1' : '2',
             Plan1Balance: isHaircut ? String(paymentAmount ?? '') : '',
-            Plan1ExpireDate: isHaircut ? (scheduledNextDate || '') : '',
+            Plan1ExpireDate: isHaircut ? (expireDate || '') : '',
             Plan2PaymentAmt: !isHaircut ? String(paymentAmount ?? '') : '',
             // Plan2Month ต้องเป็นเลขจำนวนเต็ม (number) ไม่ใช่ string — ต่างจาก field อื่นที่เป็น string ทั้งหมด
             Plan2Month: !isHaircut ? (parseInt(installmentTerms, 10) || 0) : '',
