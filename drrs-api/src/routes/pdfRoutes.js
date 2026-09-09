@@ -5,9 +5,10 @@ const downloadAndEmailContractPdfController = require('../controllers/condition/
 const previewContractHtmlController = require('../controllers/condition/previewContractHtmlController');
 const { systemLogMiddleware } = require('../utils/systemLogMiddleware');
 const { authMiddleware } = require('../middleware/authMiddleware');
+const { checkSystemOpenMiddleware } = require('../middleware/checkSystemOpenMiddleware');
 
-router.post('/generate-pdf', authMiddleware, systemLogMiddleware('GEN_CONTRACT', 'pdfController'), downloadConditionPdfController.generatePdfController);
-router.post('/generate-contract', authMiddleware, downloadAndEmailContractPdfController.generateContractController);
-router.post('/preview-contract-html', authMiddleware, previewContractHtmlController.previewContractHtmlController);
+router.post('/generate-pdf', checkSystemOpenMiddleware, authMiddleware, systemLogMiddleware('GEN_CONTRACT', 'pdfController'), downloadConditionPdfController.generatePdfController);
+router.post('/generate-contract', checkSystemOpenMiddleware, authMiddleware, downloadAndEmailContractPdfController.generateContractController);
+router.post('/preview-contract-html', checkSystemOpenMiddleware, authMiddleware, previewContractHtmlController.previewContractHtmlController);
 
 module.exports = router;
