@@ -150,6 +150,10 @@ const importCustomer = async (buffer, adminUsername) => {
  * PLAN_NO: '1' = ปิดบัญชี, '2' = ผ่อนชำระ
  * เชื่อมกับลูกค้าด้วย CIF_NO (ไม่ใช่ CITIZEN_ID แบบเดิม) — ต้อง import ไฟล์ข้อมูลลูกค้าก่อนเสมอ
  *
+ * ★ แบบ delta (ไม่ใช่ full-refresh): soft-delete "เฉพาะ" บัญชี+แผน (account_no + plan_no) ที่มีในไฟล์
+ *   รอบนี้เท่านั้น แล้วแทนด้วยแถวใหม่ — บัญชี/แผนที่ไม่ได้อยู่ในไฟล์รอบนี้ "ไม่ถูกแตะ" (คงข้อมูลเดิมไว้)
+ *   (ต่างจากไฟล์ลูกค้า importCustomer ที่ยังเป็น full-refresh ปิดของเก่าทั้งหมด)
+ *
  * การตัดสินใจทำแบบ "รายแถว" จับคู่ของเก่ากับของใหม่ด้วย key = account_no + plan_no
  * เรียงลำดับความสำคัญของเงื่อนไข "คงของเก่าไว้ (skip ไม่ import ใหม่ แค่แตะ update_date/update_by)":
  *   1) skip (send to CBS success) — บัญชีนั้นมี tbl_settings_step.step_send_to_cbs = '1'
@@ -250,7 +254,7 @@ const importAccount = async (buffer, adminUsername) => {
         const newRows = [];            // แถวที่จะ insert ใหม่
         const skipCbsIds = new Set();  // id แถวเดิมที่ skip เพราะส่ง CBS แล้ว -> แตะ update_date/by
         const skipExpiredIds = new Set(); // id แถวเดิมที่ skip เพราะแผน1 ยังไม่หมดอายุ -> แตะ update_date/by
-        const keepKeys = new Set();    // key ของแถวเดิมที่ต้องคงไว้ (ไม่ soft-delete)
+        const replacedOldIds = new Set(); // id แถวเดิมที่ถูกไฟล์รอบนี้แทนที่ (key เดียวกัน) -> soft-delete
         // นับแยกตามแผนเพื่อ audit: { [planNo]: { inserted, skipCbs, skipExpired } }
         const planStats = {};
         const bumpStat = (planNo, field) => {
@@ -267,7 +271,6 @@ const importAccount = async (buffer, adminUsername) => {
                 if (protectedAccountSet.has(row.accountNo)) {
                     if (existing) {
                         skipCbsIds.add(existing.id);
-                        keepKeys.add(key);
                     }
                     bumpStat(planNo, 'skipCbs');
                     continue;
@@ -278,13 +281,16 @@ const importAccount = async (buffer, adminUsername) => {
                     const oldExpire = parseDbDate(existing.expireDate);
                     if (oldExpire && oldExpire > today) {
                         skipExpiredIds.add(existing.id);
-                        keepKeys.add(key);
                         bumpStat(planNo, 'skipExpired');
                         continue;
                     }
                 }
 
-                // นอกเหนือจากนั้น — insert แถวใหม่จากไฟล์ (ของเก่า key เดียวกันจะถูก soft-delete)
+                // นอกเหนือจากนั้น — insert แถวใหม่จากไฟล์ + soft-delete ของเก่า "key เดียวกัน" (ถ้ามี)
+                // สำคัญ: ปิดเฉพาะบัญชี+แผนที่อยู่ในไฟล์รอบนี้เท่านั้น บัญชีอื่นที่ไม่อยู่ในไฟล์ไม่ถูกแตะ
+                if (existing) {
+                    replacedOldIds.add(existing.id);
+                }
                 newRows.push({
                     cusTargetId: row.cusTargetId,
                     accountNo: row.accountNo,
@@ -301,18 +307,20 @@ const importAccount = async (buffer, adminUsername) => {
             }
         }
 
-        // soft-delete แถวเดิมที่ active อยู่ ยกเว้นแถวที่ต้องคงไว้ (skip CBS / skip not-expired)
-        const keepIds = [...skipCbsIds, ...skipExpiredIds];
-        const deleteQuery = accRepo
-            .createQueryBuilder()
-            .update()
-            .set({ status: '0', deleteDate: () => 'CURRENT_TIMESTAMP', deleteBy: adminUsername })
-            .where('status = :status', { status: '1' });
-        if (keepIds.length > 0) {
-            deleteQuery.andWhere('id NOT IN (:...keepIds)', { keepIds });
+        // soft-delete "เฉพาะ" แถวเดิมที่ถูกไฟล์รอบนี้แทนที่ (key = account_no + plan_no ตรงกับในไฟล์)
+        // แบบ delta: บัญชี/แผนที่ไม่ได้อยู่ในไฟล์รอบนี้ จะไม่ถูกปิดใช้งาน (คงข้อมูลเดิมไว้)
+        const replacedIds = [...replacedOldIds];
+        let deleted = 0;
+        if (replacedIds.length > 0) {
+            const deleteResult = await accRepo
+                .createQueryBuilder()
+                .update()
+                .set({ status: '0', deleteDate: () => 'CURRENT_TIMESTAMP', deleteBy: adminUsername })
+                .where('status = :status', { status: '1' })
+                .andWhere('id IN (:...replacedIds)', { replacedIds })
+                .execute();
+            deleted = deleteResult.affected ?? 0;
         }
-        const deleteResult = await deleteQuery.execute();
-        const deleted = deleteResult.affected ?? 0;
 
         const BATCH_SIZE = 1000;
         for (let i = 0; i < newRows.length; i += BATCH_SIZE) {
@@ -321,13 +329,14 @@ const importAccount = async (buffer, adminUsername) => {
 
         // แถวเดิมที่ถูก skip (คงไว้) — แตะ update_date/update_by เพื่อบันทึกว่ามีไฟล์ import ส่งซ้ำเข้ามา
         // (ไม่แก้ค่าข้อมูลบัญชีเดิม แค่ประทับเวลาว่ามีคนพยายาม import ทับ)
+        const skippedIds = [...skipCbsIds, ...skipExpiredIds];
         let updated = 0;
-        if (keepIds.length > 0) {
+        if (skippedIds.length > 0) {
             const updateResult = await accRepo
                 .createQueryBuilder()
                 .update()
                 .set({ updateDate: () => 'CURRENT_TIMESTAMP', updateBy: adminUsername })
-                .where('id IN (:...keepIds)', { keepIds })
+                .where('id IN (:...skippedIds)', { skippedIds })
                 .execute();
             updated = updateResult.affected ?? 0;
         }
