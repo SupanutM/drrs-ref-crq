@@ -6,6 +6,17 @@ const { getAccessToken } = require('./getAccessTokenService');
 const logger = baseLogger.child({ context: 'registerDigitalLoanService' });
 
 /**
+ * แปลงยอดเงินให้เป็น string ทศนิยม 2 ตำแหน่งเสมอตาม spec CBS (เช่น 1500 -> "1500.00", 600.5 -> "600.50")
+ * ถ้าไม่มีค่า (null/undefined/ว่าง) หรือแปลงเป็นตัวเลขไม่ได้ ให้ส่งค่าว่าง "" ตามที่ CBS ต้องการสำหรับ
+ * field ของแผนที่ไม่ได้เลือก
+ */
+const formatAmount2 = (value) => {
+    if (value === '' || value == null) return '';
+    const num = Number(value);
+    return Number.isFinite(num) ? num.toFixed(2) : '';
+};
+
+/**
  * เรียก CBS Register Digitalloan API (CBS_REGIS_DIGITALLOAN_URL) เพื่อลงทะเบียนแผนปรับโครงสร้างหนี้
  * ที่ลูกค้ายอมรับแล้วกับ CBS จริง (ยิงตอน "ยอมรับสัญญา" เท่านั้น)
  * ลำดับการยิง: ขอ access token จาก SSO ก่อน (getAccessToken) แล้วแนบ Authorization Bearer ยิงต่อ
@@ -60,9 +71,10 @@ const registerDigitalLoanService = async ({ accountNo, isHaircut, paymentAmount,
             AccountNumber: accountNo,
             // CBS ต้องการ TargetPlan แค่ 1 หลัก ("1"/"2") แม้ในระบบ DRRS จะเก็บเป็น "01"/"02"
             TargetPlan: isHaircut ? '1' : '2',
-            Plan1Balance: isHaircut ? String(paymentAmount ?? '') : '',
+            // ยอดเงินต้องเป็นทศนิยม 2 ตำแหน่งเสมอตาม spec CBS (เช่น "1500.00") — ดู formatAmount2
+            Plan1Balance: isHaircut ? formatAmount2(paymentAmount) : '',
             Plan1ExpireDate: isHaircut ? (expireDate || '') : '',
-            Plan2PaymentAmt: !isHaircut ? String(paymentAmount ?? '') : '',
+            Plan2PaymentAmt: !isHaircut ? formatAmount2(paymentAmount) : '',
             // Plan2Month ต้องเป็นเลขจำนวนเต็ม (number) ไม่ใช่ string — ต่างจาก field อื่นที่เป็น string ทั้งหมด
             Plan2Month: !isHaircut ? (parseInt(installmentTerms, 10) || 0) : '',
         };

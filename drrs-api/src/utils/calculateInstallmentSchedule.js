@@ -133,6 +133,7 @@ module.exports = {
     parseDbDate,
     formatThaiFullDate,
     formatYYYYMMDD,
+    nowBangkokDateOnly,
     isPastDate,
     calculateInstallmentSchedule,
 };
