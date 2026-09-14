@@ -11,7 +11,7 @@ import MKAlert from "components/MKAlert";
 import AdminFileUploadRow from "components/AdminFileUploadRow";
 
 function AdminTargetImportView({ state, handlers }) {
-  const { files, results, isAlert, alertMsg, alertType, isLoading } = state;
+  const { files, results, isAlert, alertMsg, alertType, isLoading, resetKey } = state;
   const { handleFileChange, handleSubmit } = handlers;
 
   const hasAnyFile = !!(files.customer || files.account || files.plan);
@@ -46,6 +46,7 @@ function AdminTargetImportView({ state, handlers }) {
           file={files.customer}
           onFileChange={(f) => handleFileChange("customer", f)}
           result={results.customer}
+          resetKey={resetKey}
         />
         <AdminFileUploadRow
           label="ข้อมูลบัญชี"
@@ -53,6 +54,7 @@ function AdminTargetImportView({ state, handlers }) {
           file={files.account}
           onFileChange={(f) => handleFileChange("account", f)}
           result={results.account}
+          resetKey={resetKey}
         />
         <AdminFileUploadRow
           label="ข้อมูลแผน"
@@ -60,6 +62,7 @@ function AdminTargetImportView({ state, handlers }) {
           file={files.plan}
           onFileChange={(f) => handleFileChange("plan", f)}
           result={results.plan}
+          resetKey={resetKey}
         />
 
         <MKBox mt={3} textAlign="right">
@@ -89,6 +92,7 @@ AdminTargetImportView.propTypes = {
     alertMsg: PropTypes.string.isRequired,
     alertType: PropTypes.string.isRequired,
     isLoading: PropTypes.bool.isRequired,
+    resetKey: PropTypes.number,
   }).isRequired,
   handlers: PropTypes.shape({
     handleFileChange: PropTypes.func.isRequired,

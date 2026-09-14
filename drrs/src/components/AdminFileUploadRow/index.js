@@ -13,7 +13,7 @@ import MKButton from "components/MKButton";
  * แถวเลือกไฟล์ .xlsx 1 ไฟล์ พร้อมแสดงชื่อไฟล์ที่เลือกและผลลัพธ์ import (ถ้ามี)
  * ใช้ร่วมกันทั้งหน้า MasterImport (จังหวัด/อำเภอ/ตำบล) และ TargetImport (ลูกค้า/บัญชี/แผน)
  */
-function AdminFileUploadRow({ label, hint, file, onFileChange, result }) {
+function AdminFileUploadRow({ label, hint, file, onFileChange, result, resetKey }) {
   const inputId = `file-input-${label}`;
 
   return (
@@ -47,6 +47,9 @@ function AdminFileUploadRow({ label, hint, file, onFileChange, result }) {
           >
             {file ? "เปลี่ยนไฟล์" : "เลือกไฟล์ .xlsx / .csv"}
             <input
+              // key ผูกกับ resetKey เพื่อ remount input หลัง import เสร็จ — ล้างค่าไฟล์ใน DOM
+              // ให้เลือกไฟล์ชื่อเดิมซ้ำได้และ trigger onChange อีกครั้ง
+              key={resetKey}
               id={inputId}
               type="file"
               accept=".xlsx,.csv"
@@ -90,6 +93,7 @@ AdminFileUploadRow.defaultProps = {
   hint: "",
   file: null,
   result: null,
+  resetKey: 0,
 };
 
 AdminFileUploadRow.propTypes = {
@@ -104,6 +108,7 @@ AdminFileUploadRow.propTypes = {
       errors: PropTypes.arrayOf(PropTypes.string),
     }),
   }),
+  resetKey: PropTypes.number,
 };
 
 export default AdminFileUploadRow;

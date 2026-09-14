@@ -1,8 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 import * as AdminMasterImportService from "../services/AdminMasterImportService";
 import AdminMasterImportView from "../view/AdminMasterImportView";
 import LoadingComponent from "components/Loading/LoadingComponent";
+
+// เวลาที่แถบแจ้งเตือน "สำเร็จ" ค้างบนจอก่อนปิดเอง (ms) — กันข้อความค้างจนต้อง refresh หน้า
+const ALERT_AUTO_DISMISS_MS = 5000;
 
 function AdminMasterImportController() {
   const [files, setFiles] = useState({ province: null, district: null, subDistrict: null });
@@ -11,6 +14,21 @@ function AdminMasterImportController() {
   const [alertMsg, setAlertMsg] = useState("");
   const [alertType, setAlertType] = useState("error");
   const [isLoading, setIsLoading] = useState(false);
+  // เพิ่มค่านี้ทุกครั้งที่ import เสร็จ เพื่อบังคับ remount <input type=file> (uncontrolled) ให้เคลียร์
+  // ค่าใน DOM ด้วย — ไม่งั้นเลือกไฟล์ "ชื่อเดิม" ซ้ำจะไม่ trigger onChange
+  const [resetKey, setResetKey] = useState(0);
+
+  // ปิดแถบแจ้งเตือน "สำเร็จ" + เคลียร์ chip ผลลัพธ์รายไฟล์เองหลังผ่านไป ALERT_AUTO_DISMISS_MS
+  // (จอกลับเป็นว่างพร้อมกันหมด) — ไม่งั้นข้อความค้างจนต้อง refresh หน้า
+  // เตือนแบบ error/warning ปล่อยค้างไว้ให้ user อ่าน (ปิดเองด้วยปุ่ม × เท่านั้น)
+  useEffect(() => {
+    if (!isAlert || alertType !== "success") return undefined;
+    const timer = setTimeout(() => {
+      setIsAlert(false);
+      setResults({});
+    }, ALERT_AUTO_DISMISS_MS);
+    return () => clearTimeout(timer);
+  }, [isAlert, alertType]);
 
   const handleFileChange = (key, file) => {
     setFiles((prev) => ({ ...prev, [key]: file }));
@@ -30,6 +48,11 @@ function AdminMasterImportController() {
       const res = await AdminMasterImportService.importFiles(files);
       setResults(res.data || {});
 
+      // เคลียร์ไฟล์ที่เลือกหลัง import จบ + remount input (ล้างค่าใน DOM) กัน user งง/กดซ้ำ
+      // ผลลัพธ์ (results) ยังแสดงอยู่ให้ตรวจว่านำเข้าอะไรไปเท่าไหร่
+      setFiles({ province: null, district: null, subDistrict: null });
+      setResetKey((k) => k + 1);
+
       if (res.success) {
         setIsAlert(true);
         setAlertType("success");
@@ -48,7 +71,7 @@ function AdminMasterImportController() {
     }
   };
 
-  const state = { files, results, isAlert, alertMsg, alertType, isLoading };
+  const state = { files, results, isAlert, alertMsg, alertType, isLoading, resetKey };
   const handlers = { handleFileChange, handleSubmit };
 
   return (
