@@ -80,6 +80,7 @@ function ConsentView(props) {
                                     sx={{
                                         display: "flex",
                                         alignItems: "center",
+                                        justifyContent: "center",
                                         ml: 0,
                                         width: "100%",
                                         "& .MuiFormControlLabel-label": {
