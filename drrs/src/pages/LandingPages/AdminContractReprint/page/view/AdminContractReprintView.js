@@ -149,82 +149,158 @@ function AdminContractReprintView({ state, handlers }) {
         </Grid>
 
         {results.length > 0 && (
-          <MKBox component={Paper} sx={{ border: "1px solid #e0e0e0", borderRadius: "8px", overflow: "hidden" }}>
-            {/* หัวตาราง — ใช้ CSS Grid คอลัมน์เดียวกับทุกแถวข้อมูลด้านล่าง (GRID_COLUMNS ตัวเดียวกัน)
-                การันตีว่าหัวตารางตรงกับข้อมูลเสมอ ไม่ว่าเนื้อหาแต่ละคอลัมน์จะสั้น/ยาวแค่ไหน */}
+          <>
+            {/* จอ md ขึ้นไป: ตาราง CSS Grid แบบเดิม (คอลัมน์กว้างพอ อ่านง่าย) */}
             <MKBox
+              component={Paper}
               sx={{
-                display: "grid",
-                gridTemplateColumns: GRID_COLUMNS,
-                backgroundColor: "#f8f9fa",
-                borderBottom: "1px solid #e0e0e0",
-                px: 2,
-                py: 1.2,
+                display: { xs: "none", md: "block" },
+                border: "1px solid #e0e0e0",
+                borderRadius: "8px",
+                overflow: "hidden",
               }}
             >
-              <MKTypography variant="button" fontWeight="bold" color="dark" textAlign="center">
-                วันที่สร้างสัญญา
-              </MKTypography>
-              <MKTypography variant="button" fontWeight="bold" color="dark" textAlign="center">
-                ชื่อลูกค้า
-              </MKTypography>
-              <MKTypography variant="button" fontWeight="bold" color="dark" textAlign="center">
-                ชื่อไฟล์
-              </MKTypography>
-              <MKTypography variant="button" fontWeight="bold" color="dark" textAlign="center">
-                บัญชี / แผน
-              </MKTypography>
-              <MKTypography variant="button" fontWeight="bold" color="dark" textAlign="center">
-                ดำเนินการ
-              </MKTypography>
-            </MKBox>
-
-            {/* แถวข้อมูล — gridTemplateColumns เดียวกับหัวตารางเป๊ะๆ */}
-            {pagedResults.map((row, index) => (
+              {/* หัวตาราง — ใช้ CSS Grid คอลัมน์เดียวกับทุกแถวข้อมูลด้านล่าง (GRID_COLUMNS ตัวเดียวกัน)
+                  การันตีว่าหัวตารางตรงกับข้อมูลเสมอ ไม่ว่าเนื้อหาแต่ละคอลัมน์จะสั้น/ยาวแค่ไหน */}
               <MKBox
-                key={row.contractFileId}
                 sx={{
                   display: "grid",
                   gridTemplateColumns: GRID_COLUMNS,
-                  alignItems: "center",
+                  backgroundColor: "#f8f9fa",
+                  borderBottom: "1px solid #e0e0e0",
                   px: 2,
                   py: 1.2,
-                  borderBottom: index < pagedResults.length - 1 ? "1px solid #f0f0f0" : "none",
                 }}
               >
-                <MKTypography variant="body2" textAlign="center">
-                  {formatThaiDate(row.createdDate, "-")}
+                <MKTypography variant="button" fontWeight="bold" color="dark" textAlign="center">
+                  วันที่สร้างสัญญา
                 </MKTypography>
-                <MKTypography variant="body2" sx={{ wordBreak: "break-word" }}>
-                  {row.customerName || "-"}
+                <MKTypography variant="button" fontWeight="bold" color="dark" textAlign="center">
+                  ชื่อลูกค้า
                 </MKTypography>
-                <MKTypography variant="body2" sx={{ wordBreak: "break-word" }}>
-                  {row.fileName}
+                <MKTypography variant="button" fontWeight="bold" color="dark" textAlign="center">
+                  ชื่อไฟล์
                 </MKTypography>
-                <MKBox>
-                  {row.accounts.map((acc) => (
-                    <Chip
-                      key={`${row.contractFileId}-${acc.accountNo}-${acc.planNo}`}
+                <MKTypography variant="button" fontWeight="bold" color="dark" textAlign="center">
+                  บัญชี / แผน
+                </MKTypography>
+                <MKTypography variant="button" fontWeight="bold" color="dark" textAlign="center">
+                  ดำเนินการ
+                </MKTypography>
+              </MKBox>
+
+              {/* แถวข้อมูล — gridTemplateColumns เดียวกับหัวตารางเป๊ะๆ */}
+              {pagedResults.map((row, index) => (
+                <MKBox
+                  key={row.contractFileId}
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: GRID_COLUMNS,
+                    alignItems: "center",
+                    px: 2,
+                    py: 1.2,
+                    borderBottom: index < pagedResults.length - 1 ? "1px solid #f0f0f0" : "none",
+                  }}
+                >
+                  <MKTypography variant="body2" textAlign="center">
+                    {formatThaiDate(row.createdDate, "-")}
+                  </MKTypography>
+                  <MKTypography variant="body2" sx={{ wordBreak: "break-word" }}>
+                    {row.customerName || "-"}
+                  </MKTypography>
+                  <MKTypography variant="body2" sx={{ wordBreak: "break-word" }}>
+                    {row.fileName}
+                  </MKTypography>
+                  <MKBox>
+                    {row.accounts.map((acc) => (
+                      <Chip
+                        key={`${row.contractFileId}-${acc.accountNo}-${acc.planNo}`}
+                        size="small"
+                        label={`${acc.accountNo} (แผน ${acc.planNo})`}
+                        sx={{ mr: 0.5, mb: 0.5 }}
+                      />
+                    ))}
+                  </MKBox>
+                  <MKBox textAlign="center">
+                    <MKButton
+                      variant="outlined"
+                      color="info"
                       size="small"
-                      label={`${acc.accountNo} (แผน ${acc.planNo})`}
-                      sx={{ mr: 0.5, mb: 0.5 }}
-                    />
-                  ))}
+                      onClick={() => handleDownload(row.contractFileId)}
+                      disabled={downloadingId === row.contractFileId}
+                    >
+                      {downloadingId === row.contractFileId ? "กำลังดาวน์โหลด..." : "ดาวน์โหลด PDF"}
+                    </MKButton>
+                  </MKBox>
                 </MKBox>
-                <MKBox textAlign="center">
+              ))}
+            </MKBox>
+
+            {/* จอมือถือ (ต่ำกว่า md): แสดงเป็นการ์ดทีละแถว แทนตาราง CSS Grid ที่คอลัมน์บี้กันจนอ่านไม่ออก
+                ข้อมูลชุดเดียวกับตารางด้านบน แค่สลับการจัดวางเป็นแนวตั้ง (label ซ้าย ค่าขวา) */}
+            <MKBox sx={{ display: { xs: "block", md: "none" } }}>
+              {pagedResults.map((row) => (
+                <MKBox
+                  key={row.contractFileId}
+                  component={Paper}
+                  sx={{
+                    border: "1px solid #e0e0e0",
+                    borderRadius: "8px",
+                    p: 2,
+                    mb: 1.5,
+                  }}
+                >
+                  <MKBox display="flex" justifyContent="space-between" mb={1}>
+                    <MKTypography variant="caption" color="text">
+                      วันที่สร้างสัญญา
+                    </MKTypography>
+                    <MKTypography variant="body2" fontWeight="medium">
+                      {formatThaiDate(row.createdDate, "-")}
+                    </MKTypography>
+                  </MKBox>
+                  <MKBox mb={1}>
+                    <MKTypography variant="caption" color="text">
+                      ชื่อลูกค้า
+                    </MKTypography>
+                    <MKTypography variant="body2" sx={{ wordBreak: "break-word" }}>
+                      {row.customerName || "-"}
+                    </MKTypography>
+                  </MKBox>
+                  <MKBox mb={1}>
+                    <MKTypography variant="caption" color="text">
+                      ชื่อไฟล์
+                    </MKTypography>
+                    <MKTypography variant="body2" sx={{ wordBreak: "break-word" }}>
+                      {row.fileName}
+                    </MKTypography>
+                  </MKBox>
+                  <MKBox mb={1.5}>
+                    <MKTypography variant="caption" color="text" display="block" mb={0.5}>
+                      บัญชี / แผน
+                    </MKTypography>
+                    {row.accounts.map((acc) => (
+                      <Chip
+                        key={`${row.contractFileId}-${acc.accountNo}-${acc.planNo}`}
+                        size="small"
+                        label={`${acc.accountNo} (แผน ${acc.planNo})`}
+                        sx={{ mr: 0.5, mb: 0.5 }}
+                      />
+                    ))}
+                  </MKBox>
                   <MKButton
                     variant="outlined"
                     color="info"
                     size="small"
+                    fullWidth
                     onClick={() => handleDownload(row.contractFileId)}
                     disabled={downloadingId === row.contractFileId}
                   >
                     {downloadingId === row.contractFileId ? "กำลังดาวน์โหลด..." : "ดาวน์โหลด PDF"}
                   </MKButton>
                 </MKBox>
-              </MKBox>
-            ))}
-          </MKBox>
+              ))}
+            </MKBox>
+          </>
         )}
 
         {/* แสดง pagination เฉพาะตอนผลค้นหามีมากกว่า 1 หน้า — กันโชว์เปล่าๆตอนผลลัพธ์น้อย */}

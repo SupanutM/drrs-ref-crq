@@ -75,10 +75,22 @@ function ConsentView(props) {
                         </Grid>
 
                         <Grid container justifyContent="center" py={2}>
-                            <FormControlLabel
-                                control={<Checkbox color="primary" checked={checked} onChange={handleChange} />}
-                                label="ข้าพเจ้ายอมรับข้อตกลงในการลงทะเบียน"
-                            />
+                            <Grid item xs={12} md={12} mx={{ xs: "auto", sm: 6, md: 1 }}>
+                                <FormControlLabel
+                                    sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        ml: 0,
+                                        width: "100%",
+                                        "& .MuiFormControlLabel-label": {
+                                            whiteSpace: "normal",
+                                            wordBreak: "break-word",
+                                        },
+                                    }}
+                                    control={<Checkbox color="primary" checked={checked} onChange={handleChange} />}
+                                    label="ข้าพเจ้ายอมรับข้อตกลงในการลงทะเบียน"
+                                />
+                            </Grid>
                         </Grid>
 
                         <Grid container justifyContent="center" py={2}>

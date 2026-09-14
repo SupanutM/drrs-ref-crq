@@ -244,8 +244,16 @@ function AdminUserManageView({ state, handlers }) {
           </Grid>
         </MKBox>
 
-        {/* ตารายชื่อผู้ใช้ admin ทั้งหมด */}
-        <MKBox component={Paper} sx={{ border: "1px solid #e0e0e0", borderRadius: "8px", overflow: "hidden" }}>
+        {/* ตารายชื่อผู้ใช้ admin ทั้งหมด — จอ md ขึ้นไปใช้ตาราง CSS Grid, จอมือถือใช้การ์ด (ด้านล่าง) */}
+        <MKBox
+          component={Paper}
+          sx={{
+            display: { xs: "none", md: "block" },
+            border: "1px solid #e0e0e0",
+            borderRadius: "8px",
+            overflow: "hidden",
+          }}
+        >
           <MKBox
             sx={{
               display: "grid",
@@ -339,6 +347,84 @@ function AdminUserManageView({ state, handlers }) {
                     onChange={(e) => handleChangeRole(user, e.target.value)}
                     disabled={isRowUpdating || isSelf}
                     sx={{ minWidth: 120, ...SELECT_HEIGHT_FIX_SX(10) }}
+                  >
+                    <MenuItem value="ADMIN">ADMIN</MenuItem>
+                    <MenuItem value="SUPERADMIN">SUPERADMIN</MenuItem>
+                  </MKInput>
+                  <MKButton
+                    variant="outlined"
+                    color={isActive ? "error" : "success"}
+                    size="small"
+                    onClick={() => handleToggleStatus(user)}
+                    disabled={isRowUpdating || isSelf}
+                  >
+                    {isActive ? "ระงับบัญชี" : "เปิดใช้งาน"}
+                  </MKButton>
+                </MKBox>
+              </MKBox>
+            );
+          })}
+        </MKBox>
+
+        {/* จอมือถือ (ต่ำกว่า md): แสดงเป็นการ์ดทีละคน แทนตาราง CSS Grid 6 คอลัมน์ที่บี้กันจนอ่านไม่ออก */}
+        <MKBox sx={{ display: { xs: "block", md: "none" } }}>
+          {users.length === 0 && (
+            <MKBox component={Paper} px={2} py={3} textAlign="center" sx={{ border: "1px solid #e0e0e0", borderRadius: "8px" }}>
+              <MKTypography variant="body2" color="text">
+                ยังไม่มีผู้ใช้ admin ในระบบ
+              </MKTypography>
+            </MKBox>
+          )}
+
+          {pagedUsers.map((user) => {
+            const isSelf = user.username === currentUsername;
+            const isActive = user.status === "1";
+            const isRowUpdating = updatingId === user.id;
+            const roleChip = ROLE_CHIP[user.role] || ROLE_CHIP.DEFAULT;
+
+            return (
+              <MKBox
+                key={user.id}
+                component={Paper}
+                sx={{ border: "1px solid #e0e0e0", borderRadius: "8px", p: 2, mb: 1.5 }}
+              >
+                <MKBox display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
+                  <MKTypography variant="body2" fontWeight="bold" sx={{ wordBreak: "break-word" }}>
+                    {user.username}
+                    {isSelf && (
+                      <MKTypography component="span" variant="caption" color="info" ml={0.5}>
+                        (คุณ)
+                      </MKTypography>
+                    )}
+                  </MKTypography>
+                  <Chip
+                    size="small"
+                    label={isActive ? "ใช้งานได้" : "ถูกระงับ"}
+                    color={isActive ? "success" : "error"}
+                  />
+                </MKBox>
+                <MKBox mb={1}>
+                  <MKTypography variant="caption" color="text">
+                    ชื่อที่แสดง
+                  </MKTypography>
+                  <MKTypography variant="body2" sx={{ wordBreak: "break-word" }}>
+                    {user.displayName || "-"}
+                  </MKTypography>
+                </MKBox>
+                <MKBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                  <MKTypography variant="caption" color="text">
+                    Login ล่าสุด: {formatThaiDate(user.lastLoginDate, "ยังไม่เคย login")}
+                  </MKTypography>
+                  <Chip size="small" label={roleChip.label} color={roleChip.color} />
+                </MKBox>
+                <MKBox display="flex" gap={1} alignItems="center" flexWrap="wrap" mt={1.5}>
+                  <MKInput
+                    select
+                    size="small"
+                    value={user.role || ""}
+                    onChange={(e) => handleChangeRole(user, e.target.value)}
+                    disabled={isRowUpdating || isSelf}
+                    sx={{ minWidth: 120, flexGrow: 1, ...SELECT_HEIGHT_FIX_SX(10) }}
                   >
                     <MenuItem value="ADMIN">ADMIN</MenuItem>
                     <MenuItem value="SUPERADMIN">SUPERADMIN</MenuItem>

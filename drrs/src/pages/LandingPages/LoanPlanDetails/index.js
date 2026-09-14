@@ -105,7 +105,8 @@ function LoanPlanDetail() {
             <Card
                 sx={({ borders: { borderRadius }, boxShadows: { xxl } }) => ({
                     mx: { xs: 2, lg: 4 },
-                    mt: -7, /* ดึงขึ้นไปทับแบนเนอร์ด้านบนให้ดูมีมิติ */
+                    /* จอมือถือทับน้อยลง กันข้อความบรรทัดที่ 2 ของแบนเนอร์ (พับบรรทัดตอนจอแคบ) โดนการ์ดทับ */
+                    mt: { xs: -2, md: -7 },
                     mb: { xs: 2, lg: 3 },
                     borderRadius: borderRadius.xl,
                     boxShadow: xxl,
