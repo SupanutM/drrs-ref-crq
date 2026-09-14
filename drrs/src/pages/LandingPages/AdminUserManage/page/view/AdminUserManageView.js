@@ -244,11 +244,13 @@ function AdminUserManageView({ state, handlers }) {
           </Grid>
         </MKBox>
 
-        {/* ตารายชื่อผู้ใช้ admin ทั้งหมด — จอ md ขึ้นไปใช้ตาราง CSS Grid, จอมือถือใช้การ์ด (ด้านล่าง) */}
+        {/* ตารายชื่อผู้ใช้ admin ทั้งหมด — จอ lg ขึ้นไปใช้ตาราง CSS Grid, จอเล็ก/มือถือใช้การ์ด (ด้านล่าง)
+            ใช้ lg (992px) ไม่ใช่ md (768px) เพราะตาราง 6 คอลัมน์ต้องการที่กว้างจริง
+            ช่วง 768-992px คอลัมน์ยังบี้กันอ่านไม่ออก */}
         <MKBox
           component={Paper}
           sx={{
-            display: { xs: "none", md: "block" },
+            display: { xs: "none", lg: "block" },
             border: "1px solid #e0e0e0",
             borderRadius: "8px",
             overflow: "hidden",
@@ -366,8 +368,8 @@ function AdminUserManageView({ state, handlers }) {
           })}
         </MKBox>
 
-        {/* จอมือถือ (ต่ำกว่า md): แสดงเป็นการ์ดทีละคน แทนตาราง CSS Grid 6 คอลัมน์ที่บี้กันจนอ่านไม่ออก */}
-        <MKBox sx={{ display: { xs: "block", md: "none" } }}>
+        {/* จอเล็ก/มือถือ (ต่ำกว่า lg): แสดงเป็นการ์ดทีละคน แทนตาราง CSS Grid 6 คอลัมน์ที่บี้กันจนอ่านไม่ออก */}
+        <MKBox sx={{ display: { xs: "block", lg: "none" } }}>
           {users.length === 0 && (
             <MKBox component={Paper} px={2} py={3} textAlign="center" sx={{ border: "1px solid #e0e0e0", borderRadius: "8px" }}>
               <MKTypography variant="body2" color="text">

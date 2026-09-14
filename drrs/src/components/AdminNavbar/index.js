@@ -6,8 +6,11 @@ import Toolbar from "@mui/material/Toolbar";
 import Box from "@mui/material/Box";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import Divider from "@mui/material/Divider";
 import Chip from "@mui/material/Chip";
+import IconButton from "@mui/material/IconButton";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import MenuIcon from "@mui/icons-material/Menu";
 
 import MKTypography from "components/MKTypography";
 import MKButton from "components/MKButton";
@@ -35,6 +38,17 @@ function AdminNavbar() {
     navigate(path);
   };
 
+  // เมนู hamburger สำหรับจอมือถือ — รวมทุกเมนู (นำทาง + import) ไว้ dropdown เดียว
+  // แทนการวางปุ่มเรียงกันบนแถบ (จอแคบปุ่มจะตัดบรรทัดมั่ว ดูรก)
+  const [mobileMenuAnchor, setMobileMenuAnchor] = useState(null);
+  const isMobileMenuOpen = Boolean(mobileMenuAnchor);
+  const handleOpenMobileMenu = (e) => setMobileMenuAnchor(e.currentTarget);
+  const handleCloseMobileMenu = () => setMobileMenuAnchor(null);
+  const handleNavigateMobile = (path) => {
+    handleCloseMobileMenu();
+    navigate(path);
+  };
+
   const handleLogout = () => {
     clearAdminToken();
     navigate("/drrs/admin/login", { replace: true });
@@ -43,7 +57,7 @@ function AdminNavbar() {
   return (
     // ใช้สี primary ของธีม DRRS (#eb3a75) แทนสี dark เดิม ให้ตรงกับแถบหัวของหน้าลูกค้าปกติ (เช่นหน้า Consent)
     <AppBar position="static" color="default" elevation={1} sx={{ backgroundColor: "#eb3a75" }}>
-      <Toolbar sx={{ flexWrap: "wrap", gap: 1 }}>
+      <Toolbar sx={{ gap: 1 }}>
         <MKTypography variant="h6" color="white" sx={{ flexGrow: 1 }}>
           DRRS Admin
         </MKTypography>
@@ -55,7 +69,8 @@ function AdminNavbar() {
           inline sx) ทำให้ตัวหนังสือออกมาเป็นสีน้ำเงินบนพื้นชมพู อ่านยากและดูไม่เข้าธีม
           MKButton คำนวณสีจาก prop color ตรงๆ ไม่พึ่ง default ของ MUI จึงได้สีขาวชัดเจนแน่นอน
         */}
-        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
+        {/* กลุ่มปุ่มเมนูแบบวางเรียง — โชว์เฉพาะจอ md ขึ้นไป (จอมือถือใช้ hamburger แทน) */}
+        <Box sx={{ display: { xs: "none", md: "flex" }, gap: 1, alignItems: "center" }}>
           {/* จัดการสิทธิ์ผู้ใช้ admin — เห็นแค่ role=SUPERADMIN เท่านั้น (ADMIN ธรรมดาทำไม่ได้) */}
           {isSuperAdmin && (
             <MKButton
@@ -114,9 +129,61 @@ function AdminNavbar() {
               }}
             />
           )}
-          <MKButton variant="outlined" color="white" size="small" onClick={handleLogout}>
+          {/* ปุ่ม logout — โชว์เฉพาะ md ขึ้นไป (จอมือถือย้ายไปอยู่ในเมนู hamburger) */}
+          <MKButton
+            variant="outlined"
+            color="white"
+            size="small"
+            onClick={handleLogout}
+            sx={{ display: { xs: "none", md: "inline-flex" } }}
+          >
             ออกจากระบบ
           </MKButton>
+
+          {/* ปุ่ม hamburger — โชว์เฉพาะจอมือถือ (ต่ำกว่า md) รวมทุกเมนูไว้ dropdown เดียว */}
+          <IconButton
+            onClick={handleOpenMobileMenu}
+            sx={{ display: { xs: "inline-flex", md: "none" }, color: "#fff" }}
+            aria-label="เปิดเมนู"
+          >
+            <MenuIcon />
+          </IconButton>
+          <Menu
+            anchorEl={mobileMenuAnchor}
+            open={isMobileMenuOpen}
+            onClose={handleCloseMobileMenu}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+          >
+            {isSuperAdmin && (
+              <MenuItem onClick={() => handleNavigateMobile("/drrs/admin/user-management")}>
+                จัดการสิทธิ์ผู้ใช้
+              </MenuItem>
+            )}
+            {isAdmin && (
+              <MenuItem onClick={() => handleNavigateMobile("/drrs/admin/master-import")}>
+                นำเข้าข้อมูล: MasterData
+              </MenuItem>
+            )}
+            {isAdmin && (
+              <MenuItem onClick={() => handleNavigateMobile("/drrs/admin/target-import")}>
+                นำเข้าข้อมูล: ข้อมูลชี้เป้า
+              </MenuItem>
+            )}
+            <Divider />
+            <MenuItem onClick={() => handleNavigateMobile("/drrs/admin/contract-reprint")}>
+              Reprint สัญญา
+            </MenuItem>
+            <Divider />
+            <MenuItem
+              onClick={() => {
+                handleCloseMobileMenu();
+                handleLogout();
+              }}
+            >
+              ออกจากระบบ
+            </MenuItem>
+          </Menu>
         </Box>
       </Toolbar>
     </AppBar>

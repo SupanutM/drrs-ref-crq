@@ -8,19 +8,15 @@ const customerLookupService = require('../../services/customer/customerLookupSer
 const createStepService = require('../../services/util/systemLog/createStepService');
 const { sendSuccess, sendError } = require('../../utils/responseHandler');
 const baseLogger = require('../../utils/logger');
-const veriryToken = require('../../utils/verifyToken');
 const { signSession } = require('../../utils/jwt');
 const tblSettingsStep = require('../../entities/tblSettingsStep');
 const { AppDataSource } = require('../../config/database');
-const { loggers } = require('winston');
 
 const logger = baseLogger.child({ context: 'verifyFlowController' });
 
 const verifyController = async (req, res) => {
     try {
         const { verifyCode, citizenId, name, surname, dateOfBirth, laserCardId, email, telNo } = req.body;
-
-        const token = req.headers["authorization"];
 
         if (!verifyCode || !citizenId || !name || !surname || !dateOfBirth || !laserCardId) {
             logger.warn('ข้อมูล Request ไม่ครบถ้วนสำหรับการยืนยันตัวตนแบบ 2 ขั้นตอน');
@@ -31,7 +27,7 @@ const verifyController = async (req, res) => {
         // 🌟 Step 1: ตรวจสอบข้อมูลลูกค้าใน Database (tbl_cus_target)
         // =========================================================
         // logger.info(`[Step 1] เริ่มตรวจสอบ Customer Target`);
-        const targetResult = await cusTargetService.verifyCusTargetService(name, surname, verifyCode);
+        const targetResult = await cusTargetService.verifyCusTargetService(name, surname, verifyCode, citizenId);
 
         // ถ้าหาลูกค้าไม่เจอ หรือรหัส Verify Code ไม่ตรง ให้ตีกลับทันที (Fail-Fast)
         if (!targetResult.success) {

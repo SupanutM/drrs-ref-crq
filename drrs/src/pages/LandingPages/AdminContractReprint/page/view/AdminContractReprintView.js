@@ -150,11 +150,13 @@ function AdminContractReprintView({ state, handlers }) {
 
         {results.length > 0 && (
           <>
-            {/* จอ md ขึ้นไป: ตาราง CSS Grid แบบเดิม (คอลัมน์กว้างพอ อ่านง่าย) */}
+            {/* จอ lg ขึ้นไป: ตาราง CSS Grid แบบเดิม (คอลัมน์กว้างพอ อ่านง่าย)
+                ใช้ lg (992px) ไม่ใช่ md (768px) เพราะตาราง 5 คอลัมน์ต้องการที่กว้างจริง
+                ช่วง 768-992px คอลัมน์ยังบี้กันอ่านไม่ออก */}
             <MKBox
               component={Paper}
               sx={{
-                display: { xs: "none", md: "block" },
+                display: { xs: "none", lg: "block" },
                 border: "1px solid #e0e0e0",
                 borderRadius: "8px",
                 overflow: "hidden",
@@ -236,9 +238,9 @@ function AdminContractReprintView({ state, handlers }) {
               ))}
             </MKBox>
 
-            {/* จอมือถือ (ต่ำกว่า md): แสดงเป็นการ์ดทีละแถว แทนตาราง CSS Grid ที่คอลัมน์บี้กันจนอ่านไม่ออก
+            {/* จอเล็ก/มือถือ (ต่ำกว่า lg): แสดงเป็นการ์ดทีละแถว แทนตาราง CSS Grid ที่คอลัมน์บี้กันจนอ่านไม่ออก
                 ข้อมูลชุดเดียวกับตารางด้านบน แค่สลับการจัดวางเป็นแนวตั้ง (label ซ้าย ค่าขวา) */}
-            <MKBox sx={{ display: { xs: "block", md: "none" } }}>
+            <MKBox sx={{ display: { xs: "block", lg: "none" } }}>
               {pagedResults.map((row) => (
                 <MKBox
                   key={row.contractFileId}

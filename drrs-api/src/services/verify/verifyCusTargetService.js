@@ -8,20 +8,20 @@ const crypto = require('../../utils/crypto');
 const { systemLogService } = require('../util/systemLog/systemLogService');
 const logger = baseLogger.child({ context: 'verifyService' });
 
-const verifyCusTargetService = async (firstName, lastName, verifyCode) => {
+const verifyCusTargetService = async (firstName, lastName, verifyCode, citizenId) => {
     try {
 
         const firstNameDecrypted = crypto.decryptGCM(firstName, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
         const lastNameDecrypted = crypto.decryptGCM(lastName, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
+        // citizenId ส่งมาแบบเข้ารหัส (เหมือน firstName/lastName) แต่ในตาราง tbl_cus_target
+        // เก็บเป็น plain (citizen_id varchar 13) จึงต้อง decrypt ก่อนนำไป query
+        const citizenIdDecrypted = crypto.decryptGCM(citizenId, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
 
         const tblCusTargetRepo = AppDataSource.getRepository(tblCusTarget);
 
-        // ปิด log info ตอนสำเร็จ — ซ้ำซ้อนกับ tbl_system_log + ลด Disk IO
-        // (ห้าม log verifyCode — เป็นข้อมูลอ่อนไหว)
-        // logger.info(`[verify] ค้นหา customer target`)
-
         const customer = await tblCusTargetRepo.findOne({
             where: {
+                // citizenId: citizenIdDecrypted,
                 firstName: firstNameDecrypted,
                 lastName: lastNameDecrypted,
                 verifyCode: verifyCode,
