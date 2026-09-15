@@ -23,7 +23,9 @@ function SelectPlanView(props) {
     const {
         accounts,
         scheduledDates,
+        endDates,
         inquiryFailedAccounts,
+        inquiryFailedPlans,
         selectedPlans,
         isLoading,
         isSuccessModalOpen,
@@ -85,12 +87,20 @@ function SelectPlanView(props) {
                                         const paymentAmount = detail.paymentAmount || detail.amount || detail.installmentAmount || 0;
                                         const installmentTerms = detail.installmentTerms || detail.installmentTerm || 0;
                                         // ScheduledNextDate จาก CBS Inquiry Account (ยิงตอนเข้าหน้านี้) — ใช้เป็นวันเริ่มต้นคำนวณกำหนดการ (แผนผ่อนชำระเท่านั้น)
-                                        const scheduledNextDate = scheduledDates?.[acc.accountNo];
+                                        // บัญชีที่ isRegistered แล้วไม่ได้ยิง inquiry เลย (ดู SelectPlanController) จึงไม่มีค่าใน
+                                        // scheduledDates/endDates — fallback ไปใช้ snapshot จากสัญญาที่เคยเซ็นล่าสุด
+                                        // (detail.scheduledNextDate/newMaturityDate จาก tbl_contract_file_account, ดู masterPlanService.js)
+                                        const scheduledNextDate = scheduledDates?.[acc.accountNo] || detail.scheduledNextDate;
+                                        // NewMdt จาก CBS Inquiry Account — วันเสร็จสิ้นจริง ใช้ตรงๆ แทนการคำนวณ (แผนผ่อนชำระเท่านั้น)
+                                        const endDateRaw = endDates?.[acc.accountNo] || detail.newMaturityDate;
                                         // วันหมดอายุจาก tbl_account_cus_target.expire_date — ใช้กับแผน Haircut เท่านั้น (ไม่ใช้ ScheduledNextDate)
                                         const expireDate = detail.expireDate;
                                         // แผน Haircut ที่เลยกำหนด expireDate แล้ว — เลือกไม่ได้ (การ์ดสีเทาเหมือน isRegistered)
                                         const isExpired = isHaircut && isPastDate(expireDate);
-                                        const isRegistered = acc.isRegistered || isInquiryFailed || isExpired;
+                                        // CBS Inquiry (NEXTPLN1) ตอบ REJECT เฉพาะแผนผ่อนของบัญชีนี้ — ปิดเทาแค่การ์ดแผนผ่อน
+                                        // ไม่กระทบแผน Haircut ของบัญชีเดียวกัน (ยิงคนละรอบ, ดู SelectPlanController)
+                                        const isPlanInquiryFailed = !isHaircut && !!inquiryFailedPlans?.[acc.accountNo];
+                                        const isRegistered = acc.isRegistered || isInquiryFailed || isExpired || isPlanInquiryFailed;
 
                                         return (
                                             <Grid item xs={12} key={plan.planNo}>
@@ -135,12 +145,19 @@ function SelectPlanView(props) {
                                                                     paymentAmount={paymentAmount}
                                                                     installmentTerms={installmentTerms}
                                                                     scheduledNextDate={scheduledNextDate}
+                                                                    endDateRaw={endDateRaw}
                                                                     expireDate={expireDate}
+                                                                    scheduleUnavailable={isPlanInquiryFailed}
                                                                 />
                                                             </MKTypography>
                                                             {isExpired && (
                                                                 <MKTypography variant="caption" color="error" fontWeight="bold" display="block" mt={0.5}>
                                                                     เลยกำหนดวันที่ปิดบัญชีแล้ว กรุณาติดต่อสาขา หรือ MyMo Call Center 1143
+                                                                </MKTypography>
+                                                            )}
+                                                            {isPlanInquiryFailed && (
+                                                                <MKTypography variant="caption" color="error" fontWeight="bold" display="block" mt={0.5}>
+                                                                    ไม่สามารถตรวจสอบข้อมูลแผนผ่อนชำระได้ กรุณาติดต่อสาขา หรือ MyMo Call Center 1143
                                                                 </MKTypography>
                                                             )}
                                                         </MKBox>

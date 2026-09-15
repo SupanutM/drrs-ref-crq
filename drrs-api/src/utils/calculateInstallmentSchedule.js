@@ -38,18 +38,6 @@ const parseDbDate = (raw) => {
 };
 
 /**
- * บวกจำนวนเดือนเข้ากับวันที่ (คำนวณแบบ UTC)
- * @param {Date} date
- * @param {number} months
- * @returns {Date}
- */
-const addMonths = (date, months) => {
-    const result = new Date(date.getTime());
-    result.setUTCMonth(result.getUTCMonth() + (Number(months) || 0));
-    return result;
-};
-
-/**
  * แปลง Date เป็นข้อความวันที่แบบไทย (วัน เดือน ปี พ.ศ.) เช่น "2 กันยายน 2569"
  * @param {Date|null} date
  * @returns {string} - ข้อความว่างถ้า date ไม่ถูกต้อง
@@ -102,23 +90,26 @@ const isPastDate = (date) => {
 };
 
 /**
- * คำนวณกำหนดการชำระหนี้จาก ScheduledNextDate (CBS) และจำนวนงวด (เดือน)
+ * คำนวณกำหนดการชำระหนี้จาก ScheduledNextDate + NewMdt (CBS)
  * ใช้ร่วมกันสำหรับทั้งแผนผ่อนชำระ (LT) และแผนปิดบัญชี (Haircut/HC):
  *   - เริ่มชำระงวดแรก / ภายในวันที่ (Haircut) = ScheduledNextDate ตรงๆ
- *   - เสร็จสิ้นภายในวันที่ (ผ่อนชำระ) = ScheduledNextDate + installmentTerms เดือน
- *     (installmentTerms มาจาก tbl_account_cus_target.installment_terms)
+ *   - เสร็จสิ้นภายในวันที่ (ผ่อนชำระ) = NewMdt จาก CBS (Inquiry LoanProcess, SubMethod NEXTPLN1) ตรงๆ
+ *     (ตัดสินใจ 2026-09-15 — CBS เป็นผู้คำนวณวันครบกำหนดจริง มีปัจจัยอื่นร่วมด้วย เช่น วันหยุด/
+ *     รอบตัดบัญชี ซึ่งคำนวณเอง (ScheduledNextDate + installmentTerms เดือน) ให้ผลไม่ตรงกับ CBS จริง
+ *     — เคยเกิดบั๊กจริงมาแล้ว จึงห้ามคำนวณเองแทนเด็ดขาด แม้ CBS ไม่ส่ง NewMdt มาก็ตาม (endDate จะเป็น
+ *     null ให้ผู้เรียกโชว์ placeholder แทน ไม่ใช่เดาวันที่)
  *
- * @param {string} scheduledNextDate - ค่าดิบจาก CBS รูปแบบ YYYYMMDD
- * @param {number} installmentTerms - จำนวนงวด (เดือน)
+ * @param {string} scheduledNextDate - ค่าดิบจาก CBS รูปแบบ YYYYMMDD (ScheduledNextDate)
+ * @param {string} [endDateRaw] - ค่าดิบจาก CBS รูปแบบ YYYYMMDD (NewMdt)
  * @returns {{ startDate: Date|null, endDate: Date|null, startDateDisplay: string, endDateDisplay: string }}
  */
-const calculateInstallmentSchedule = (scheduledNextDate, installmentTerms) => {
+const calculateInstallmentSchedule = (scheduledNextDate, endDateRaw) => {
     const startDate = parseCbsDate(scheduledNextDate);
     if (!startDate) {
         return { startDate: null, endDate: null, startDateDisplay: '', endDateDisplay: '' };
     }
 
-    const endDate = addMonths(startDate, installmentTerms);
+    const endDate = parseCbsDate(endDateRaw);
 
     return {
         startDate,

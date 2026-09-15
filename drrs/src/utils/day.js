@@ -23,7 +23,7 @@ export const parseCbsDate = (value) => {
  * @param {string} [fallback] - ข้อความที่แสดงเมื่อ value ไม่ถูกต้อง/ไม่มีค่า
  * @returns {string}
  */
-export const formatThaiDate = (value, fallback = "..............................") => {
+export const formatThaiDate = (value, fallback = "-") => {
     if (!value) return fallback;
     const date = dayjs.isDayjs(value) ? value.toDate() : new Date(value);
     if (Number.isNaN(date.getTime())) return fallback;
@@ -31,24 +31,26 @@ export const formatThaiDate = (value, fallback = "..............................
 };
 
 /**
- * คำนวณกำหนดการชำระหนี้จาก ScheduledNextDate (CBS) และจำนวนงวด (เดือน)
+ * คำนวณกำหนดการชำระหนี้จาก ScheduledNextDate + NewMdt (CBS)
  * ใช้ร่วมกันสำหรับทั้งแผนผ่อนชำระ (LT) และแผนปิดบัญชี (Haircut/HC):
  *   - เริ่มชำระงวดแรก / ภายในวันที่ (Haircut) = ScheduledNextDate ตรงๆ
- *   - เสร็จสิ้นภายในวันที่ (ผ่อนชำระ) = ScheduledNextDate + installmentTerms เดือน
- *     (installmentTerms มาจาก tbl_account_cus_target.installment_terms)
+ *   - เสร็จสิ้นภายในวันที่ (ผ่อนชำระ) = NewMdt จาก CBS (Inquiry LoanProcess, SubMethod NEXTPLN1) ตรงๆ
+ *     (ตัดสินใจ 2026-09-15 — CBS เป็นผู้คำนวณวันครบกำหนดจริง มีปัจจัยอื่นร่วมด้วย เช่น วันหยุด/
+ *     รอบตัดบัญชี ซึ่งคำนวณเอง (ScheduledNextDate + installmentTerms เดือน) ให้ผลไม่ตรงกับ CBS จริง
+ *     — เคยเกิดบั๊กจริงมาแล้ว จึงห้ามคำนวณเองแทนเด็ดขาด แม้ CBS ไม่ส่ง NewMdt มาก็ตาม (endDate จะเป็น
+ *     null ให้ผู้เรียกโชว์ placeholder แทน ไม่ใช่เดาวันที่)
  *
- * @param {string} scheduledNextDate - ค่าดิบจาก CBS รูปแบบ YYYYMMDD
- * @param {number} installmentTerms - จำนวนงวด (เดือน)
+ * @param {string} scheduledNextDate - ค่าดิบจาก CBS รูปแบบ YYYYMMDD (ScheduledNextDate)
+ * @param {string} [endDateRaw] - ค่าดิบจาก CBS รูปแบบ YYYYMMDD (NewMdt)
  * @returns {{ startDate: import('dayjs').Dayjs|null, endDate: import('dayjs').Dayjs|null }}
  */
-export const calculateInstallmentSchedule = (scheduledNextDate, installmentTerms) => {
+export const calculateInstallmentSchedule = (scheduledNextDate, endDateRaw) => {
     const startDate = parseCbsDate(scheduledNextDate);
     if (!startDate) {
         return { startDate: null, endDate: null };
     }
 
-    const terms = Number(installmentTerms) || 0;
-    const endDate = startDate.add(terms, "month");
+    const endDate = parseCbsDate(endDateRaw);
 
     return { startDate, endDate };
 };

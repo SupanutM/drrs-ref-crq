@@ -5,8 +5,9 @@ const { calculateInstallmentSchedule } = require('../../utils/calculateInstallme
 const TEMPLATE_PATH = path.join(__dirname, '../../templates/loan_condition.template.html');
 
 /**
- * เติมกำหนดการชำระหนี้ (วันที่) ให้แต่ละบัญชี ก่อน render — ใช้ ScheduledNextDate จาก CBS
- * (ดู augmentAccountsWithCbsData) + installmentTerms จาก tbl_account_cus_target
+ * เติมกำหนดการชำระหนี้ (วันที่) ให้แต่ละบัญชี ก่อน render — ใช้ ScheduledNextDate + NewMdt จาก CBS
+ * (ดู augmentAccountsWithCbsData) ห้ามคำนวณ endDate จาก installmentTerms เอง (เคยเกิดบั๊กวันไม่ตรง
+ * กับ CBS จริงมาแล้ว — ดู calculateInstallmentSchedule.js)
  * ใช้ logic เดียวกับที่ contractPdfKitService.js ใช้ตอนสร้าง PDF จริง ให้ preview กับ PDF ตรงกัน
  */
 const augmentAccountsWithSchedule = (accounts) => {
@@ -16,7 +17,7 @@ const augmentAccountsWithSchedule = (accounts) => {
             // (ดู augmentAccountsWithDbData) — ไม่ใช้ ScheduledNextDate จาก CBS แล้ว
             return;
         }
-        const schedule = calculateInstallmentSchedule(acc.scheduledNextDate, acc.installmentTerms);
+        const schedule = calculateInstallmentSchedule(acc.scheduledNextDate, acc.endDateRaw);
         if (!acc.startMonth) acc.startMonth = schedule.startDateDisplay;
         if (!acc.endMonth) acc.endMonth = schedule.endDateDisplay;
     });

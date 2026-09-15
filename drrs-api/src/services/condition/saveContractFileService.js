@@ -40,7 +40,7 @@ const truncate = (value, maxLength) => {
  *   accountNo, planNo, paymentAmount, installmentTerms,
  *   loanAmount (CBS Inquiry CreditLimit), outstandingBalance (CBS Inquiry TotalAmount),
  *   principal (CBS Inquiry Balance), interest (CBS Inquiry AccrueInterest),
- *   scheduledNextDate (CBS Inquiry ScheduledNextDate),
+ *   scheduledNextDate (CBS Inquiry ScheduledNextDate), endDateRaw (CBS Inquiry NewMdt),
  *   cbsRegisterStatus/cbsRegisterDesc/cbsRegisterTimestamp (ผลลัพธ์จาก CBS Register Digitalloan
  *   Status/Desc/TimeStamp — ผลการลงทะเบียนแผน ณ ตอนเซ็นสัญญา)
  * @param {string} [createdBy='DRRS']
@@ -75,6 +75,9 @@ const saveContractFileService = async ({ cusTargetId, fileName, base64Content, a
                 balance: toNumericOrNull(acc.principal),
                 accrueInterest: toNumericOrNull(acc.interest),
                 scheduledNextDate: acc.scheduledNextDate || null,
+                // NewMdt จาก CBS Inquiry LoanProcess (NEXTPLN1) — เก็บไว้ให้บัญชีที่ลงทะเบียนแล้ว
+                // ดึงมาโชว์วันครบกำหนดจาก DB ได้โดยไม่ต้องยิง CBS ซ้ำ (ดู masterPlanService.js)
+                newMaturityDate: acc.endDateRaw || null,
                 // ผลลัพธ์จาก CBS Register Digitalloan (ดู registerDigitalLoanService.js) — เก็บไว้
                 // ยืนยันย้อนหลังได้ว่า CBS ตอบอะไรมาตอนเซ็นสัญญาฉบับนี้จริง
                 cbsStatus: truncate(acc.cbsRegisterStatus, 10),

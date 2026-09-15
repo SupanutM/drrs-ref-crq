@@ -100,11 +100,16 @@ const augmentCustomerInfoWithDbData = async (cusTargetId, accountNo) => {
 
 /**
  * เติมข้อมูลบัญชีด้วยผลลัพธ์ Inquiry จาก CBS (ตอนยอมรับสัญญา ก่อนสร้าง PDF)
- * Map field จาก CBS (PascalCase) -> field ที่ template/PDF ใช้อยู่แล้ว:
- *   CreditLimit      -> loanAmount         (วงเงินกู้)
- *   TotalAmount      -> outstandingBalance (ภาระหนี้คงเหลือ)
- *   Balance          -> principal          (เงินต้น)
- *   AccrueInterest   -> interest           (ดอกเบี้ย)
+ * ยิง inquiry แยกเป็นรอบตาม SubMethod (spec ใหม่ 2026-09-15) — 1 บัญชีอาจต้องยิงมากกว่า 1 ครั้ง:
+ *   SUMALL    (ทั้ง 2 แผน) -> วงเงินกู้/ภาระหนี้คงเหลือ/เงินต้น/ดอกเบี้ย
+ *     CreditLimit    -> loanAmount         (วงเงินกู้)
+ *     TotalAmount    -> outstandingBalance (ภาระหนี้คงเหลือ)
+ *     Balance        -> principal          (เงินต้น)
+ *     AccrueInterest -> interest           (ดอกเบี้ย)
+ *   NEXTPLN1  (เฉพาะแผนผ่อนชำระ, ต้องมี installmentTerms เสมอ) -> กำหนดชำระงวดถัดไป/วันครบกำหนด
+ *     ScheduledNextDate -> scheduledNextDate (ใช้ตรงๆ ไม่คำนวณเพิ่ม)
+ *     NewMdt            -> endDateRaw (วันเสร็จสิ้นจริงจาก CBS ใช้ตรงๆ เท่านั้น ห้ามคำนวณจาก
+ *                           installmentTerms แทนเด็ดขาด — ดู calculateInstallmentSchedule.js)
  * นอกจากนี้ contractDate (วันทำสัญญา) ใช้วันที่ปัจจุบัน (now) เสมอ — ไม่ใช่ค่าจาก CBS
  * ไม่ throw ถ้า CBS ล้มเหลว — ปล่อยให้ flow สร้างสัญญาไปต่อด้วยข้อมูลที่มีอยู่แล้ว (จาก DB/frontend)
  *
@@ -120,36 +125,82 @@ const augmentAccountsWithCbsData = async (accounts, source) => {
         // วันทำสัญญา = วันที่กดยอมรับ (now) เสมอ ไม่ว่า CBS จะสำเร็จหรือไม่
         acc.contractDate = contractDate;
 
+        let hasData = false;
+
+        // รอบที่ 1: SUMALL — ทุกแผนต้องมี (วงเงิน/ภาระหนี้/เงินต้น/ดอกเบี้ย)
         try {
-            const result = await inquiryAccountService({ accountNo: acc.accountNo, source, planNo: acc.planNo });
+            const result = await inquiryAccountService({
+                accountNo: acc.accountNo,
+                subMethod: 'SUMALL',
+                source,
+                planNo: acc.planNo,
+            });
 
             if (result.success && result.data) {
                 const cbs = result.data;
                 // CBS บางครั้งตอบ "" (empty string) แทน null จริงๆ เมื่อไม่มีข้อมูลให้บัญชีนั้น
                 // (เช่น หาบัญชีไม่เจอฝั่ง CBS) — เช็ค != null เพียวๆ ไม่พอ (เพราะ "" != null เป็น true)
                 // ต้องกัน "" ไว้ตั้งแต่ต้นทาง ไม่ให้หลุดเข้า acc แล้วไปพังตอน insert ลง column numeric
-                // hasData ใช้เช็คว่า inquiry เจอข้อมูลบัญชีนี้จริงไหม — ถ้าทุก field ว่างหมด (CBS หาบัญชี
-                // ไม่เจอ) ให้ตั้ง cbsInquiryFailed = true เพื่อให้ผู้เรียก (controller) กันบัญชีนี้ออกจาก
-                // การลงทะเบียน CBS ตั้งแต่ก่อนยิง Register (ไม่ต้องรอไป error ตอน insert DB)
-                let hasData = false;
                 if (cbs.CreditLimit != null && cbs.CreditLimit !== '') { acc.loanAmount = cbs.CreditLimit; hasData = true; }
                 if (cbs.TotalAmount != null && cbs.TotalAmount !== '') { acc.outstandingBalance = cbs.TotalAmount; hasData = true; }
                 if (cbs.Balance != null && cbs.Balance !== '') { acc.principal = cbs.Balance; hasData = true; }
                 if (cbs.AccrueInterest != null && cbs.AccrueInterest !== '') { acc.interest = cbs.AccrueInterest; hasData = true; }
-                // ScheduledNextDate (YYYYMMDD) — ใช้เป็นวันเริ่มต้นคำนวณกำหนดการชำระหนี้ในสัญญา PDF
-                if (cbs.ScheduledNextDate != null && cbs.ScheduledNextDate !== '') { acc.scheduledNextDate = cbs.ScheduledNextDate; hasData = true; }
-                acc.cbsInquiryFailed = !hasData;
                 if (!hasData) {
-                    logger.warn(`[CBS Inquiry] ไม่พบข้อมูลบัญชี ${acc.accountNo} จาก CBS (ทุก field ว่าง)`);
+                    logger.warn(`[CBS Inquiry SUMALL] ไม่พบข้อมูลบัญชี ${acc.accountNo} จาก CBS (ทุก field ว่าง)`);
                 }
             } else {
-                acc.cbsInquiryFailed = true;
-                logger.warn(`[CBS Inquiry] ไม่สามารถดึงข้อมูลบัญชี ${acc.accountNo} จาก CBS ได้: ${result.message}`);
+                logger.warn(`[CBS Inquiry SUMALL] ไม่สามารถดึงข้อมูลบัญชี ${acc.accountNo} จาก CBS ได้: ${result.message}`);
             }
         } catch (error) {
-            acc.cbsInquiryFailed = true;
-            logger.warn(`[CBS Inquiry] เกิดข้อผิดพลาดขณะ inquiry บัญชี ${acc.accountNo}: ${error.message}`);
+            logger.warn(`[CBS Inquiry SUMALL] เกิดข้อผิดพลาดขณะ inquiry บัญชี ${acc.accountNo}: ${error.message}`);
         }
+
+        // รอบที่ 2: NEXTPLN1 — เฉพาะแผนผ่อนชำระ (isHaircut=false) เพื่อดูกำหนดชำระงวดถัดไป
+        // installmentTerms ต้องมีค่าเสมอ (มาจาก augmentAccountsWithDbData ก่อนหน้านี้แล้ว) — ถ้าไม่มี
+        // ค่า ห้ามยิง CBS เด็ดขาด (spec บังคับ) ให้ตัดบัญชีนี้ออกจากรอบนี้เหมือนกรณี inquiry ไม่พบข้อมูล
+        if (!acc.isHaircut) {
+            if (acc.installmentTerms === undefined || acc.installmentTerms === null || acc.installmentTerms === '') {
+                logger.warn(`[CBS Inquiry NEXTPLN1] บัญชี ${acc.accountNo} ไม่มี installmentTerms — งดยิง CBS (ต้องมีค่าเสมอ)`);
+            } else {
+                try {
+                    const result = await inquiryAccountService({
+                        accountNo: acc.accountNo,
+                        subMethod: 'NEXTPLN1',
+                        installmentTerms: acc.installmentTerms,
+                        source,
+                        planNo: acc.planNo,
+                    });
+
+                    if (result.success && result.data) {
+                        const cbs = result.data;
+                        // ScheduledNextDate (YYYYMMDD) — ใช้เป็นวันเริ่มต้นคำนวณกำหนดการชำระหนี้ในสัญญา PDF
+                        if (cbs.ScheduledNextDate != null && cbs.ScheduledNextDate !== '') {
+                            acc.scheduledNextDate = cbs.ScheduledNextDate;
+                            hasData = true;
+                        } else {
+                            logger.warn(`[CBS Inquiry NEXTPLN1] ไม่พบ ScheduledNextDate ของบัญชี ${acc.accountNo} จาก CBS`);
+                        }
+                        // NewMdt (YYYYMMDD) — วันเสร็จสิ้นจริงจาก CBS ใช้ตรงๆ แทนการคำนวณจาก
+                        // installmentTerms (ตัดสินใจ 2026-09-15) — ถ้าไม่มีค่า calculateInstallmentSchedule
+                        // จะ fallback ไปคำนวณจาก installmentTerms แทนเอง
+                        if (cbs.NewMdt != null && cbs.NewMdt !== '') {
+                            acc.endDateRaw = cbs.NewMdt;
+                        } else {
+                            logger.warn(`[CBS Inquiry NEXTPLN1] ไม่พบ NewMdt ของบัญชี ${acc.accountNo} จาก CBS`);
+                        }
+                    } else {
+                        logger.warn(`[CBS Inquiry NEXTPLN1] ไม่สามารถดึงข้อมูลบัญชี ${acc.accountNo} จาก CBS ได้: ${result.message}`);
+                    }
+                } catch (error) {
+                    logger.warn(`[CBS Inquiry NEXTPLN1] เกิดข้อผิดพลาดขณะ inquiry บัญชี ${acc.accountNo}: ${error.message}`);
+                }
+            }
+        }
+
+        // hasData ใช้เช็คว่า inquiry รอบใดรอบหนึ่งเจอข้อมูลบัญชีนี้จริงไหม — ถ้าทุกรอบว่างหมด (CBS หา
+        // บัญชีไม่เจอ) ให้ตั้ง cbsInquiryFailed = true เพื่อให้ผู้เรียก (controller) กันบัญชีนี้ออกจาก
+        // การลงทะเบียน CBS ตั้งแต่ก่อนยิง Register (ไม่ต้องรอไป error ตอน insert DB)
+        acc.cbsInquiryFailed = !hasData;
     }
     return accounts;
 };

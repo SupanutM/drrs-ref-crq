@@ -256,9 +256,10 @@ const drawSummary = (doc, customerInfo, accounts) => {
     list.forEach((acc) => {
         const isHaircut = !!acc.isHaircut;
 
-        // คำนวณกำหนดการชำระหนี้จาก ScheduledNextDate (CBS, ยิงตอนสร้างสัญญา — ดู augmentAccountsWithCbsData)
-        // + installmentTerms (เดือน, มาจาก tbl_account_cus_target.installment_terms ผ่าน augmentAccountsWithDbData)
-        const schedule = calculateInstallmentSchedule(acc.scheduledNextDate, acc.installmentTerms);
+        // คำนวณกำหนดการชำระหนี้จาก ScheduledNextDate + NewMdt (CBS, ยิงตอนสร้างสัญญา
+        // — ดู augmentAccountsWithCbsData) ห้ามคำนวณ endDate จาก installmentTerms เอง (เคยเกิดบั๊ก
+        // วันไม่ตรงกับ CBS จริงมาแล้ว — ดู calculateInstallmentSchedule.js)
+        const schedule = calculateInstallmentSchedule(acc.scheduledNextDate, acc.endDateRaw);
 
         doc.moveDown(0.2);
         drawSectionTitle(doc, isHaircut ? 'แผนปิดบัญชี' : 'แผนผ่อนชำระ', 'center');

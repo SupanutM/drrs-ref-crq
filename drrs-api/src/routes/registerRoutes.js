@@ -5,7 +5,7 @@ const { authMiddleware } = require('../middleware/authMiddleware');
 const { systemLogMiddleware } = require('../utils/systemLogMiddleware');
 const { checkSystemOpenMiddleware } = require('../middleware/checkSystemOpenMiddleware');
 
-// ตรวจสอบข้อมูลบัญชีสินเชื่อจาก CBS: gettoken (SSO) -> CBS_INQUIRY_ACCOUNT_URL
+// ตรวจสอบข้อมูลบัญชีสินเชื่อจาก CBS: gettoken (SSO) -> CBS_INQUIRY_ACCOUNT_URL (LoanProcess)
 router.post(
     '/cbsregister/inquiry-account',
     checkSystemOpenMiddleware,

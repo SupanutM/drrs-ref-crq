@@ -143,13 +143,11 @@ module.exports = {
     getAccessTokenClientId: process.env.GET_ACCESS_TOKEN_CLIENT_ID,
     getAccessTokenClientSecret: process.env.GET_ACCESS_TOKEN_CLIENT_SECRET,
 
-    // CBS Inquiry Account — ต้องมี Bearer token จาก SSO ก่อนเรียก (ดู getAccessTokenService)
+    // CBS Inquiry LoanProcess — ต้องมี Bearer token จาก SSO ก่อนเรียก (ดู getAccessTokenService)
+    // body ไม่มี ServiceName แล้ว (spec ใหม่ 2026-09-15) — ใช้ SubMethod/DataInput แทน (ดู inquiryAccountService)
     cbsInquiryAccountUrl: process.env.CBS_INQUIRY_ACCOUNT_URL,
     cbsInquiryAccountAppId: process.env.CBS_INQUIRY_ACCOUNT_APP_ID,
     cbsInquiryAccountAppKey: process.env.CBS_INQUIRY_ACCOUNT_APP_KEY,
-    // ค่า ServiceName ที่ต้องส่งใน body (ตาม spec ของทีม CBS) — ไม่บังคับใน requiredVariables
-    // เพราะยังไม่ทราบชื่อค่าที่ถูกต้อง ต้องเติมใน .env ก่อนขึ้นจริง
-    cbsInquiryAccountServiceName: process.env.CBS_INQUIRY_ACCOUNT_SERVICE_NAME || '',
 
     // CBS Register Digitalloan — ยิงตอน "ยอมรับสัญญา" เพื่อลงทะเบียนแผนปรับโครงสร้างหนี้กับ CBS จริง
     // ต้องมี Bearer token จาก SSO ก่อนเรียกเหมือน Inquiry Account (ดู getAccessTokenService)

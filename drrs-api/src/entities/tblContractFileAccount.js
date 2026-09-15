@@ -76,6 +76,17 @@ const tblContractFileAccount = new EntitySchema({
             length: 8,
             nullable: true
         },
+        // วันเสร็จสิ้นจริงจาก CBS Inquiry LoanProcess (SubMethod NEXTPLN1, field NewMdt) ณ ตอนเซ็นสัญญา
+        // เก็บไว้เพื่อให้บัญชีที่ "ลงทะเบียนไปแล้ว" (isRegistered) โชว์วันครบกำหนดของแผนผ่อนชำระได้
+        // จาก DB โดยไม่ต้องยิง CBS ซ้ำ — ห้ามคำนวณจาก installmentTerms แทนเด็ดขาด (ดู
+        // calculateInstallmentSchedule.js) ชื่อ column ตาม CBS field "NewMdt" ที่ทีมตกลงเรียกว่า
+        // "new_maturity_date" (วันครบกำหนดใหม่)
+        newMaturityDate: {
+            name: "new_maturity_date",
+            type: "varchar",
+            length: 8,
+            nullable: true
+        },
         // ---- ข้อมูลจาก CBS Register Digitalloan (ผลลัพธ์การลงทะเบียนแผน ณ ตอนเซ็นสัญญา) ----
         // ชื่อ column ตรงกับ field ที่ CBS ตอบกลับมา (Status, Desc, TimeStamp)
         cbsStatus: {

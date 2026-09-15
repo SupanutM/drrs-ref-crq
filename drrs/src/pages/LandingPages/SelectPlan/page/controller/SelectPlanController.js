@@ -70,30 +70,72 @@ function SelectPlanController(props) {
     // เก็บ ScheduledNextDate ต่อบัญชี (จาก CBS Inquiry Account) เพื่อคำนวณกำหนดการชำระหนี้
     // Format: { "accountNo1": "20260902", ... }
     const [scheduledDates, setScheduledDates] = useState({});
+    // เก็บ NewMdt ต่อบัญชี (จาก CBS Inquiry Account, SubMethod NEXTPLN1) — วันเสร็จสิ้นจริงจาก CBS
+    // ใช้ตรงๆ แทนการคำนวณจาก installmentTerms (ตัดสินใจ 2026-09-15)
+    // Format: { "accountNo1": "20270802", ... }
+    const [endDates, setEndDates] = useState({});
     // เก็บบัญชีที่ CBS Inquiry ตอบ Status: "REJECT" (เช่น "Account not Found.") — ใช้ทำการ์ดสีเทา
-    // (เลือกไม่ได้) พร้อมข้อความแดงแจ้งลูกค้า กันเลือกแผนของบัญชีที่ CBS หาไม่เจอไปก่อนเลย
+    // ทั้งบัญชี พร้อมข้อความแดงแจ้งลูกค้า เฉพาะกรณีที่ยิง SUMALL แล้ว reject (ไม่รู้จักบัญชีนี้เลย
+    // ในระบบ CBS ปิดทั้งบัญชีถูกต้อง — ดู inquiryPlanFailed ด้านล่างสำหรับกรณี reject เฉพาะแผน)
     // Format: { "accountNo1": true, ... }
     const [inquiryFailedAccounts, setInquiryFailedAccounts] = useState({});
+    // เก็บ "แผน" ที่ CBS Inquiry ตอบ Status: "REJECT" ตอนยิง NEXTPLN1 (แผนผ่อนชำระ) — ปิดเทาแค่
+    // การ์ดแผนผ่อนของบัญชีนั้น ไม่ปิดทั้งบัญชี เพราะแผน Haircut (ยิงคนละรอบ) อาจยังเลือกได้ปกติ
+    // Format: { "accountNo1": true, ... } (key เป็น accountNo เพราะ 1 บัญชีมีแผนผ่อนได้แค่แผนเดียว)
+    const [inquiryFailedPlans, setInquiryFailedPlans] = useState({});
 
-    // ตอนเข้าหน้าเลือกแผน — ยิง inquiry account ไปที่ CBS ทุกบัญชีของลูกค้า
+    // ตอนเข้าหน้าเลือกแผน — ยิง inquiry account ไปที่ CBS ทุกบัญชีของลูกค้า "รอบเดียว" ต่อบัญชี
     // (ไม่ throw ต่อ ไม่บล็อกหน้าถ้า CBS ล้มเหลว — เป็นแค่การอัปเดตข้อมูลล่วงหน้า)
+    // เลือก SubMethod ตามประเภทแผนที่บัญชีมี (spec ใหม่ 2026-09-15) — ต่างจาก preview/accept ที่ต้อง
+    // ยิง 2 รอบ (SUMALL+NEXTPLN1) เพื่อสร้างสัญญา หน้านี้แค่ prefetch เช็ค REJECT + วันที่ ไม่โชว์ตัวเลขเงิน:
+    //   มีแผนผ่อนชำระ (LT) และมี installmentTerms -> ยิงแค่ NEXTPLN1 (ได้ทั้ง Status เช็ค REJECT
+    //                                                 และ ScheduledNextDate มาโชว์กำหนดชำระในทีเดียว)
+    //     REJECT ตรงนี้ = ปิดเทาแค่แผนผ่อน (inquiryFailedPlans) ไม่ใช่ทั้งบัญชี เพราะแผน Haircut
+    //     ของบัญชีเดียวกันยังไม่ได้ถูกตรวจสอบ (ไม่ได้ยิง SUMALL) จึงยังเลือกได้ปกติ
+    //   ไม่มีแผนผ่อน (มีแต่ Haircut) หรือไม่มี installmentTerms -> ยิงแค่ SUMALL (เช็ค REJECT อย่างเดียว)
+    //     REJECT ตรงนี้ = ปิดเทาทั้งบัญชี (inquiryFailedAccounts) เพราะ CBS ไม่รู้จักบัญชีนี้เลย
     useEffect(() => {
         accounts.forEach((acc) => {
             if (!acc?.accountNo) return;
-            inquiryAccount({ accountNo: acc.accountNo, source: "select-plan" })
+            // บัญชีที่ลงทะเบียนไปแล้ว (acc.isRegistered) การ์ดถูก disable ไว้ทุกจุดอยู่แล้ว
+            // (ดู isRegistered ใน SelectPlanView.js) ไม่มีประโยชน์ที่จะยิง CBS มาแค่โชว์ข้อมูล
+            // ที่เลือกไม่ได้อยู่ดี — ข้ามไปเลย ลดจำนวน network call ไป SSO/CBS โดยไม่จำเป็น
+            if (acc.isRegistered) return;
+
+            const installmentPlan = acc.masterPlan?.find((p) => p.loanType !== "HC");
+            const installmentTerms = installmentPlan?.details?.[0]?.installmentTerms || installmentPlan?.details?.[0]?.installmentTerm;
+            const useNextPln1 = !!installmentTerms;
+
+            const payload = useNextPln1
+                ? { accountNo: acc.accountNo, subMethod: "NEXTPLN1", installmentTerms, source: "select-plan" }
+                : { accountNo: acc.accountNo, subMethod: "SUMALL", source: "select-plan" };
+
+            inquiryAccount(payload)
                 .then((res) => {
+                    // CBS ตอบ HTTP 200 มาได้แม้ Status เป็น "REJECT" (เช่น "Account not Found.")
+                    // ต้องเช็ค Status ในตัว body เสมอ ไม่ใช่แค่เช็คว่า request สำเร็จ
+                    const isRejected = res?.data?.Status && res.data.Status !== 'SUCCESS';
+                    if (isRejected) {
+                        if (useNextPln1) {
+                            // ยิง NEXTPLN1 แล้ว reject -> ปิดเทาแค่แผนผ่อนของบัญชีนี้
+                            setInquiryFailedPlans((prev) => ({ ...prev, [acc.accountNo]: true }));
+                        } else {
+                            // ยิง SUMALL แล้ว reject -> ปิดเทาทั้งบัญชี (CBS ไม่รู้จักบัญชีนี้เลย)
+                            setInquiryFailedAccounts((prev) => ({ ...prev, [acc.accountNo]: true }));
+                        }
+                    }
+                    // ScheduledNextDate/NewMdt มีเฉพาะตอนยิง NEXTPLN1
                     const scheduledNextDate = res?.data?.ScheduledNextDate;
                     if (scheduledNextDate) {
                         setScheduledDates((prev) => ({ ...prev, [acc.accountNo]: scheduledNextDate }));
                     }
-                    // CBS ตอบ HTTP 200 มาได้แม้ Status เป็น "REJECT" (เช่น "Account not Found.")
-                    // ต้องเช็ค Status ในตัว body เสมอ ไม่ใช่แค่เช็คว่า request สำเร็จ
-                    if (res?.data?.Status && res.data.Status !== 'SUCCESS') {
-                        setInquiryFailedAccounts((prev) => ({ ...prev, [acc.accountNo]: true }));
+                    const newMdt = res?.data?.NewMdt;
+                    if (newMdt) {
+                        setEndDates((prev) => ({ ...prev, [acc.accountNo]: newMdt }));
                     }
                 })
                 .catch((error) => {
-                    logger.error(`Inquiry account ล้มเหลวสำหรับบัญชี ${acc.accountNo}`, error);
+                    logger.error(`Inquiry account (${payload.subMethod}) ล้มเหลวสำหรับบัญชี ${acc.accountNo}`, error);
                 });
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -390,7 +432,9 @@ function SelectPlanController(props) {
         routerState,
         accounts,
         scheduledDates,
+        endDates,
         inquiryFailedAccounts,
+        inquiryFailedPlans,
         selectedPlans,
         isLoading,
         isSuccessModalOpen,

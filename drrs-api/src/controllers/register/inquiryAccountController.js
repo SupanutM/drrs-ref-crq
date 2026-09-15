@@ -6,10 +6,15 @@ const logger = baseLogger.child({ context: 'inquiryAccountController' });
 
 const inquiryAccountController = async (req, res) => {
     try {
-        const { accountNo, source, planNo } = req.body;
+        const { accountNo, source, planNo, subMethod, installmentTerms } = req.body;
 
         if (!accountNo) {
             return sendError(res, 'กรุณาระบุเลขที่บัญชี (accountNo)', 400);
+        }
+
+        // NEXTPLN1 (แผนผ่อนชำระ) ต้องมี installmentTerms เสมอ ห้ามส่งค่าว่างไปที่ CBS
+        if (subMethod === 'NEXTPLN1' && (installmentTerms === undefined || installmentTerms === null || installmentTerms === '')) {
+            return sendError(res, 'กรุณาระบุจำนวนงวด (installmentTerms) เมื่อ subMethod เป็น NEXTPLN1', 400);
         }
 
         // เช็กว่า accountNo เป็นของเจ้าของ session จริง (กัน IDOR)
@@ -18,7 +23,7 @@ const inquiryAccountController = async (req, res) => {
             return sendError(res, 'ไม่มีสิทธิ์ดำเนินการกับบัญชีนี้', 403);
         }
 
-        const result = await inquiryAccountService({ accountNo, source, planNo });
+        const result = await inquiryAccountService({ accountNo, subMethod, installmentTerms, source, planNo });
 
         if (!result.success) {
             const statusCode = result.status && result.status < 500 ? result.status : 502;
