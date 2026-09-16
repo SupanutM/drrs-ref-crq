@@ -1,4 +1,5 @@
 const iconv = require('iconv-lite');
+const { In } = require('typeorm');
 const { AppDataSource } = require('../../config/database');
 const tblCusTarget = require('../../entities/tblCusTarget');
 const tblAccountCusTarget = require('../../entities/tblAccountCusTarget');
@@ -71,8 +72,18 @@ const toDateOrNull = (value) => {
  * ตำแหน่งคอลัมน์ (ไม่มี header): [CIF_NO, CITIZEN_ID, FIRST_NAME, LAST_NAME, VERIFY_CODE, TYPE]
  * ตัวอย่าง: 5004|2110000000000|ศุภณัฐ|มณีชัย|4546|1
  *
- * นโยบาย: soft-delete แถวเดิมทั้งหมด (status='1' -> status='0' + delete_date/delete_by)
- * แล้ว insert แถวจากไฟล์เป็นแถวใหม่ทั้งหมด (ไม่ upsert ตาม citizenId แบบเดิมอีกต่อไป)
+ * ★ Upsert ตาม CIF_NO (ไม่ใช่ full-refresh แบบเดิมแล้ว — แก้บั๊ก 2026-09-15):
+ *   เดิม soft-delete ลูกค้าทั้งหมดแล้ว insert ใหม่ทุกครั้ง ทำให้ลูกค้าคนเดิมได้ id (cus_target_id)
+ *   ใหม่ทุกรอบที่ import ซ้ำ — แต่ไฟล์บัญชี (importAccount) เป็น "delta" ไม่แตะบัญชีที่ไม่ได้อยู่ใน
+ *   ไฟล์รอบนั้น ทำให้บัญชีที่ไม่ถูก import ซ้ำยังชี้ไปที่ cus_target_id เดิมที่ตอนนี้ status='0'
+ *   ไปแล้ว (บัญชีอ้างลูกค้าที่ "ถูกลบ" ทั้งที่จริงเป็นคนเดิม) ต้องคง id ให้เสถียรข้ามรอบ import
+ *
+ * พฤติกรรมใหม่:
+ *   - CIF_NO ตรงกับลูกค้า active (status='1') ที่มีอยู่แล้ว -> UPDATE แถวเดิม (คง id เดิม)
+ *   - CIF_NO ไม่ตรงกับใครเลย -> INSERT แถวใหม่
+ *   - ลูกค้า active ที่ "หายไปจากไฟล์รอบนี้" -> soft-delete (คงพฤติกรรม full-refresh เดิมไว้บางส่วน
+ *     คือปิดคนที่ไม่มีในไฟล์แล้วจริงๆ) ยกเว้นมีบัญชีที่ส่ง CBS สำเร็จแล้ว (step_send_to_cbs='1')
+ *     ห้าม soft-delete เด็ดขาด กันเคสไฟล์ตกหล่นบางวันแล้วลูกค้าที่ลงทะเบียนสำเร็จหายไปจากระบบ
  */
 const importCustomer = async (buffer, adminUsername) => {
     const rows = parseCsvPipe(buffer);
@@ -106,36 +117,87 @@ const importCustomer = async (buffer, adminUsername) => {
         // ผูกกับ transaction นี้เท่านั้น (ดูรายละเอียดที่ masterDataImportService.replaceAllRows)
         await manager.query("SET LOCAL client_encoding TO 'UTF8'");
 
-        const repo = manager.getRepository(tblCusTarget);
+        const cusRepo = manager.getRepository(tblCusTarget);
+        const accRepo = manager.getRepository(tblAccountCusTarget);
+        const stepRepo = manager.getRepository(tblSettingsStep);
 
-        const deleteResult = await repo
-            .createQueryBuilder()
-            .update()
-            .set({ status: '0', deleteDate: () => 'CURRENT_TIMESTAMP', deleteBy: adminUsername })
-            .where('status = :status', { status: '1' })
-            .execute();
-        const deleted = deleteResult.affected ?? 0;
+        // ลูกค้า active ทั้งหมดตอนนี้ — map ด้วย cifNo เพื่อจับคู่ของเก่ากับของใหม่ในไฟล์
+        const activeCustomers = await cusRepo.find({ where: { status: '1' } });
+        const customerByCifNo = new Map(activeCustomers.map((c) => [c.cifNo, c]));
 
-        const newRows = mappedRows.map((row) => ({
-            ...row,
-            status: '1',
-            createdBy: adminUsername,
-            createdDate: new Date(),
-        }));
+        // หาลูกค้าที่มีบัญชีส่ง CBS สำเร็จแล้ว (step_send_to_cbs='1') — ห้าม soft-delete แม้หายไป
+        // จากไฟล์รอบนี้ (เหตุผลเดียวกับที่ importAccount ป้องกันบัญชีกลุ่มนี้ไว้)
+        const protectedSteps = await stepRepo
+            .createQueryBuilder('step')
+            .select('step.accountNo', 'accountNo')
+            .where("TRIM(step.step_send_to_cbs) = :sent", { sent: '1' })
+            .getRawMany();
+        const protectedAccountNos = protectedSteps.map((s) => s.accountNo).filter(Boolean);
+        let protectedCustomerIds = new Set();
+        if (protectedAccountNos.length > 0) {
+            const protectedAccounts = await accRepo.find({
+                select: { cusTargetId: true },
+                where: { accountNo: In(protectedAccountNos) }
+            });
+            protectedCustomerIds = new Set(protectedAccounts.map((a) => a.cusTargetId));
+        }
+
+        const keptIds = new Set(); // id ลูกค้าเดิมที่ยังอยู่ในไฟล์รอบนี้ (update แทน insert)
+        const newRows = [];
+
+        for (const row of mappedRows) {
+            const existing = customerByCifNo.get(row.cifNo);
+            if (existing) {
+                keptIds.add(existing.id);
+                await cusRepo.update(existing.id, {
+                    citizenId: row.citizenId,
+                    firstName: row.firstName,
+                    lastName: row.lastName,
+                    verifyCode: row.verifyCode,
+                    type: row.type,
+                    updateBy: adminUsername,
+                    updateDate: new Date(),
+                });
+            } else {
+                newRows.push({
+                    ...row,
+                    status: '1',
+                    createdBy: adminUsername,
+                    createdDate: new Date(),
+                });
+            }
+        }
 
         // แบ่ง batch กันชน parameter limit ของ PostgreSQL (65535) เผื่อไฟล์มีจำนวนแถวมาก
         const BATCH_SIZE = 1000;
         for (let i = 0; i < newRows.length; i += BATCH_SIZE) {
-            await repo.insert(newRows.slice(i, i + BATCH_SIZE));
+            await cusRepo.insert(newRows.slice(i, i + BATCH_SIZE));
         }
 
-        return { deleted, inserted: newRows.length };
+        // soft-delete เฉพาะลูกค้า active ที่ "หายไปจากไฟล์รอบนี้จริงๆ" (ไม่อยู่ใน keptIds) และไม่ใช่
+        // ลูกค้าที่มีบัญชีส่ง CBS สำเร็จแล้ว (protectedCustomerIds)
+        const idsToDelete = activeCustomers
+            .filter((c) => !keptIds.has(c.id) && !protectedCustomerIds.has(c.id))
+            .map((c) => c.id);
+        let deleted = 0;
+        if (idsToDelete.length > 0) {
+            const deleteResult = await cusRepo
+                .createQueryBuilder()
+                .update()
+                .set({ status: '0', deleteDate: () => 'CURRENT_TIMESTAMP', deleteBy: adminUsername })
+                .where('status = :status', { status: '1' })
+                .andWhere('id IN (:...idsToDelete)', { idsToDelete })
+                .execute();
+            deleted = deleteResult.affected ?? 0;
+        }
+
+        return { deleted, inserted: newRows.length, updated: keptIds.size };
     });
 
-    logger.info(`Import ข้อมูลลูกค้า: soft-delete เดิม=${result.deleted} เพิ่มใหม่=${result.inserted} error=${errors.length}`);
+    logger.info(`Import ข้อมูลลูกค้า: อัปเดต=${result.updated} เพิ่มใหม่=${result.inserted} soft-delete(หายจากไฟล์)=${result.deleted} error=${errors.length}`);
     return {
         success: true,
-        message: `นำเข้าข้อมูลลูกค้าสำเร็จ (ปิดใช้งานข้อมูลเดิม ${result.deleted} แถว, เพิ่มใหม่ ${result.inserted} แถว)`,
+        message: `นำเข้าข้อมูลลูกค้าสำเร็จ (อัปเดต ${result.updated} แถว, เพิ่มใหม่ ${result.inserted} แถว, ปิดใช้งานที่หายไปจากไฟล์ ${result.deleted} แถว)`,
         data: { ...result, errors }
     };
 };
@@ -152,7 +214,8 @@ const importCustomer = async (buffer, adminUsername) => {
  *
  * ★ แบบ delta (ไม่ใช่ full-refresh): soft-delete "เฉพาะ" บัญชี+แผน (account_no + plan_no) ที่มีในไฟล์
  *   รอบนี้เท่านั้น แล้วแทนด้วยแถวใหม่ — บัญชี/แผนที่ไม่ได้อยู่ในไฟล์รอบนี้ "ไม่ถูกแตะ" (คงข้อมูลเดิมไว้)
- *   (ต่างจากไฟล์ลูกค้า importCustomer ที่ยังเป็น full-refresh ปิดของเก่าทั้งหมด)
+ *   สำคัญ: importCustomer เป็น upsert ตาม CIF_NO แล้ว (คง cus_target_id เดิมไว้ข้ามรอบ import)
+ *   ทำให้ customer.id ที่ map ผ่าน customerByCifNo ด้านล่างเสถียร ไม่เปลี่ยนทุกรอบเหมือนเมื่อก่อน
  *
  * การตัดสินใจทำแบบ "รายแถว" จับคู่ของเก่ากับของใหม่ด้วย key = account_no + plan_no
  * เรียงลำดับความสำคัญของเงื่อนไข "คงของเก่าไว้ (skip ไม่ import ใหม่ แค่แตะ update_date/update_by)":

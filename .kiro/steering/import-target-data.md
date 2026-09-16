@@ -44,8 +44,15 @@ fileMatchPattern: "drrs-api/src/services/admin/targetDataImportService.js|drrs-a
 
 ## วิธีเก็บข้อมูล (ต่างกันตามไฟล์)
 
-**ไฟล์ลูกค้า** (`tbl_cus_target`) — full-refresh: ปิดข้อมูลเดิม**ทั้งหมด** (`status '1' → '0'` +
-`delete_date`/`delete_by`) แล้ว insert ทั้งไฟล์เป็นแถวใหม่
+**ไฟล์ลูกค้า** (`tbl_cus_target`) — **upsert ตาม `CIF_NO`** (แก้บั๊ก 2026-09-15, เดิมเป็น
+full-refresh ปิดของเก่าทั้งหมดแล้ว insert ใหม่ทุกครั้ง ทำให้ `cus_target_id` เปลี่ยนทุกรอบ import
+แม้เป็นลูกค้าคนเดิม — พังกับไฟล์บัญชีที่เป็น delta เพราะบัญชีที่ไม่ได้อยู่ในไฟล์บัญชีรอบนั้นจะยังชี้
+ไปที่ `cus_target_id` เดิมที่ถูกปิดไปแล้ว):
+- `CIF_NO` ตรงกับลูกค้า active ที่มีอยู่แล้ว → **UPDATE** แถวเดิม (คง `id` เดิมไว้เสมอ)
+- `CIF_NO` ใหม่ ไม่ตรงกับใคร → INSERT แถวใหม่
+- ลูกค้า active ที่หายไปจากไฟล์รอบนี้ → soft-delete (`status '1' → '0'` + `delete_date`/`delete_by`)
+  **ยกเว้น** มีบัญชีที่ `step_send_to_cbs = '1'` (ส่ง CBS สำเร็จแล้ว) ห้าม soft-delete เด็ดขาด
+  (กฎเดียวกับที่ป้องกันบัญชีในไฟล์บัญชี — กันไฟล์ตกหล่นบางวันแล้วลูกค้าที่ลงทะเบียนสำเร็จหายไป)
 
 **ไฟล์บัญชี** (`tbl_account_cus_target`) — **delta (ไม่ใช่ full-refresh)**:
 soft-delete **เฉพาะ** บัญชี+แผน (`account_no` + `plan_no`) ที่มีในไฟล์รอบนี้ แล้วแทนด้วยแถวใหม่
