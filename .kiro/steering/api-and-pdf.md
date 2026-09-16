@@ -91,18 +91,39 @@ export const saveDebtRestructure = async (payload) => {
   สร้างให้ เพื่อความสม่ำเสมอของสัญญา — ก่อนสร้าง PDF ฝั่ง client ให้เช็คก่อนว่ามี endpoint รองรับแล้วหรือยัง
 - สัญญาที่สร้างสำเร็จจะถูกเก็บ (preview base64) ลง `tbl_contract_file` +
   `tbl_contract_file_account` (normalize แล้ว 1 แถวต่อ 1 บัญชี พร้อม snapshot
-  ยอดเงิน/ข้อมูล CBS Inquiry ณ ตอนเซ็นสัญญา **และ** ผลลัพธ์จาก CBS Register Digitalloan
+  ยอดเงิน/ข้อมูล CBS Inquiry ณ ตอนเซ็นสัญญา — `scheduled_next_date` (ScheduledNextDate) +
+  `new_maturity_date` (NewMdt วันครบกำหนด) **และ** ผลลัพธ์จาก CBS Register Digitalloan
   — `cbs_status`/`cbs_desc`/`cbs_timestamp` ตรงกับ `Status`/`Desc`/`TimeStamp` ที่ CBS ตอบมา)
   ไว้สำหรับ reprint ย้อนหลัง — ดูหัวข้อ CBS ด้านล่าง
+- บัญชีที่ลงทะเบียนไปแล้ว (`isRegistered`) หน้า select-plan จะดึง `scheduled_next_date`/
+  `new_maturity_date` จาก snapshot สัญญาล่าสุด (`masterPlanService.js`) มาโชว์แทนการยิง CBS ซ้ำ
+  (สัญญาเก่าก่อนเพิ่ม column `new_maturity_date` จะไม่มีค่า → ซ่อนบรรทัดวันที่)
 
 ## การลงทะเบียนกับ CBS (สำคัญ — ยิงตอน "ยอมรับสัญญา")
 
 มี CBS API 2 เส้นที่ทำงานคนละหน้าที่ อยู่ใน `services/register/`:
 
-- **Inquiry Account** (`inquiryAccountService.js`) — เช็คยอดบัญชีล่าสุด (วงเงิน/ยอดคงเหลือ/
-  ดอกเบี้ย/ScheduledNextDate) ยิงได้หลายจุด (select-plan prefetch, preview, ยอมรับสัญญา)
-  แต่บันทึกประวัติลง `tbl_system_log` (step `CBS_INQUIRY_ACCOUNT`) เฉพาะตอนยอมรับสัญญาจริง
-  เท่านั้น (ไม่บันทึกถ้า `source` เป็น `select-plan`/`preview` — กันบันทึกซ้ำ)
+- **Inquiry LoanProcess** (`inquiryAccountService.js`, endpoint `CBS_INQUIRY_ACCOUNT_URL` =
+  `.../inquiry/loanprocess`) — เช็คข้อมูลบัญชีล่าสุด ยิงแยกตาม `SubMethod` (spec 2026-09-15):
+  - `SubMethod: "SUMALL"` (`DataInput: ""`) — คืน `DataOutput` = `crlmt#total_amount#total_bal#total_int#`
+    → วงเงินกู้ / ภาระหนี้คงเหลือ / เงินต้น / ดอกเบี้ย (ใช้กับแผน Haircut และทุกจุดที่ต้องโชว์ตัวเลขเงิน)
+  - `SubMethod: "NEXTPLN1"` (`DataInput: "<งวด>#"`) — คืน `DataOutput` = `new_schnd#new_mdt#` (YYYYMMDD)
+    → `ScheduledNextDate` (วันเริ่มชำระงวดแรก) / `NewMdt` (วันครบกำหนด) ใช้กับ**แผนผ่อนชำระเท่านั้น**
+    `<งวด>` = `installment_terms` **ต้องมีค่าเสมอ ห้ามว่าง**
+  - body **ไม่มี `ServiceName`** แล้ว (spec เก่ามี — เลิกใช้) — มีแค่ `UUID`/`AccountNumber`/`SubMethod`/`DataInput`
+  - แปลง `DataOutput` (คั่นด้วย `#`) ผ่าน Model เฉพาะทาง: `model/CbsLoanProcessSumAllDataModel.js`
+    และ `model/CbsLoanProcessNextPln1DataModel.js` (แยก logic `.split('#')` ออกจาก service)
+  - CBS อาจตอบ HTTP 200 แต่ `Status: "REJECT"` — service คืน `success: true` เสมอเมื่อ HTTP ไม่ error
+    (ให้ผู้เรียกเช็ค `data.Status` เอง) **ห้าม** return `success:false` ตอน REJECT เพราะ controller
+    จะตอบ HTTP non-2xx ทำให้ axios ฝั่ง frontend เข้า `.catch()` แทน `.then()` (logic เช็ค Status พัง)
+  - **วันครบกำหนด (`NewMdt`) ใช้ตรงๆ เท่านั้น ห้ามคำนวณเองจาก `ScheduledNextDate + installmentTerms`**
+    (CBS คิดวันหยุด/รอบตัดบัญชีร่วมด้วย คำนวณเองได้วันผิด — เคยเป็นบั๊กจริง) ถ้า CBS ไม่ส่งมา
+    ให้โชว์ว่างเปล่า (ซ่อนบรรทัด) ไม่เดาวันที่ — ดู `utils/calculateInstallmentSchedule.js`
+  - จุดที่ยิง: หน้า select-plan (prefetch, `source: "select-plan"` — ยิงรอบเดียว: มีแผนผ่อน→`NEXTPLN1`,
+    ไม่มี→`SUMALL`; ข้ามบัญชีที่ `isRegistered` แล้ว), preview (`source: "preview"`), ยอมรับสัญญา
+    (`contractHelper.js augmentAccountsWithCbsData` ยิง `SUMALL` เสมอ + `NEXTPLN1` เพิ่มถ้าแผนผ่อน)
+  - บันทึกประวัติลง `tbl_system_log` (step `CBS_INQUIRY_ACCOUNT`) เฉพาะตอนยอมรับสัญญาจริงเท่านั้น
+    (ไม่บันทึกถ้า `source` เป็น `select-plan`/`preview` — กันบันทึกซ้ำ)
 - **Register Digitalloan** (`registerDigitalLoanService.js`) — ลงทะเบียนแผนที่ลูกค้าเลือกกับ
   CBS จริง ยิง **ครั้งเดียวตอนกดยอมรับสัญญา** ก่อนสร้าง PDF เสมอ
   (`downloadAndEmailContractPdfController.js` STEP 1 ก่อน STEP 2 สร้าง PDF)
