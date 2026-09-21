@@ -1,5 +1,5 @@
 window.APP_CONFIG = {
-  BACKEND_URL: "/drrs/reword",
+  BACKEND_URL: "/drrs/reverse",
   SESSION_TIMEOUT: 900,
   SESSION_WARNING: 15,
   MAX_CONNECTIONS: 5,
