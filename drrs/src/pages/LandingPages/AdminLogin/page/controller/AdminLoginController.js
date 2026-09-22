@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import * as AdminLoginService from "../services/AdminLoginService";
@@ -10,20 +10,22 @@ function AdminLoginController() {
   const navigate = useNavigate();
 
   const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
   const [isAlert, setIsAlert] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
   const [alertType, setAlertType] = useState("error");
   const [isLoading, setIsLoading] = useState(false);
 
+  // ช่องรหัสผ่านเป็น uncontrolled input โดยเจตนา — ค่าอยู่ใน DOM ของ input เท่านั้น
+  // ไม่เก็บลง React state และไม่ส่งผ่าน props เพื่อไม่ให้ค่าค้างอยู่ใน component tree
+  const secretRef = useRef(null);
+
   const handleChangeUsername = (e) => setUsername(e.target.value);
-  const handleChangePassword = (e) => setPassword(e.target.value);
 
   const handleSubmit = async () => {
     const tUsername = username.trim();
-    const tPassword = password.trim();
+    const tSecret = (secretRef.current?.value || "").trim();
 
-    if (!tUsername || !tPassword) {
+    if (!tUsername || !tSecret) {
       setIsAlert(true);
       setAlertType("warning");
       setAlertMsg("กรุณากรอก Username และ Password");
@@ -33,7 +35,7 @@ function AdminLoginController() {
     try {
       setIsLoading(true);
       setIsAlert(false);
-      const res = await AdminLoginService.login(tUsername, tPassword);
+      const res = await AdminLoginService.login(tUsername, tSecret);
 
       if (res.success) {
         setAdminToken(res.data.token);
@@ -66,12 +68,12 @@ function AdminLoginController() {
     }
   };
 
-  const state = { username, password, isAlert, alertMsg, alertType, isLoading };
-  const handlers = { handleChangeUsername, handleChangePassword, handleSubmit, handleKeyDown };
+  const state = { username, isAlert, alertMsg, alertType, isLoading };
+  const handlers = { handleChangeUsername, handleSubmit, handleKeyDown };
 
   return (
     <>
-      <AdminLoginView state={state} handlers={handlers} />
+      <AdminLoginView state={state} handlers={handlers} secretRef={secretRef} />
       <LoadingComponent isOpen={isLoading} message="กำลังเข้าสู่ระบบ..." />
     </>
   );

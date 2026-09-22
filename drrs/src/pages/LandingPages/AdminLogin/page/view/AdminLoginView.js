@@ -10,9 +10,9 @@ import MKInput from "components/MKInput";
 import MKButton from "components/MKButton";
 import MKAlert from "components/MKAlert";
 
-function AdminLoginView({ state, handlers }) {
-  const { username, password, isAlert, alertMsg, alertType, isLoading } = state;
-  const { handleChangeUsername, handleChangePassword, handleSubmit, handleKeyDown } = handlers;
+function AdminLoginView({ state, handlers, secretRef }) {
+  const { username, isAlert, alertMsg, alertType, isLoading } = state;
+  const { handleChangeUsername, handleSubmit, handleKeyDown } = handlers;
 
   return (
     <Grid container justifyContent="center">
@@ -50,12 +50,12 @@ function AdminLoginView({ state, handlers }) {
         </MKBox>
 
         <MKBox mb={3}>
+          {/* uncontrolled input โดยเจตนา — อ่านค่าผ่าน secretRef ตอน submit เท่านั้น */}
           <MKInput
             type="password"
             label="Password"
             fullWidth
-            value={password}
-            onChange={handleChangePassword}
+            inputRef={secretRef}
             onKeyDown={handleKeyDown}
             disabled={isLoading}
             autoComplete="current-password"
@@ -81,7 +81,6 @@ function AdminLoginView({ state, handlers }) {
 AdminLoginView.propTypes = {
   state: PropTypes.shape({
     username: PropTypes.string,
-    password: PropTypes.string,
     isAlert: PropTypes.bool,
     alertMsg: PropTypes.string,
     alertType: PropTypes.string,
@@ -89,9 +88,12 @@ AdminLoginView.propTypes = {
   }).isRequired,
   handlers: PropTypes.shape({
     handleChangeUsername: PropTypes.func.isRequired,
-    handleChangePassword: PropTypes.func.isRequired,
     handleSubmit: PropTypes.func.isRequired,
     handleKeyDown: PropTypes.func.isRequired,
+  }).isRequired,
+  secretRef: PropTypes.shape({
+    // eslint-disable-next-line react/forbid-prop-types
+    current: PropTypes.any,
   }).isRequired,
 };
 
