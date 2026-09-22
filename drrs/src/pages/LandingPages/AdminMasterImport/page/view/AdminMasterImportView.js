@@ -39,9 +39,12 @@ function AdminMasterImportView({ state, handlers }) {
           </Fade>
         )}
 
+        {/* accept=".xlsx,.csv" ทุกแถว — master data รับได้ทั้ง 2 นามสกุล (ต่างจากหน้าข้อมูลชี้เป้า
+            ที่รับ .csv เท่านั้น) ระบุไว้ชัดๆ ไม่พึ่ง default ของคอมโพเนนต์ */}
         <AdminFileUploadRow
           label="จังหวัด (Province)"
           hint="คอลัมน์ที่ต้องมี: LANG, PROVINCE_CODE, PROVINCE_NAME"
+          accept=".xlsx,.csv"
           file={files.province}
           onFileChange={(f) => handleFileChange("province", f)}
           result={results.province}
@@ -50,6 +53,7 @@ function AdminMasterImportView({ state, handlers }) {
         <AdminFileUploadRow
           label="อำเภอ (District)"
           hint="คอลัมน์ที่ต้องมี: LANG, PROVINCE_CODE, DISTRICT_CODE, DISTRICT_NAME"
+          accept=".xlsx,.csv"
           file={files.district}
           onFileChange={(f) => handleFileChange("district", f)}
           result={results.district}
@@ -58,6 +62,7 @@ function AdminMasterImportView({ state, handlers }) {
         <AdminFileUploadRow
           label="ตำบล (Sub-District)"
           hint="คอลัมน์ที่ต้องมี: LANG, PROVINCE_CODE, DISTRICT_CODE, SUB_DISTRICT_CODE, SUB_DISTRICT_NAME"
+          accept=".xlsx,.csv"
           file={files.subDistrict}
           onFileChange={(f) => handleFileChange("subDistrict", f)}
           result={results.subDistrict}

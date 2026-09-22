@@ -21,7 +21,7 @@ const verifyCusTargetService = async (firstName, lastName, verifyCode, citizenId
 
         const customer = await tblCusTargetRepo.findOne({
             where: {
-                // citizenId: citizenIdDecrypted,
+                citizenId: citizenIdDecrypted,
                 firstName: firstNameDecrypted,
                 lastName: lastNameDecrypted,
                 verifyCode: verifyCode,

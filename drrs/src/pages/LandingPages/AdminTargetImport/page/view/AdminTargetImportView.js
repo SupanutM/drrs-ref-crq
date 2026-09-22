@@ -40,9 +40,12 @@ function AdminTargetImportView({ state, handlers }) {
           </Fade>
         )}
 
+        {/* accept=".csv" ทุกแถว — ไฟล์ชี้เป้ารับเฉพาะ .csv ดิบเท่านั้น (backend uploadCsvOnly ก็กัน
+            ไว้อีกชั้น) ไฟล์ที่ผ่านการแปลงเป็น .xlsx มาก่อนทำเลขบัตรประชาชนเพี้ยน */}
         <AdminFileUploadRow
           label="ข้อมูลลูกค้า"
           hint="ลำดับคอลัมน์: CIF_NO | CITIZEN_ID | NAME | LNAME | VERIFY_CODE | TYPE"
+          accept=".csv"
           file={files.customer}
           onFileChange={(f) => handleFileChange("customer", f)}
           result={results.customer}
@@ -51,6 +54,7 @@ function AdminTargetImportView({ state, handlers }) {
         <AdminFileUploadRow
           label="ข้อมูลบัญชี"
           hint="ลำดับคอลัมน์: ACCOUNT_NO | CIF_NO | PLAN_NO | PAYMENT_AMOUNT | INSTALLMENT_TERMS | EXPIRE_DATE (YYYYMMDD, ไม่บังคับ)"
+          accept=".csv"
           file={files.account}
           onFileChange={(f) => handleFileChange("account", f)}
           result={results.account}
@@ -59,6 +63,7 @@ function AdminTargetImportView({ state, handlers }) {
         <AdminFileUploadRow
           label="ข้อมูลแผน"
           hint="ลำดับคอลัมน์: CODE | LOAN_TYPE | DESC_TH | DESC_EN | CHECK_INCOME"
+          accept=".csv"
           file={files.plan}
           onFileChange={(f) => handleFileChange("plan", f)}
           result={results.plan}

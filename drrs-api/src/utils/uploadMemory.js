@@ -12,7 +12,7 @@ const uploadXlsx = multer({
         // ไว้คู่กับ .xlsx เดิม (ยังใช้ upload แบบมี header ได้เหมือนก่อน)
         const allowedExt = /\.(xlsx|csv)$/i;
         if (!allowedExt.test(file.originalname)) {
-            return cb(new Error('รองรับเฉพาะไฟล์ .xlsx หรือ .csv เท่านั้น'));
+            return cb(new Error('รองรับเฉพาะไฟล์ .csv เท่านั้น'));
         }
         cb(null, true);
     }

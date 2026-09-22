@@ -1,9 +1,13 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import * as AdminLoginService from "../services/AdminLoginService";
 import AdminLoginView from "../view/AdminLoginView";
-import { setAdminToken, setAdminProfile } from "utils/adminAuthToken";
+import {
+  setAdminToken,
+  setAdminProfile,
+  consumeAdminLogoutReason,
+} from "utils/adminAuthToken";
 import LoadingComponent from "components/Loading/LoadingComponent";
 
 function AdminLoginController() {
@@ -18,6 +22,18 @@ function AdminLoginController() {
   // ช่องรหัสผ่านเป็น uncontrolled input โดยเจตนา — ค่าอยู่ใน DOM ของ input เท่านั้น
   // ไม่เก็บลง React state และไม่ส่งผ่าน props เพื่อไม่ให้ค่าค้างอยู่ใน component tree
   const secretRef = useRef(null);
+
+  // ถ้าถูกเด้งมาที่หน้านี้เพราะ token หมดอายุ/ไม่ถูกต้อง (adminHandler.js เจอ 401 แล้วเก็บเหตุผลไว้)
+  // ให้แสดงเป็นแถบเตือน เพื่อให้ผู้ใช้รู้ว่าทำไมหลุดจากระบบ ไม่ใช่เด้งกลับมาเงียบๆ
+  // อ่านแบบ one-shot (อ่านแล้วลบ) จึงโชว์ครั้งเดียว ไม่ค้างเวลากลับมาหน้านี้อีก
+  useEffect(() => {
+    const logoutReason = consumeAdminLogoutReason();
+    if (logoutReason) {
+      setIsAlert(true);
+      setAlertType("warning");
+      setAlertMsg(logoutReason);
+    }
+  }, []);
 
   const handleChangeUsername = (e) => setUsername(e.target.value);
 

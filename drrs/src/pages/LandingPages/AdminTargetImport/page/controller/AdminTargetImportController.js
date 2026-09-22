@@ -54,14 +54,26 @@ function AdminTargetImportController() {
       setFiles({ customer: null, account: null, plan: null });
       setResetKey((k) => k + 1);
 
-      if (res.success) {
-        setIsAlert(true);
-        setAlertType("success");
-        setAlertMsg("นำเข้าข้อมูลสำเร็จทุกไฟล์");
-      } else {
-        setIsAlert(true);
+      // รวมจำนวนแถวซ้ำจากทุกไฟล์ — ไฟล์ที่มีแถวซ้ำ ระบบนำเข้าให้แล้วโดยใช้ข้อมูล "แถวล่าสุด"
+      // ถือว่าสำเร็จ แต่ต้องเตือนให้เจ้าหน้าที่ไปตรวจไฟล์ต้นทาง (แถบเตือนไม่ปิดเอง ต่างจากแถบสำเร็จ)
+      const totalDuplicates = Object.values(res.data || {}).reduce(
+        (sum, fileResult) => sum + (fileResult?.data?.duplicateCount || 0),
+        0
+      );
+
+      setIsAlert(true);
+      if (!res.success) {
         setAlertType("warning");
         setAlertMsg("นำเข้าข้อมูลสำเร็จบางส่วน กรุณาดูรายละเอียดผลลัพธ์แต่ละไฟล์ด้านล่าง");
+      } else if (totalDuplicates > 0) {
+        setAlertType("warning");
+        setAlertMsg(
+          `นำเข้าข้อมูลสำเร็จทุกไฟล์ แต่พบแถวซ้ำในไฟล์รวม ${totalDuplicates} แถว ` +
+            "ระบบใช้ข้อมูลจากแถวล่าสุดของแต่ละรายการ กรุณาตรวจไฟล์ต้นทาง (ดูรายละเอียดด้านล่าง)"
+        );
+      } else {
+        setAlertType("success");
+        setAlertMsg("นำเข้าข้อมูลสำเร็จทุกไฟล์");
       }
     } catch (error) {
       setIsAlert(true);

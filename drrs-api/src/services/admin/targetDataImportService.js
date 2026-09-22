@@ -49,6 +49,55 @@ const parseCsvPipe = (buffer) => {
     }));
 };
 
+// จำนวนข้อความแจ้งเตือน "แถวซ้ำ" สูงสุดที่ส่งกลับ/เก็บลง audit log (กัน payload บวมถ้าไฟล์เพี้ยนหนัก)
+// ตัวนับจำนวนจริง (duplicateCount) ยังนับครบทุกแถวเสมอ ไม่ถูกจำกัดด้วยค่านี้
+const DUP_WARNING_LIMIT = 200;
+
+/**
+ * ตัดแถวซ้ำภายใน "ไฟล์เดียวกัน" — นโยบาย: ★ เชื่อแถวล่าสุดเสมอ (แถวที่อยู่ล่างกว่าในไฟล์ชนะ)
+ *
+ * เหตุผลที่ต้องตัดตรงนี้ก่อนเข้า DB: map ที่ใช้จับคู่ของเก่ากับของใหม่ (customerByCifNo /
+ * existingByKey) สร้างจากข้อมูลใน DB "ครั้งเดียว" ก่อนเข้า loop และ insert เกิดขึ้นหลัง loop จบ
+ * แถวซ้ำแถวที่ 2 จึงมองไม่เห็นแถวที่ 1 -> ได้แถว active key เดียวกันซ้อน 2 แถวใน DB
+ * (เคสนี้เกิดเฉพาะ key ที่ยังไม่มีใน DB เลย ถ้ามีอยู่แล้วทั้งคู่จะเข้าทาง update ทับกันเอง)
+ *
+ * ลำดับผลลัพธ์: เรียงตามตำแหน่งที่ key นั้นโผล่ "ครั้งแรก" ในไฟล์ แต่ข้อมูลเป็นของแถว "ล่าสุด"
+ * (Map ของ JS คงตำแหน่งเดิมไว้เมื่อ set ทับ key ที่มีอยู่แล้ว)
+ *
+ * @param {Array} rows - แถวที่ map แล้ว ต้องมี rowNumber ติดมาด้วย
+ * @param {Function} keyOf - (row) => key ที่ใช้ตัดซ้ำ (ลูกค้า = CIF_NO, บัญชี = account_no|plan_no)
+ * @param {Function} describe - (winnerRow) => ข้อความอธิบายแถว สำหรับแจ้งเตือนเจ้าหน้าที่
+ * @returns {{ rows: Array, warnings: string[], duplicateCount: number }}
+ */
+const dedupeKeepLast = (rows, keyOf, describe) => {
+    const winnerByKey = new Map();   // key -> แถวล่าสุดที่เจอ (ตัวที่จะใช้จริง)
+    const droppedByKey = new Map();  // key -> [เลขแถวที่ถูกทิ้ง] เรียงตามที่เจอในไฟล์
+
+    rows.forEach((row) => {
+        const key = keyOf(row);
+        const previous = winnerByKey.get(key);
+        if (previous) {
+            if (!droppedByKey.has(key)) droppedByKey.set(key, []);
+            droppedByKey.get(key).push(previous.rowNumber);
+        }
+        winnerByKey.set(key, row); // แถวล่าสุดทับแถวเดิมเสมอ (คงตำแหน่งเดิมใน Map)
+    });
+
+    const warnings = [];
+    let duplicateCount = 0;
+    droppedByKey.forEach((droppedRowNumbers, key) => {
+        duplicateCount += droppedRowNumbers.length;
+        if (warnings.length >= DUP_WARNING_LIMIT) return;
+        const winner = winnerByKey.get(key);
+        const allRowNumbers = [...droppedRowNumbers, winner.rowNumber].join(', ');
+        warnings.push(
+            `${describe(winner)} ซ้ำในไฟล์ ${droppedRowNumbers.length + 1} แถว (แถวที่ ${allRowNumbers}) — ใช้ข้อมูลจากแถวล่าสุด คือแถวที่ ${winner.rowNumber}`
+        );
+    });
+
+    return { rows: [...winnerByKey.values()], warnings, duplicateCount };
+};
+
 const toNumericOrNull = (value) => {
     if (value === '' || value == null) return null;
     const num = Number(value);
@@ -80,10 +129,24 @@ const toDateOrNull = (value) => {
  *
  * พฤติกรรมใหม่:
  *   - CIF_NO ตรงกับลูกค้า active (status='1') ที่มีอยู่แล้ว -> UPDATE แถวเดิม (คง id เดิม)
+ *   - CIF_NO ตรงกับลูกค้าที่ถูก soft-delete ไว้ (status='0') -> ★ REVIVE แถวเดิม (คง id เดิม)
+ *     ดูเหตุผลที่ต้องปลุกกลับด้านล่าง
  *   - CIF_NO ไม่ตรงกับใครเลย -> INSERT แถวใหม่
  *   - ลูกค้า active ที่ "หายไปจากไฟล์รอบนี้" -> soft-delete (คงพฤติกรรม full-refresh เดิมไว้บางส่วน
  *     คือปิดคนที่ไม่มีในไฟล์แล้วจริงๆ) ยกเว้นมีบัญชีที่ส่ง CBS สำเร็จแล้ว (step_send_to_cbs='1')
  *     ห้าม soft-delete เด็ดขาด กันเคสไฟล์ตกหล่นบางวันแล้วลูกค้าที่ลงทะเบียนสำเร็จหายไปจากระบบ
+ *
+ * ★★ ต้อง "ปลุก" (revive) แถวที่ถูก soft-delete กลับมา ห้าม insert แถวใหม่ (แก้บั๊ก 2026-09-22):
+ *   ไฟล์ลูกค้าเป็น full-refresh (ไม่มีในไฟล์ = soft-delete) แต่ไฟล์บัญชีเป็น delta (ไม่มีในไฟล์ =
+ *   ไม่แตะ) สองอันไม่สมมาตรกัน ถ้าจับคู่ CIF_NO เฉพาะลูกค้า active จะเกิดทางเดินบั๊กนี้:
+ *     วันที่ 1: ลูกค้า A (CIF 5004) อยู่ในไฟล์ -> cus_target_id = 10, บัญชีของ A ชี้ id 10
+ *     วันที่ 2: ไฟล์ตกหล่นไม่มี A -> A ถูก soft-delete (id 10 ตาย) แต่บัญชียังชี้ id 10
+ *     วันที่ 3: A กลับมาในไฟล์ -> หาไม่เจอเพราะดูแต่ active -> insert ใหม่เป็น id 77
+ *     ผลลัพธ์: A ใช้ id 77 แต่บัญชีเก่าที่ไฟล์บัญชีไม่ได้ส่งมาซ้ำยังผูก id 10 ที่ตายแล้วถาวร
+ *             -> ลูกค้าเข้าระบบมาไม่เห็นบัญชีตัวเอง
+ *   จึงต้องจับคู่ CIF_NO กับลูกค้า "ทุก status" แล้วปลุกแถวเดิมกลับ (คง id เดิมไว้เสมอ)
+ *   กรณี CIF เดียวมีหลายแถวค้างจากยุค full-refresh: เลือกปลุกแถวที่ "บัญชี active ชี้อยู่" ก่อน
+ *   เพราะเป็นแถวเดียวที่ปลุกแล้วแก้อาการบัญชีหลุดได้จริง (ดู pickCustomerRow)
  */
 const importCustomer = async (buffer, adminUsername) => {
     const rows = parseCsvPipe(buffer);
@@ -92,7 +155,7 @@ const importCustomer = async (buffer, adminUsername) => {
     }
 
     const errors = [];
-    const mappedRows = [];
+    const parsedRows = [];
 
     rows.forEach(({ rowNumber, columns }) => {
         const [cifNo, citizenId, firstName, lastName, verifyCode, type] = columns;
@@ -100,15 +163,23 @@ const importCustomer = async (buffer, adminUsername) => {
             errors.push(`แถวที่ ${rowNumber}: ข้อมูลไม่ครบ (ต้องมี 5 คอลัมน์: CIF_NO, CITIZEN_ID, NAME, LNAME, VERIFY_CODE)`);
             return;
         }
-        mappedRows.push({ cifNo, citizenId, firstName, lastName, verifyCode, type: type || null });
+        parsedRows.push({ rowNumber, cifNo, citizenId, firstName, lastName, verifyCode, type: type || null });
     });
+
+    // ★ ตัดแถวซ้ำภายในไฟล์ (key = CIF_NO) — เชื่อแถวล่าสุดในไฟล์เสมอ แล้วแจ้งเตือนเจ้าหน้าที่
+    //   ถ้าไม่ตัด CIF ใหม่ที่ซ้ำในไฟล์เดียวกันจะถูก insert ซ้ำเป็น 2 แถว active (ดู dedupeKeepLast)
+    const { rows: mappedRows, warnings, duplicateCount } = dedupeKeepLast(
+        parsedRows,
+        (row) => row.cifNo,
+        (row) => `CIF_NO=${row.cifNo}`
+    );
 
     // กันเคสทุกแถวไม่ผ่าน validation — ห้าม soft-delete ข้อมูลเดิมทิ้งโดยไม่มีข้อมูลใหม่มาแทนที่
     if (mappedRows.length === 0) {
         return {
             success: false,
             message: 'ไม่มีแถวข้อมูลที่ถูกต้องในไฟล์เลย (ทุกแถวข้อมูลไม่ครบ) ยกเลิกการนำเข้า ข้อมูลเดิมไม่ถูกแก้ไข',
-            data: { deleted: 0, inserted: 0, errors }
+            data: { deleted: 0, inserted: 0, errors, warnings, duplicateCount }
         };
     }
 
@@ -121,9 +192,48 @@ const importCustomer = async (buffer, adminUsername) => {
         const accRepo = manager.getRepository(tblAccountCusTarget);
         const stepRepo = manager.getRepository(tblSettingsStep);
 
-        // ลูกค้า active ทั้งหมดตอนนี้ — map ด้วย cifNo เพื่อจับคู่ของเก่ากับของใหม่ในไฟล์
-        const activeCustomers = await cusRepo.find({ where: { status: '1' } });
-        const customerByCifNo = new Map(activeCustomers.map((c) => [c.cifNo, c]));
+        // ★ ดึงลูกค้า "ทุก status" (ไม่ใช่แค่ active) — ต้องเห็นแถวที่ถูก soft-delete ไว้ด้วย เพื่อ
+        //   ปลุกกลับแทนการ insert แถวใหม่ (เหตุผลเต็มอยู่ใน jsdoc ของฟังก์ชันนี้)
+        //   select เฉพาะคอลัมน์ที่ใช้จับคู่ ไม่ดึงข้อมูลส่วนบุคคล (ชื่อ/เลขบัตร) เข้า memory ทั้งตาราง
+        const allCustomers = await cusRepo.find({ select: { id: true, cifNo: true, status: true } });
+        const isActiveRow = (row) => String(row.status ?? '').trim() === '1';
+        const activeCustomers = allCustomers.filter(isActiveRow);
+
+        // cus_target_id ที่ยังมีบัญชี active ผูกอยู่ — ใช้ตัดสินว่าจะปลุกแถวไหนในกรณี CIF เดียวมี
+        // หลายแถวค้างจากยุค full-refresh (ปลุกแถวที่บัญชีชี้อยู่ ถึงจะแก้อาการบัญชีหลุดได้จริง)
+        const linkedAccounts = await accRepo.find({ select: { cusTargetId: true }, where: { status: '1' } });
+        const linkedCustomerIds = new Set(linkedAccounts.map((a) => a.cusTargetId));
+
+        /**
+         * เลือกแถวตัวแทน 1 แถวต่อ 1 CIF_NO เรียงตามลำดับความสำคัญ:
+         *   1) แถว active ที่มีบัญชี active ผูกอยู่ (ของจริงที่ใช้งานกันอยู่)
+         *   2) แถว active อื่น — เอา id น้อยสุด (แถวดั้งเดิมที่สุด)
+         *   3) แถวที่ถูกลบแต่มีบัญชี active ผูกอยู่ — เอา id มากสุด (ปลุกแถวนี้แล้วบัญชีกลับมาเชื่อมได้)
+         *   4) แถวที่ถูกลบล่าสุด — เอา id มากสุด
+         */
+        const pickCustomerRow = (rows) => {
+            const actives = rows.filter(isActiveRow).sort((a, b) => a.id - b.id);
+            const deleted = rows.filter((r) => !isActiveRow(r)).sort((a, b) => b.id - a.id);
+            return (
+                actives.find((r) => linkedCustomerIds.has(r.id)) ||
+                actives[0] ||
+                deleted.find((r) => linkedCustomerIds.has(r.id)) ||
+                deleted[0] ||
+                null
+            );
+        };
+
+        const rowsByCifNo = new Map();
+        allCustomers.forEach((c) => {
+            if (!c.cifNo) return; // cif_no เป็น nullable — แถวที่ไม่มี cif จับคู่กับไฟล์ไม่ได้
+            if (!rowsByCifNo.has(c.cifNo)) rowsByCifNo.set(c.cifNo, []);
+            rowsByCifNo.get(c.cifNo).push(c);
+        });
+        const customerByCifNo = new Map();
+        rowsByCifNo.forEach((rows, cifNo) => {
+            const picked = pickCustomerRow(rows);
+            if (picked) customerByCifNo.set(cifNo, picked);
+        });
 
         // หาลูกค้าที่มีบัญชีส่ง CBS สำเร็จแล้ว (step_send_to_cbs='1') — ห้าม soft-delete แม้หายไป
         // จากไฟล์รอบนี้ (เหตุผลเดียวกับที่ importAccount ป้องกันบัญชีกลุ่มนี้ไว้)
@@ -143,13 +253,14 @@ const importCustomer = async (buffer, adminUsername) => {
         }
 
         const keptIds = new Set(); // id ลูกค้าเดิมที่ยังอยู่ในไฟล์รอบนี้ (update แทน insert)
+        const revivedIds = new Set(); // id ที่ถูกปลุกจาก status='0' กลับมา '1' รอบนี้ (ไว้ log/ตรวจย้อนหลัง)
         const newRows = [];
 
         for (const row of mappedRows) {
             const existing = customerByCifNo.get(row.cifNo);
             if (existing) {
                 keptIds.add(existing.id);
-                await cusRepo.update(existing.id, {
+                const patch = {
                     citizenId: row.citizenId,
                     firstName: row.firstName,
                     lastName: row.lastName,
@@ -157,10 +268,27 @@ const importCustomer = async (buffer, adminUsername) => {
                     type: row.type,
                     updateBy: adminUsername,
                     updateDate: new Date(),
-                });
+                };
+                // ★ แถวเดิมถูก soft-delete ไว้ (หายจากไฟล์รอบก่อนๆ) แต่กลับมาในไฟล์รอบนี้ -> ปลุกกลับ
+                //   คง id เดิมไว้ บัญชีที่ผูก cus_target_id นี้อยู่จึงไม่หลุด (ล้าง delete_date/by ด้วย
+                //   ไม่งั้นแถวจะดูเหมือนยังถูกลบอยู่ และ query ที่กรอง delete_date IS NULL จะมองไม่เห็น)
+                if (!isActiveRow(existing)) {
+                    patch.status = '1';
+                    patch.deleteDate = null;
+                    patch.deleteBy = null;
+                    revivedIds.add(existing.id);
+                }
+                await cusRepo.update(existing.id, patch);
             } else {
+                // ระบุคอลัมน์เองทีละตัว ไม่ spread ...row เพราะ row มี rowNumber (ใช้ตัดแถวซ้ำ/แจ้งเตือน)
+                // ติดมาด้วย ซึ่งไม่ใช่คอลัมน์ในตาราง
                 newRows.push({
-                    ...row,
+                    cifNo: row.cifNo,
+                    citizenId: row.citizenId,
+                    firstName: row.firstName,
+                    lastName: row.lastName,
+                    verifyCode: row.verifyCode,
+                    type: row.type,
                     status: '1',
                     createdBy: adminUsername,
                     createdDate: new Date(),
@@ -191,14 +319,41 @@ const importCustomer = async (buffer, adminUsername) => {
             deleted = deleteResult.affected ?? 0;
         }
 
-        return { deleted, inserted: newRows.length, updated: keptIds.size };
+        // เก็บ id ที่ปลุกกลับไว้ใน audit ด้วย (จำกัดจำนวนกัน payload บวม) — เป็น cus_target_id
+        // ไม่ใช่ CIF/เลขบัตร จึงตรวจย้อนหลังได้โดยไม่เขียนข้อมูลส่วนบุคคลลง log
+        const REVIVED_SAMPLE_LIMIT = 500;
+        const revivedIdList = [...revivedIds];
+
+        return {
+            deleted,
+            inserted: newRows.length,
+            updated: keptIds.size - revivedIds.size, // แยก revive ออกจาก update ธรรมดา ไม่นับซ้ำ
+            revived: revivedIds.size,
+            revivedCusTargetIds: revivedIdList.slice(0, REVIVED_SAMPLE_LIMIT),
+            revivedIdsTruncated: revivedIdList.length > REVIVED_SAMPLE_LIMIT,
+        };
     });
 
-    logger.info(`Import ข้อมูลลูกค้า: อัปเดต=${result.updated} เพิ่มใหม่=${result.inserted} soft-delete(หายจากไฟล์)=${result.deleted} error=${errors.length}`);
+    logger.info(`Import ข้อมูลลูกค้า: อัปเดต=${result.updated} ปลุกกลับ(revive)=${result.revived} เพิ่มใหม่=${result.inserted} soft-delete(หายจากไฟล์)=${result.deleted} error=${errors.length}`);
+    // log แยกอีกบรรทัดเฉพาะเคส revive เพราะเป็นเคสผิดปกติที่ต้องตามดู (ลูกค้าเคยหายจากไฟล์แล้วกลับมา)
+    // log แค่ cus_target_id ห้าม log CIF/เลขบัตร/ชื่อ ตามนโยบายข้อมูลอ่อนไหว
+    if (result.revived > 0) {
+        const idsText = result.revivedCusTargetIds.join(',') + (result.revivedIdsTruncated ? ',...' : '');
+        logger.warn(`Import ข้อมูลลูกค้า: ปลุกลูกค้าที่ถูกปิดใช้งานกลับมา ${result.revived} ราย (คง cus_target_id เดิมไว้ บัญชีที่ผูกอยู่ไม่หลุด) cus_target_id=[${idsText}] by=${adminUsername}`);
+    }
+
+    // แจ้งเตือนแถวซ้ำในไฟล์ — log แค่จำนวน ไม่ log CIF (ตัว CIF อยู่ใน warnings ที่ส่งให้เจ้าหน้าที่
+    // และถูกเก็บลง tbl_admin_system_log พร้อม response อยู่แล้ว)
+    if (duplicateCount > 0) {
+        logger.warn(`Import ข้อมูลลูกค้า: พบ CIF_NO ซ้ำในไฟล์ ตัดออก ${duplicateCount} แถว (ใช้ข้อมูลแถวล่าสุดของแต่ละ CIF) by=${adminUsername}`);
+    }
+
+    const revivedNote = result.revived > 0 ? `, ปลุกกลับจากที่ถูกปิดใช้งาน ${result.revived} แถว` : '';
+    const dupNote = duplicateCount > 0 ? `, ตัดแถวซ้ำในไฟล์ ${duplicateCount} แถว (ใช้ข้อมูลแถวล่าสุด)` : '';
     return {
         success: true,
-        message: `นำเข้าข้อมูลลูกค้าสำเร็จ (อัปเดต ${result.updated} แถว, เพิ่มใหม่ ${result.inserted} แถว, ปิดใช้งานที่หายไปจากไฟล์ ${result.deleted} แถว)`,
-        data: { ...result, errors }
+        message: `นำเข้าข้อมูลลูกค้าสำเร็จ (อัปเดต ${result.updated} แถว, เพิ่มใหม่ ${result.inserted} แถว${revivedNote}, ปิดใช้งานที่หายไปจากไฟล์ ${result.deleted} แถว${dupNote})`,
+        data: { ...result, errors, warnings, duplicateCount }
     };
 };
 
@@ -236,7 +391,7 @@ const importAccount = async (buffer, adminUsername) => {
     }
 
     const errors = [];
-    const mappedRows = [];
+    const parsedRows = [];
 
     rows.forEach(({ rowNumber, columns }) => {
         const [accountNo, cifNo, planNo, paymentAmount, installmentTerms, expireDate] = columns;
@@ -244,7 +399,7 @@ const importAccount = async (buffer, adminUsername) => {
             errors.push(`แถวที่ ${rowNumber}: ข้อมูลไม่ครบ (ต้องมี 3 คอลัมน์แรก: ACCOUNT_NO, CIF_NO, PLAN_NO)`);
             return;
         }
-        mappedRows.push({
+        parsedRows.push({
             rowNumber,
             accountNo,
             cifNo,
@@ -255,11 +410,20 @@ const importAccount = async (buffer, adminUsername) => {
         });
     });
 
+    // ★ ตัดแถวซ้ำภายในไฟล์ (key = account_no + plan_no — key เดียวกับที่ใช้จับคู่ของเก่า/ของใหม่)
+    //   เชื่อแถวล่าสุดในไฟล์เสมอ แล้วแจ้งเตือนเจ้าหน้าที่ ถ้าไม่ตัด: ของเก่าถูก soft-delete ครั้งเดียว
+    //   แต่ insert ใหม่ 2 แถว -> บัญชีเดียวมีแผนเดียวกัน active ซ้อนกัน (ลูกค้าเห็นแผนซ้ำ)
+    const { rows: mappedRows, warnings, duplicateCount } = dedupeKeepLast(
+        parsedRows,
+        (row) => `${row.accountNo}|${row.planNo}`,
+        (row) => `บัญชี ${row.accountNo} แผน ${row.planNo}`
+    );
+
     if (mappedRows.length === 0) {
         return {
             success: false,
             message: 'ไม่มีแถวข้อมูลที่ถูกต้องในไฟล์เลย (ทุกแถวข้อมูลไม่ครบ) ยกเลิกการนำเข้า ข้อมูลเดิมไม่ถูกแก้ไข',
-            data: { deleted: 0, inserted: 0, errors }
+            data: { deleted: 0, inserted: 0, errors, warnings, duplicateCount }
         };
     }
 
@@ -419,7 +583,7 @@ const importAccount = async (buffer, adminUsername) => {
         return {
             success: false,
             message: 'ไม่สามารถนำเข้าข้อมูลบัญชีได้ เนื่องจากไม่พบลูกค้าที่อ้างอิง (CIF_NO) ในระบบเลย กรุณา import ไฟล์ข้อมูลลูกค้าก่อน',
-            data: { deleted: 0, inserted: 0, errors }
+            data: { deleted: 0, inserted: 0, errors, warnings, duplicateCount }
         };
     }
 
@@ -435,12 +599,19 @@ const importAccount = async (buffer, adminUsername) => {
 
     logger.info(`Import ข้อมูลบัญชี: soft-delete เดิม=${result.deleted} เพิ่มใหม่=${result.inserted} skip(CBS)=${result.skipCbs} skip(not expired)=${result.skipExpired} error=${errors.length} | ${planSummary}`);
 
+    // แจ้งเตือนแถวซ้ำในไฟล์ — log แค่จำนวน ไม่ log เลขบัญชี (รายละเอียดอยู่ใน warnings ที่ส่งกลับ
+    // และถูกเก็บลง tbl_admin_system_log พร้อม response อยู่แล้ว)
+    if (duplicateCount > 0) {
+        logger.warn(`Import ข้อมูลบัญชี: พบบัญชี+แผนซ้ำในไฟล์ ตัดออก ${duplicateCount} แถว (ใช้ข้อมูลแถวล่าสุดของแต่ละบัญชี+แผน) by=${adminUsername}`);
+    }
+
     const skipCbsNote = result.skipCbs > 0 ? `, skip(send to CBS success) ${result.skipCbs} แถว` : '';
     const skipExpiredNote = result.skipExpired > 0 ? `, skip(not expired) ${result.skipExpired} แถว` : '';
+    const dupNote = duplicateCount > 0 ? `, ตัดแถวซ้ำในไฟล์ ${duplicateCount} แถว (ใช้ข้อมูลแถวล่าสุด)` : '';
     return {
         success: true,
-        message: `นำเข้าข้อมูลบัญชีสำเร็จ (ปิดใช้งานข้อมูลเดิม ${result.deleted} แถว, เพิ่มใหม่ ${result.inserted} แถว${skipCbsNote}${skipExpiredNote})`,
-        data: { ...result, planSummary, errors }
+        message: `นำเข้าข้อมูลบัญชีสำเร็จ (ปิดใช้งานข้อมูลเดิม ${result.deleted} แถว, เพิ่มใหม่ ${result.inserted} แถว${skipCbsNote}${skipExpiredNote}${dupNote})`,
+        data: { ...result, planSummary, errors, warnings, duplicateCount }
     };
 };
 
