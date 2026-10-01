@@ -30,7 +30,9 @@ const searchContracts = async (req, res) => {
         }
         return res.status(200).json(result);
     } catch (error) {
-        logger.error(`Search contracts error: ${error.message}`);
+        // log stack ด้วย ไม่ใช่แค่ message — error ของ typeorm/pg ตัว message มักสั้นจนไล่ไม่ได้ว่า
+        // พังที่ query ไหน (ข้อความที่ตอบกลับผู้ใช้ยังเป็นคำกลางๆ ไม่หลุดรายละเอียดระบบออกไป)
+        logger.error(`Search contracts error: ${error.message}\n${error.stack}`);
         return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดที่เซิร์ฟเวอร์' });
     }
 };

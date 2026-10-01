@@ -5,6 +5,7 @@ import Grid from "@mui/material/Grid";
 import Fade from "@mui/material/Fade";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
+import Tooltip from "@mui/material/Tooltip";
 import Pagination from "@mui/material/Pagination";
 
 import MKBox from "components/MKBox";
@@ -23,6 +24,61 @@ const GRID_COLUMNS = "20% 15% 25% 20% 20%";
 
 // จำนวนแถวต่อหน้าของตารางผลการค้นหา — แบ่งหน้าฝั่ง frontend (client-side)
 const PAGE_SIZE = 10;
+
+/**
+ * สีของ chip บัญชี — ต้องแยกให้ชัดว่าบัญชีไหน "อยู่ในไฟล์สัญญาจริง"
+ * เพราะ tbl_contract_file_account เก็บบัญชีที่ CBS ปฏิเสธไว้ด้วย (ไว้ตรวจย้อนหลังว่ายื่นอะไรมา)
+ * แต่ไฟล์ PDF มีแค่บัญชีที่ CBS รับ — ถ้าโชว์เหมือนกันหมด admin จะเข้าใจผิดว่าบัญชีที่ถูกปฏิเสธ
+ * อยู่ในสัญญาด้วย (isInContract มาจาก backend: true/false/null)
+ *   success = CBS รับ อยู่ในไฟล์สัญญา
+ *   error   = CBS ปฏิเสธ ไม่อยู่ในไฟล์สัญญา
+ *   default = ไม่มีข้อมูลสถานะ (สัญญาเก่าก่อนเก็บ cbs_status) ไม่ตัดสินแทน
+ */
+const chipColorOf = (acc) => {
+  if (acc.isInContract === true) return "success";
+  if (acc.isInContract === false) return "error";
+  return "default";
+};
+
+const chipTooltipOf = (acc) => {
+  if (acc.isInContract === true) return "CBS ลงทะเบียนสำเร็จ — บัญชีนี้อยู่ในไฟล์สัญญา";
+  if (acc.isInContract === false) {
+    const reason = acc.cbsDesc || acc.cbsStatus || "ไม่มีคำอธิบาย";
+    return `CBS ไม่รับบัญชีนี้ จึงไม่อยู่ในไฟล์สัญญา — ${reason}`;
+  }
+  return "ไม่มีข้อมูลสถานะจาก CBS (สัญญาที่สร้างไว้ก่อนเริ่มเก็บสถานะ)";
+};
+
+/** รายการ chip บัญชี/แผน — ใช้ทั้งตารางจอใหญ่และการ์ดจอเล็ก ให้แสดงผลตรงกันเสมอ */
+function AccountChips({ contractFileId, accounts }) {
+  return (
+    <>
+      {accounts.map((acc, i) => (
+        <Tooltip key={`${contractFileId}-${acc.accountNo}-${acc.planNo}-${i}`} title={chipTooltipOf(acc)}>
+          <Chip
+            size="small"
+            color={chipColorOf(acc)}
+            label={`${acc.accountNo} (แผน ${acc.planNo})`}
+            sx={{ mr: 0.5, mb: 0.5 }}
+          />
+        </Tooltip>
+      ))}
+    </>
+  );
+}
+
+AccountChips.propTypes = {
+  contractFileId: PropTypes.number.isRequired,
+  accounts: PropTypes.arrayOf(
+    PropTypes.shape({
+      accountNo: PropTypes.string,
+      planNo: PropTypes.string,
+      cbsStatus: PropTypes.string,
+      cbsDesc: PropTypes.string,
+      isInContract: PropTypes.bool,
+    })
+  ).isRequired,
+};
 
 function AdminContractReprintView({ state, handlers }) {
   const {
@@ -150,6 +206,15 @@ function AdminContractReprintView({ state, handlers }) {
 
         {results.length > 0 && (
           <>
+            {/* คำอธิบายสี chip — บอกให้ชัดว่าบัญชีสีแดงไม่อยู่ในไฟล์ PDF ที่ดาวน์โหลด */}
+            <MKBox mb={1.5} display="flex" alignItems="center" flexWrap="wrap" gap={1}>
+              <Chip size="small" color="success" label="อยู่ในไฟล์สัญญา" />
+              <Chip size="small" color="error" label="CBS ไม่รับ ไม่อยู่ในไฟล์สัญญา" />
+              <MKTypography variant="caption" color="text">
+                เอาเมาส์ชี้ที่เลขบัญชีเพื่อดูเหตุผลจาก CBS
+              </MKTypography>
+            </MKBox>
+
             {/* จอ lg ขึ้นไป: ตาราง CSS Grid แบบเดิม (คอลัมน์กว้างพอ อ่านง่าย)
                 ใช้ lg (992px) ไม่ใช่ md (768px) เพราะตาราง 5 คอลัมน์ต้องการที่กว้างจริง
                 ช่วง 768-992px คอลัมน์ยังบี้กันอ่านไม่ออก */}
@@ -214,14 +279,7 @@ function AdminContractReprintView({ state, handlers }) {
                     {row.fileName}
                   </MKTypography>
                   <MKBox>
-                    {row.accounts.map((acc) => (
-                      <Chip
-                        key={`${row.contractFileId}-${acc.accountNo}-${acc.planNo}`}
-                        size="small"
-                        label={`${acc.accountNo} (แผน ${acc.planNo})`}
-                        sx={{ mr: 0.5, mb: 0.5 }}
-                      />
-                    ))}
+                    <AccountChips contractFileId={row.contractFileId} accounts={row.accounts} />
                   </MKBox>
                   <MKBox textAlign="center">
                     <MKButton
@@ -280,14 +338,7 @@ function AdminContractReprintView({ state, handlers }) {
                     <MKTypography variant="caption" color="text" display="block" mb={0.5}>
                       บัญชี / แผน
                     </MKTypography>
-                    {row.accounts.map((acc) => (
-                      <Chip
-                        key={`${row.contractFileId}-${acc.accountNo}-${acc.planNo}`}
-                        size="small"
-                        label={`${acc.accountNo} (แผน ${acc.planNo})`}
-                        sx={{ mr: 0.5, mb: 0.5 }}
-                      />
-                    ))}
+                    <AccountChips contractFileId={row.contractFileId} accounts={row.accounts} />
                   </MKBox>
                   <MKButton
                     variant="outlined"

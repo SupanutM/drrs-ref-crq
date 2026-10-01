@@ -79,6 +79,11 @@ function AdminContractReprintController() {
           setIsAlert(true);
           setAlertType("info");
           setAlertMsg(res.message || "ไม่พบสัญญาตามเงื่อนไขที่ระบุ");
+        } else if (res.truncated) {
+          // backend ตัดผลลัพธ์ที่ลิมิต — ต้องเตือน ไม่ปล่อยให้ admin เข้าใจว่านี่คือผลทั้งหมด
+          setIsAlert(true);
+          setAlertType("warning");
+          setAlertMsg(res.message);
         }
       } else {
         setIsAlert(true);

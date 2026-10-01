@@ -182,12 +182,33 @@ const generateContractController = async (req, res) => {
         // รวมบัญชีที่ reject เข้าไปด้วย (ถ้ามี) — สัญญาฉบับนี้มีอยู่จริงแล้ว (สร้าง PDF ได้จาก successAccounts)
         // จึงบันทึกบัญชีที่ CBS ปฏิเสธไว้ที่ tbl_contract_file_account คู่กันด้วย เพื่อให้ reprint/ตรวจสอบ
         // ย้อนหลังเห็นครบทุกบัญชีที่ยื่นมาในรอบนี้ (ไม่ใช่แค่บัญชีที่สำเร็จ)
-        await saveContractFileService({
+        const contractAccountsForDb = [...successAccounts, ...rejectedAccountsForDb];
+        const saveFileResult = await saveContractFileService({
             cusTargetId,
             fileName: filename,
             base64Content: previewBuffer.toString('base64'),
-            accounts: [...successAccounts, ...rejectedAccountsForDb]
-        }).catch((err) => logger.error(`บันทึกไฟล์สัญญาลง tbl_contract_file ไม่สำเร็จ (${filename}): ${err.message}`));
+            accounts: contractAccountsForDb
+            // service ไม่ throw โดยเจตนา (คืน { success } มาแทน) แต่กัน error หลุดไว้อีกชั้น
+            // เพื่อให้ flow หลักเดินต่อได้เสมอ — ลูกค้าต้องได้ไฟล์สัญญาแม้บันทึกสำเนาไม่สำเร็จ
+        }).catch((err) => ({ success: false, message: err.message }));
+
+        if (!saveFileResult.success) {
+            // เคสนี้อันตรายเงียบๆ: CBS ลงทะเบียนสำเร็จแล้ว ลูกค้าได้ไฟล์ + ได้เมล แต่ไม่มีแถวใน
+            // tbl_contract_file → หน้า reprint ของ admin จะ "ค้นไม่เจอ" สัญญาฉบับนี้ตลอดไป
+            // ถ้าร่องรอยอยู่แค่ใน log ไฟล์ของ winston จะไม่มีใครรู้ว่าเกิดขึ้น จึงบันทึก audit ลง
+            // tbl_system_log ด้วย ให้ query ย้อนหลังได้ว่าสัญญาของลูกค้ารายไหน/บัญชีไหนหายไป
+            logger.error(`บันทึกไฟล์สัญญาลง tbl_contract_file ไม่สำเร็จ (${filename}): ${saveFileResult.message}`);
+            await systemLogService({
+                step: 'SAVE_CONTRACT_FILE_FAIL',
+                controller: 'contractPdfController',
+                payload: { cusTargetId, fileName: filename, accountNos: contractAccountsForDb.map(a => a.accountNo) },
+                responseStatus: 'FAILED',
+                response: {
+                    message: 'บันทึกไฟล์สัญญาลง tbl_contract_file ไม่สำเร็จ — หน้า reprint ของ admin จะค้นหาสัญญาฉบับนี้ไม่เจอ',
+                    error: saveFileResult.message
+                }
+            }).catch((err) => logger.error(`บันทึก audit SAVE_CONTRACT_FILE_FAIL ไม่สำเร็จ: ${err.message}`));
+        }
 
         // ==========================================
         // STEP 3: ส่งไฟล์ให้หน้าเว็บเป็น base64
