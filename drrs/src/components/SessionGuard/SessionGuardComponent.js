@@ -15,6 +15,7 @@ import useSessionTimeout from "utils/useSessionTimeout";
 import useTabLimit from "utils/useTabLimit";
 import { getAppConfig } from "utils/appConfig";
 import { clearToken } from "utils/authToken";
+import { checkCloseSystem } from "api/master";
 
 /**
  * SessionGuard
@@ -37,6 +38,28 @@ function SessionGuard({ children }) {
       navigate("/drrs/consent");
     });
   }, [setOnTimeout, navigate]);
+
+  // --- System open/close check: ถ้าระบบปิด (หรือเช็คไม่ได้) ให้กลับ consent ---
+  useEffect(() => {
+    let cancelled = false;
+    const verifyOpen = async () => {
+      let isOpen = false;
+      try {
+        const res = await checkCloseSystem({ channel: "DRRS" });
+        isOpen = !!(res?.status && res?.data?.length > 0 && res.data[0].status_flag);
+      } catch (e) {
+        isOpen = false;
+      }
+      if (!cancelled && !isOpen) {
+        clearToken();
+        navigate("/drrs/consent", { replace: true });
+      }
+    };
+    verifyOpen();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   // --- Tab Limit ---
   const { isOverLimit } = useTabLimit(true);

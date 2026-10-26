@@ -206,15 +206,6 @@ function AdminContractReprintView({ state, handlers }) {
 
         {results.length > 0 && (
           <>
-            {/* คำอธิบายสี chip — บอกให้ชัดว่าบัญชีสีแดงไม่อยู่ในไฟล์ PDF ที่ดาวน์โหลด */}
-            <MKBox mb={1.5} display="flex" alignItems="center" flexWrap="wrap" gap={1}>
-              <Chip size="small" color="success" label="อยู่ในไฟล์สัญญา" />
-              <Chip size="small" color="error" label="CBS ไม่รับ ไม่อยู่ในไฟล์สัญญา" />
-              <MKTypography variant="caption" color="text">
-                เอาเมาส์ชี้ที่เลขบัญชีเพื่อดูเหตุผลจาก CBS
-              </MKTypography>
-            </MKBox>
-
             {/* จอ lg ขึ้นไป: ตาราง CSS Grid แบบเดิม (คอลัมน์กว้างพอ อ่านง่าย)
                 ใช้ lg (992px) ไม่ใช่ md (768px) เพราะตาราง 5 คอลัมน์ต้องการที่กว้างจริง
                 ช่วง 768-992px คอลัมน์ยังบี้กันอ่านไม่ออก */}
@@ -224,7 +215,8 @@ function AdminContractReprintView({ state, handlers }) {
                 display: { xs: "none", lg: "block" },
                 border: "1px solid #e0e0e0",
                 borderRadius: "8px",
-                overflow: "hidden",
+                overflowY: "auto",
+                maxHeight: "500px",
               }}
             >
               {/* หัวตาราง — ใช้ CSS Grid คอลัมน์เดียวกับทุกแถวข้อมูลด้านล่าง (GRID_COLUMNS ตัวเดียวกัน)
@@ -237,6 +229,9 @@ function AdminContractReprintView({ state, handlers }) {
                   borderBottom: "1px solid #e0e0e0",
                   px: 2,
                   py: 1.2,
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 1,
                 }}
               >
                 <MKTypography variant="button" fontWeight="bold" color="dark" textAlign="center">
