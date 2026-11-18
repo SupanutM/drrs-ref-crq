@@ -10,7 +10,7 @@ import MKInput from "components/MKInput";
 import MKButton from "components/MKButton";
 import MKAlert from "components/MKAlert";
 
-function AdminLoginView({ state, handlers, secretRef }) {
+function AdminLoginView({ state, handlers, loginInputRef }) {
   const { username, isAlert, alertMsg, alertType, isLoading } = state;
   const { handleChangeUsername, handleSubmit, handleKeyDown } = handlers;
 
@@ -50,12 +50,12 @@ function AdminLoginView({ state, handlers, secretRef }) {
         </MKBox>
 
         <MKBox mb={3}>
-          {/* uncontrolled input โดยเจตนา — อ่านค่าผ่าน secretRef ตอน submit เท่านั้น */}
+          {/* uncontrolled input โดยเจตนา — อ่านค่าผ่าน loginInputRef ตอน submit เท่านั้น */}
           <MKInput
             type="password"
             label="Password"
             fullWidth
-            inputRef={secretRef}
+            inputRef={loginInputRef}
             onKeyDown={handleKeyDown}
             disabled={isLoading}
             autoComplete="current-password"
@@ -91,7 +91,7 @@ AdminLoginView.propTypes = {
     handleSubmit: PropTypes.func.isRequired,
     handleKeyDown: PropTypes.func.isRequired,
   }).isRequired,
-  secretRef: PropTypes.shape({
+  loginInputRef: PropTypes.shape({
     // eslint-disable-next-line react/forbid-prop-types
     current: PropTypes.any,
   }).isRequired,

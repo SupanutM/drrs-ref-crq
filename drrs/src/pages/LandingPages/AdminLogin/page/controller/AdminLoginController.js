@@ -21,7 +21,7 @@ function AdminLoginController() {
 
   // ช่องรหัสผ่านเป็น uncontrolled input โดยเจตนา — ค่าอยู่ใน DOM ของ input เท่านั้น
   // ไม่เก็บลง React state และไม่ส่งผ่าน props เพื่อไม่ให้ค่าค้างอยู่ใน component tree
-  const secretRef = useRef(null);
+  const loginInputRef = useRef(null);
 
   // ถ้าถูกเด้งมาที่หน้านี้เพราะ token หมดอายุ/ไม่ถูกต้อง (adminHandler.js เจอ 401 แล้วเก็บเหตุผลไว้)
   // ให้แสดงเป็นแถบเตือน เพื่อให้ผู้ใช้รู้ว่าทำไมหลุดจากระบบ ไม่ใช่เด้งกลับมาเงียบๆ
@@ -39,7 +39,7 @@ function AdminLoginController() {
 
   const handleSubmit = async () => {
     const tUsername = username.trim();
-    const tSecret = (secretRef.current?.value || "").trim();
+    const tSecret = (loginInputRef.current?.value || "").trim();
 
     if (!tUsername || !tSecret) {
       setIsAlert(true);
@@ -89,7 +89,7 @@ function AdminLoginController() {
 
   return (
     <>
-      <AdminLoginView state={state} handlers={handlers} secretRef={secretRef} />
+      <AdminLoginView state={state} handlers={handlers} loginInputRef={loginInputRef} />
       <LoadingComponent isOpen={isLoading} message="กำลังเข้าสู่ระบบ..." />
     </>
   );
