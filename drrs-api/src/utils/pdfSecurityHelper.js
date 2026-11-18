@@ -1,5 +1,6 @@
 const { PDFDocument } = require('pdf-lib-plus-encrypt');
 const baseLogger = require('./logger');
+const { decryptGCM } = require('./crypto');
 const logger = baseLogger.child({ context: 'pdfSecurityHelper' });
 
 const DEFAULT_PERMISSIONS = {
@@ -34,6 +35,20 @@ const formatPdfPassword = (rawPasswordString) => {
 };
 
 /**
+ * ถอดรหัส owner password จาก env (PDF_OWNER_PASSWORD_ENC รูปแบบ iv:encrypted:tag)
+ * ใช้ CRYPTO_KEY ตัวเดียวกับส่วนอื่นของระบบ
+ *
+ * @returns {string} owner password แบบ plain text
+ */
+const getOwnerPassword = () => {
+    const encrypted = process.env.PDF_OWNER_PASSWORD_ENC;
+    if (!encrypted) {
+        throw new Error('ไม่พบ PDF_OWNER_PASSWORD_ENC ใน env');
+    }
+    return decryptGCM(encrypted, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
+};
+
+/**
  * ใส่รหัสผ่านให้เอกสาร PDF ที่โหลดไว้แล้ว (แก้ในตัวเอกสาร ไม่ต้อง load ใหม่)
  *
  * ใช้ตอนที่มี PDFDocument อยู่ในมือแล้ว เช่นหลัง merge เสร็จ
@@ -51,10 +66,7 @@ const applyPdfEncryption = (pdfDoc, rawPasswordString) => {
         return false;
     }
 
-    // คงค่า fallback เดิมไว้ ไม่เปลี่ยนพฤติกรรมของไฟล์ที่ออกไปแล้ว
-    // หมายเหตุ: ค่า fallback นี้ hardcode อยู่ในซอร์ส จึงอ่านได้จาก repo
-    // ควรย้ายไปตั้งใน .env เป็น PDF_OWNER_PASSWORD (แยกเป็นอีกเรื่องหนึ่ง)
-    const ownerPassword = process.env.PDF_OWNER_PASSWORD || 'GSB_SECRET_KEY_DRRS';
+    const ownerPassword = getOwnerPassword();
 
     pdfDoc.encrypt({
         userPassword,

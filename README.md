@@ -291,12 +291,37 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
 
 * `JWT_SECRET` / `JWT_ADMIN_SECRET`
 * `CRYPTO_KEY` / `CRYPTO_IV`
-* `PDF_OWNER_PASSWORD`
+* `PDF_OWNER_PASSWORD_ENC` (ดูวิธีสร้างในหัวข้อ 0.2)
 * `DB_PASS`
 
 > [!WARNING]
 > ไฟล์ `.env` ถูกกันไว้ใน `.gitignore` แล้ว (**ห้าม commit เด็ดขาด**)
 > ถ้าเคย commit ขึ้นไปก่อนหน้านี้ ให้ถือว่า secret ทุกตัวในไฟล์นั้น **รั่วแล้ว** และต้องหมุนใหม่ทั้งหมด
+
+---
+
+### 🔒 0.2 รหัส Owner Password ของไฟล์ PDF (`PDF_OWNER_PASSWORD_ENC`)
+
+รหัส owner ของ PDF **เก็บแบบเข้ารหัส** (AES-256-GCM ด้วย `CRYPTO_KEY`) ไม่เก็บเป็น plain text ใน `.env`
+และไม่มีค่า fallback ในซอร์สโค้ด ถ้าไม่ตั้งค่านี้ ระบบจะสร้าง PDF ไม่ได้ (โยน error)
+
+**วิธีสร้างค่า** — รันในโฟลเดอร์ `drrs-api/` (เปลี่ยน `รหัสจริงของคุณ` เป็นรหัสที่ต้องการ):
+
+```bash
+node -e "require('dotenv').config(); const c=require('./src/utils/crypto'); const r=c.encryptGCM('รหัสจริงของคุณ', process.env.CRYPTO_KEY); console.log(r.iv+':'+r.encrypted+':'+r.tag)"
+```
+
+นำผลลัพธ์ (รูปแบบ `iv:encrypted:tag`) ไปใส่ใน `drrs-api/.env`:
+
+```env
+PDF_OWNER_PASSWORD_ENC=<ผลลัพธ์จากคำสั่งข้างบน>
+```
+
+> [!IMPORTANT]
+> * ต้องสร้างค่านี้ด้วย `CRYPTO_KEY` **ตัวเดียวกับที่ใช้บน Server นั้น ๆ** — ถ้าเปลี่ยน `CRYPTO_KEY`
+>   ต้องสร้าง `PDF_OWNER_PASSWORD_ENC` ใหม่ทุกครั้ง ไม่งั้นถอดรหัสไม่ได้
+> * Dev กับ Production ใช้ `CRYPTO_KEY` คนละค่า จึงต้องสร้างค่านี้แยกกันทั้ง 2 สภาพแวดล้อม
+> * การเปลี่ยนรหัส owner ไม่กระทบไฟล์ PDF ที่สร้างไปแล้ว
 
 ---
 
