@@ -13,6 +13,14 @@ const { ownsAccount } = require('../../middleware/authMiddleware');
 const { format } = require('date-fns');
 
 const generateContractController = async (req, res) => {
+    // เช็ก res ก่อนเริ่มงาน (อยู่นอก try โดยเจตนา) — ต้องหยุดก่อนยิง CBS register
+    // ไม่งั้นบัญชีลงทะเบียนสำเร็จแต่ลูกค้าไม่ได้รับสัญญา
+    // รายละเอียดเก็บใน log ฝั่งเซิร์ฟเวอร์เท่านั้น ส่วน Error ที่โยนออกไปใช้ข้อความกลาง ไม่บอกชื่อฟังก์ชัน/ข้อมูลระบบ
+    if (!res) {
+        logger.error('[generateContract] response object (res) is required but was not provided');
+        throw new Error('ไม่สามารถสร้างเอกสารได้ กรุณาติดต่อสาขา หรือ MyMo Call Center 1143');
+    }
+
     try {
         const { selectedAccounts } = req.body;
         // cusTargetId มาจาก session token (req.auth) ไม่เชื่อค่าจาก body (กัน IDOR)
@@ -219,6 +227,7 @@ const generateContractController = async (req, res) => {
         // จอกับไฟล์จึงตรงกัน แต่จอไม่ถูกถามรหัส
         // rejectedAccounts (ถ้ามี) ให้หน้าเว็บแจ้งเตือนลูกค้าว่าบัญชีไหนไม่สำเร็จ แต่ยังดาวน์โหลด
         // สัญญาของบัญชีที่สำเร็จได้ตามปกติ (hasPartialFailure = true)
+        // ไม่ต้องเช็ก if (res) ตรงนี้แล้ว — เช็กไว้ตั้งแต่ต้นฟังก์ชัน (ไม่มี res จะ throw ออกไป)
         res.json({
             success: true,
             base64: downloadBuffer.toString('base64'),     // เผื่อ client เก่า (ถ้ามี) — เป็นตัว download
@@ -295,10 +304,11 @@ const generateContractController = async (req, res) => {
             return;
         }
 
+        // ไม่ส่ง error.message กลับไปให้ client (อาจมี path ไฟล์/ข้อมูลระบบหลุดออกไป)
+        // รายละเอียดอยู่ใน logger.error ด้านบนแล้ว
         res.status(500).json({
             success: false,
-            message: 'Failed to generate contract PDF',
-            error: error.message
+            message: 'ไม่สามารถสร้างเอกสารสัญญาได้ กรุณาลองใหม่อีกครั้ง'
         });
     }
 };

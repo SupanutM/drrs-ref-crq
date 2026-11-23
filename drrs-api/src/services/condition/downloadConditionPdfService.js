@@ -50,7 +50,12 @@ const generateInvoiceBase64 = async (data) => {
                 // logger.info(`Stream ended. Buffer generated successfully for Invoice No: ${conditionYear}`);
                 resolve(pdfBuffer);
             });
-            doc.on('error', (err) => reject(err));
+            // ไม่ส่ง err ดิบต่อออกไป (อาจมี path ไฟล์/ข้อมูลระบบ) — log รายละเอียดไว้ฝั่งเซิร์ฟเวอร์
+            // แล้ว reject ด้วย Error ข้อความกลางแทน กันข้อมูลระบบหลุดถึง client
+            doc.on('error', (err) => {
+                logger.error(`[PDF Stream] สร้าง PDF stream ไม่สำเร็จ: ${err.message}`);
+                reject(new Error('PDF generation failed'));
+            });
         });
 
         const elements = Array.isArray(docStructure.element) ? docStructure.element : [docStructure.element];
@@ -124,8 +129,9 @@ const generateInvoiceBase64 = async (data) => {
         return encryptedBuffer.toString('base64');
 
     } catch (error) {
+        // log รายละเอียดไว้ฝั่งเซิร์ฟเวอร์ แล้วโยน Error ข้อความกลางออกไป ไม่ส่ง error ดิบต่อ
         logger.error(`เกิดข้อผิดพลาดในการสร้าง PDF: ${error.message}`);
-        throw error;
+        throw new Error('PDF generation failed');
     }
 };
 

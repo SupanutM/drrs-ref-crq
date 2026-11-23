@@ -17,10 +17,12 @@ const generatePdfController = async (req, res) => {
         });
 
     } catch (error) {
-        logger.error(error);
+        // เก็บรายละเอียด error ไว้ใน log ฝั่งเซิร์ฟเวอร์เท่านั้น
+        // ไม่ส่ง error.message กลับไปให้ client (อาจมี path ไฟล์/ข้อมูลระบบหลุดออกไป)
+        logger.error(`[generatePdf] สร้าง PDF ไม่สำเร็จ: ${error.message}`);
         res.status(500).json({
             success: false,
-            message: error.message
+            message: 'ไม่สามารถสร้างเอกสารได้ กรุณาลองใหม่อีกครั้ง'
         });
     }
 };
