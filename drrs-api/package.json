@@ -34,6 +34,7 @@
     "pdfkit": "^0.18.0",
     "pdfkit-table": "^0.2.11",
     "pg": "^8.22.0",
+    "selfsigned": "^5.5.0",
     "typeorm": "^1.0.0",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0"
