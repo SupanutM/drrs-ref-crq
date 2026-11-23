@@ -35,15 +35,15 @@ const formatPdfPassword = (rawPasswordString) => {
 };
 
 /**
- * ถอดรหัส owner password จาก env (PDF_OWNER_PASSWORD_ENC รูปแบบ iv:encrypted:tag)
+ * ถอดรหัส owner password จาก env (PDF_OWNER_KEY รูปแบบ iv:encrypted:tag)
  * ใช้ CRYPTO_KEY ตัวเดียวกับส่วนอื่นของระบบ
  *
  * @returns {string} owner password แบบ plain text
  */
 const getOwnerPassword = () => {
-    const encrypted = process.env.PDF_OWNER_PASSWORD_ENC;
+    const encrypted = process.env.PDF_OWNER_KEY;
     if (!encrypted) {
-        throw new Error('ไม่พบ PDF_OWNER_PASSWORD_ENC ใน env');
+        throw new Error('ไม่พบ PDF_OWNER_KEY ใน env');
     }
     return decryptGCM(encrypted, process.env.CRYPTO_KEY, process.env.CRYPTO_IV);
 };
